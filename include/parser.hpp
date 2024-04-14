@@ -1,18 +1,18 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
-#include "tokenizer.hpp"
+// #include "tokenizer.hpp"
+#include "lexer.hpp"
 
 class Parser {
 private:
-    TokenIterator it;
-    Token token;
+    Lexer lexer;
 
     // Helpers
     template<typename... Args>
     bool is_terminal_kind(const Token& token, Args... args);
 
     template<typename... Args>
-    bool is_identifier_address(const Token& token, Args... args);
+    bool is_identifier_index(const Token& token, Args... args);
 
     // Parsing
     void variable();

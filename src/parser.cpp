@@ -2,41 +2,41 @@
 
 template<typename... Args>
 bool Parser::is_terminal_kind(const Token& token, Args... args) {
-  if(!std::holds_alternative<TerminalToken>(token))
+  if(token.type != TokenType::TERMINAL)
     return false;
-  return ((std::get<TerminalToken>(token).kind == args) || ...);
+  return ((std::get<Terminal>(token.payload) == args) || ...);
 }
 
 template<typename... Args>
-bool Parser::is_identifier_address(const Token& token, Args... args) {
-  if(!std::holds_alternative<IdentifierToken>(token))
+bool Parser::is_identifier_index(const Token& token, Args... args) {
+  if(token.type != TokenType::IDENTIFIER)
     return false;
-  return ((std::get<IdentifierToken>(token).address == args) || ...);
+  return ((std::get<int>(token.payload) == static_cast<int>(args)) || ...);
 }
 
 void Parser::variable() {
-  while(is_identifier_address(token, VAR)) {
-    token = it.next();
-    int address = std::get<IdentifierToken>(token).address;
-    token = it.next();
-    if(is_terminal_kind(token, ASSIGN)) {
-      token = it.next();
-      it.store(address, expression());
+  while(is_identifier_index(lexer.token, Keyword::VAR)) {
+    lexer.next();
+    int address = std::get<int>(lexer.token.payload);
+    lexer.next();
+    if(is_terminal_kind(lexer.token, Terminal::ASSIGN)) {
+      lexer.next();
+      lexer.store(address, expression());
     }
-    if(is_terminal_kind(token, SEMICOLON))
-      token = it.next();
+    if(is_terminal_kind(lexer.token, Terminal::SEMICOLON))
+      lexer.next();
   }
 }
 
 int Parser::expression() {
   int result = term();
-  while(is_terminal_kind(token, PLUS, MINUS)) { 
-    if(is_terminal_kind(token, PLUS)){
-      token = it.next();
+  while(is_terminal_kind(lexer.token, Terminal::PLUS, Terminal::MINUS)) { 
+    if(is_terminal_kind(lexer.token, Terminal::PLUS)){
+      lexer.next();
       result += factor();
     }      
     else {
-      token = it.next();
+      lexer.next();
       result -= factor();
     }
   }
@@ -45,13 +45,13 @@ int Parser::expression() {
 
 int Parser::term() {
   int result = factor();
-  while(is_terminal_kind(token, MUL, DIV)) {
-    if(is_terminal_kind(token, MUL)) {
-      token = it.next();
+  while(is_terminal_kind(lexer.token, Terminal::MUL, Terminal::DIV)) {
+    if(is_terminal_kind(lexer.token, Terminal::MUL)) {
+      lexer.next();
       result *= factor();
     }
     else {
-      token = it.next();
+      lexer.next();
       result /= factor();
     }
   }
@@ -60,35 +60,35 @@ int Parser::term() {
 
 int Parser::factor() {
   int result = 0;
-  if(std::holds_alternative<IdentifierToken>(token)) {
-    result = it.load(std::get<IdentifierToken>(token).address);
-    token = it.next();
+  if(lexer.token.type == TokenType::IDENTIFIER){
+    result = lexer.load(std::get<int>(lexer.token.payload));
+    lexer.next();
   } 
-  else if(std::holds_alternative<ConstantToken>(token)) {
-    result = std::get<ConstantToken>(token).value;
-    token = it.next();
+  else if(lexer.token.type == TokenType::CONSTANT) {
+    result = std::get<int>(lexer.token.payload);
+    lexer.next();
   }
-  else if (is_terminal_kind(token, LPAREN)) {
-    token = it.next();
+  else if (is_terminal_kind(lexer.token, Terminal::LPAREN)) {
+    lexer.next();
     result = expression();
-    if(is_terminal_kind(token, RPAREN))
-      token = it.next();
+    if(is_terminal_kind(lexer.token, Terminal::RPAREN))
+      lexer.next();
   }
   return result;
 }
 
-Parser::Parser() : token{it.next()} {}
+Parser::Parser() : lexer(std::cin) { lexer.next(); }
 
 void Parser::computation() {
-  if(is_identifier_address(token, COMPUTATION)) {
-    token = it.next();
+  if(is_identifier_index(lexer.token, Keyword::COMPUTATION)) {
+    lexer.next();
     variable();
     std::cout<< expression() << std::endl;
-    while(is_terminal_kind(token, SEMICOLON)) {
-      token = it.next();
+    while(is_terminal_kind(lexer.token, Terminal::SEMICOLON)) {
+      lexer.next();
       std::cout<< expression() << std::endl;
     }
-    if(is_terminal_kind(token, PERIOD)) return;
+    if(is_terminal_kind(lexer.token, Terminal::PERIOD)) return;
   }
 }
 
