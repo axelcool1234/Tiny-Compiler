@@ -112,7 +112,7 @@ private:
   void term_tok(const char& ch);
 public:
   Token token;
-  Lexer(std::istream& in) : identifier_values(static_cast<int>(Keyword::KEYWORD_COUNT), -1), input(in) {}
+  Lexer(std::istream& in) : input(in) {}
   void next();
   void store(int index, int value);
   int load(int index);

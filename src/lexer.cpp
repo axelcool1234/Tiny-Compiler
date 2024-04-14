@@ -62,7 +62,7 @@ void Lexer::ident_tok(const std::string& lexeme) {
     identifier_table[lexeme] = index;
     identifier_values.push_back(0);
   }
-  else index = identifier_table[lexeme];
+  else index = identifier_table[lexeme] - static_cast<int>(Keyword::KEYWORD_COUNT);
   token = Token{ TokenType::IDENTIFIER, identifier_table[lexeme] };
 }
 
