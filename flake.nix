@@ -18,6 +18,7 @@
         # Nix shells actually start with "stdenv" which
         # includes tools such as gcc, make, etc.
         # gnumake
+        gdb
       ];
     shellHook = ''
       export HELIX_RUNTIME="$PWD/runtime"

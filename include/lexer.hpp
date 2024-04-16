@@ -24,21 +24,21 @@ inline constexpr std::uint16_t encode(const char ch[2]) {
 }
 
 #define TERMINAL_LIST \
-    TERMINAL(SEMICOLON, ';') \
-    TERMINAL(LPAREN, '(') \
-    TERMINAL(RPAREN, ')') \
-    TERMINAL(MUL, '*') \
-    TERMINAL(DIV, '/') \
-    TERMINAL(PLUS, '+') \
-    TERMINAL(MINUS, '-') \
-    TERMINAL(PERIOD, '.') \
-    TERMINAL(ASSIGN, "<-") \
-    TERMINAL(EQ, "==") \
-    TERMINAL(NEQ, "!=") \
-    TERMINAL(LT, '<') \
-    TERMINAL(LE, "<=") \
-    TERMINAL(GT, '>') \
-    TERMINAL(GE, ">=")
+  TERMINAL(SEMICOLON, ';') \
+  TERMINAL(LPAREN, '(') \
+  TERMINAL(RPAREN, ')') \
+  TERMINAL(MUL, '*') \
+  TERMINAL(DIV, '/') \
+  TERMINAL(PLUS, '+') \
+  TERMINAL(MINUS, '-') \
+  TERMINAL(PERIOD, '.') \
+  TERMINAL(ASSIGN, "<-") \
+  TERMINAL(EQ, "==") \
+  TERMINAL(NEQ, "!=") \
+  TERMINAL(LT, '<') \
+  TERMINAL(LE, "<=") \
+  TERMINAL(GT, '>') \
+  TERMINAL(GE, ">=")
 
 enum class Terminal : uint16_t {
 #define TERMINAL(name, encoding) name = encode(encoding),
@@ -53,21 +53,21 @@ static const std::unordered_set<Terminal> terminals{
 };
 
 #define KEYWORD_LIST \
-    KEYWORD(COMPUTATION, computation) \
-    KEYWORD(VAR, var) \
-    KEYWORD(LET, let) \
-    KEYWORD(CALL, call) \
-    KEYWORD(IF, if) \
-    KEYWORD(THEN, then) \
-    KEYWORD(ELSE, else) \
-    KEYWORD(FI, fi) \
-    KEYWORD(WHILE, while) \
-    KEYWORD(DO, do) \
-    KEYWORD(OD, od) \
-    KEYWORD(RETURN, return) \
-    KEYWORD(VOID, void) \
-    KEYWORD(FUNCTION, function) \
-    KEYWORD(MAIN, main)
+  KEYWORD(COMPUTATION, computation) \
+  KEYWORD(VAR, var) \
+  KEYWORD(LET, let) \
+  KEYWORD(CALL, call) \
+  KEYWORD(IF, if) \
+  KEYWORD(THEN, then) \
+  KEYWORD(ELSE, else) \
+  KEYWORD(FI, fi) \
+  KEYWORD(WHILE, while) \
+  KEYWORD(DO, do) \
+  KEYWORD(OD, od) \
+  KEYWORD(RETURN, return) \
+  KEYWORD(VOID, void) \
+  KEYWORD(FUNCTION, function) \
+  KEYWORD(MAIN, main)
 
 enum class Keyword {
 #define KEYWORD(name, encoding) name,

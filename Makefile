@@ -1,6 +1,6 @@
 CC:=g++
 CFLAGS:=-std=c++23 -Iinclude -Wall -Werror -Wno-unused-variable
-DFLAGS := -ggdb -DDEBUG
+DFLAGS := -ggdb -DDEBUG 
 
 SRC_DIR:=src
 INCLUDE_DIR:=include
