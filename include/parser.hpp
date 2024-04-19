@@ -1,11 +1,13 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 // #include "tokenizer.hpp"
+#include "intermediaterepresentation.hpp"
 #include "lexer.hpp"
 
 class Parser {
 private:
     Lexer lexer;
+    IntermediateRepresentation ir;
 
     // Helpers
     template<typename... Args>
@@ -15,7 +17,11 @@ private:
     bool is_identifier_index(const Token& token, Args... args);
 
     // Parsing
-    void variable();
+    void variable_declaration();
+    // void function_declaration();
+    void statement_sequence();
+
+    void statement();
     int expression();
     int term();
     int factor();

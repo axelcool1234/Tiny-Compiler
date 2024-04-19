@@ -25,8 +25,11 @@ inline constexpr std::uint16_t encode(const char ch[2]) {
 
 #define TERMINAL_LIST \
   TERMINAL(SEMICOLON, ';') \
+  TERMINAL(COMMA, ',') \
   TERMINAL(LPAREN, '(') \
   TERMINAL(RPAREN, ')') \
+  TERMINAL(LBRACE, '{') \
+  TERMINAL(RBRACE, '}') \
   TERMINAL(MUL, '*') \
   TERMINAL(DIV, '/') \
   TERMINAL(PLUS, '+') \
@@ -53,7 +56,6 @@ static const std::unordered_set<Terminal> terminals{
 };
 
 #define KEYWORD_LIST \
-  KEYWORD(COMPUTATION, computation) \
   KEYWORD(VAR, var) \
   KEYWORD(LET, let) \
   KEYWORD(CALL, call) \

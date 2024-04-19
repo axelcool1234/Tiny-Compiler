@@ -14,17 +14,33 @@ bool Parser::is_identifier_index(const Token& token, Args... args) {
   return ((std::get<int>(token.payload) == static_cast<int>(args)) || ...);
 }
 
-void Parser::variable() {
-  while(is_identifier_index(lexer.token, Keyword::VAR)) {
+void Parser::variable_declaration() {
+  if(is_identifier_index(lexer.token, Keyword::VAR)) {
     lexer.next();
-    int address = std::get<int>(lexer.token.payload);
-    lexer.next();
-    if(is_terminal_kind(lexer.token, Terminal::ASSIGN)) {
+    lexer.next(); // ident
+    while(is_terminal_kind(lexer.token, Terminal::COMMA)) {
       lexer.next();
-      lexer.store(address, expression());
+      lexer.next(); // ident
     }
     if(is_terminal_kind(lexer.token, Terminal::SEMICOLON))
       lexer.next();
+  }
+}
+
+void Parser::statement_sequence() {
+  if(is_terminal_kind(lexer.token, Terminal::LBRACE))
+    lexer.next();
+  while(!is_terminal_kind(lexer.token, Terminal::RBRACE)) {
+    statement();
+    if(is_terminal_kind(lexer.token, Terminal::SEMICOLON))
+      lexer.next();
+  }
+}
+
+void Parser::statement() {
+  switch(lexer.token){
+
+
   }
 }
 
@@ -80,14 +96,11 @@ int Parser::factor() {
 Parser::Parser() : lexer(std::cin) { lexer.next(); }
 
 void Parser::computation() {
-  if(is_identifier_index(lexer.token, Keyword::COMPUTATION)) {
+  if(is_identifier_index(lexer.token, Keyword::MAIN)) {
     lexer.next();
-    variable();
-    std::cout<< expression() << std::endl;
-    while(is_terminal_kind(lexer.token, Terminal::SEMICOLON)) {
-      lexer.next();
-      std::cout<< expression() << std::endl;
-    }
+    variable_declaration();
+    // function_declaration();
+    statement_sequence();
     if(is_terminal_kind(lexer.token, Terminal::PERIOD)) return;
   }
 }

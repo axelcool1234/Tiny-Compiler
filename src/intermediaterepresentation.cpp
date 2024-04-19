@@ -8,13 +8,13 @@ void IntermediateRepresentation::compute_dominators() {
   std::ranges::fill(doms, -1);
   doms[0] = basic_blocks[0].index; // entry block
   bool changed = true;
-  while(changed) {
+  while (changed) {
     changed = false;
     // for all basic_blocks, b, in reverse postorder (except first basic block)
-    for(const BasicBlock& b : basic_blocks | std::views::drop(1)) {
+    for (const BasicBlock &b : basic_blocks | std::views::drop(1)) {
       int new_idom = b.predecessors.front();
       // if b has a second predecessor
-      if(b.predecessors.size() == 2 && doms[b.predecessors.back()] != -1) {
+      if (b.predecessors.size() == 2 && doms[b.predecessors.back()] != -1) {
         new_idom = intersect(b.predecessors.back(), new_idom);
       }
       if (doms[b.index] != new_idom) {
@@ -116,35 +116,28 @@ int main() {
   std::cout << ir.to_dotlang();
 
   // Dominance Test (old and is incompatible to current design of IntermediateRepresentation)
-  // IntermediateRepresentation ir;
-  // BasicBlock& zero  = ir.get_entry_block();
-  // BasicBlock& one   = ir.new_block(zero);
-  // BasicBlock& two   = ir.new_block(one);
-  // BasicBlock& three = ir.new_block(two);
-  // BasicBlock& four  = ir.new_block(two);
-  // BasicBlock& five  = ir.new_block(three, four);
-  // BasicBlock& six   = ir.new_block(one);
-  // BasicBlock& seven = ir.new_block(five, six);
-  // // ir.compute_dominators();
-  // ir.print_dominance_info();
-  // BasicBlock& eight = ir.new_block(seven);
-  // BasicBlock& nine  = ir.new_block(seven);
-  // BasicBlock& ten   = ir.new_block(eight, nine);
-  // std::cout << "compute dominators again:" << std::endl;
-  // // ir.compute_dominators();
-  // ir.print_dominance_info();
-  // BasicBlock& eleven    = ir.new_block(ten);
-  // BasicBlock& twelve    = ir.new_block(eleven);
-  // BasicBlock& thirteen  = ir.new_block(eleven);
-  // BasicBlock& fourteen  = ir.new_block(twelve, thirteen);
-  // BasicBlock& fifteen   = ir.new_block(ten);
-  // BasicBlock& sixteen   = ir.new_block(fifteen);
-  // BasicBlock& seventeen = ir.new_block(fifteen);
-  // BasicBlock& eighteen  = ir.new_block(sixteen, seventeen);
-  // BasicBlock& nineteen  = ir.new_block(fourteen, eighteen); 
-  // std::cout << "compute dominators again:" << std::endl;
-  // // ir.compute_dominators();
-  // ir.print_dominance_info();
+  IntermediateRepresentation ir1;
+  int zero1{0};
+  int one1   = ir1.new_block(zero1);
+  int two1   = ir1.new_block(one1);
+  int three1 = ir1.new_block(two1);
+  int four1  = ir1.new_block(two1);
+  int five  = ir1.new_block(three1, four1);
+  int six   = ir1.new_block(one1);
+  int seven = ir1.new_block(five, six);
+  int eight = ir1.new_block(seven);
+  int nine  = ir1.new_block(seven);
+  int ten   = ir1.new_block(eight, nine);
+  int eleven    = ir1.new_block(ten);
+  int twelve    = ir1.new_block(eleven);
+  int thirteen  = ir1.new_block(eleven);
+  int fourteen  = ir1.new_block(twelve, thirteen);
+  int fifteen   = ir1.new_block(ten);
+  int sixteen   = ir1.new_block(fifteen);
+  int seventeen = ir1.new_block(fifteen);
+  int eighteen  = ir1.new_block(sixteen, seventeen);
+  int nineteen  = ir1.new_block(fourteen, eighteen); 
+  std::cout << ir1.to_dotlang();
 }
 
 /*
