@@ -25,7 +25,7 @@ void IntermediateRepresentation::compute_dominators() {
     }
 }
 
-int IntermediateRepresentation::intersect(int b1, int b2) const {
+bb_t IntermediateRepresentation::intersect(bb_t b1, bb_t b2) const {
     while(b1 != b2) {
         while(b1 > b2) b1 = doms[b1];
         while(b2 > b1) b2 = doms[b2];
@@ -33,43 +33,81 @@ int IntermediateRepresentation::intersect(int b1, int b2) const {
     return b1;
 }
 
-int IntermediateRepresentation::new_block(const int& p) {
-    int index = static_cast<int>(basic_blocks.size());
-    basic_blocks.emplace_back(index, p);
+void IntermediateRepresentation::establish_const_block(const ident_t& ident_count) {
+    basic_blocks.emplace_back(0, ident_count);
+    doms.push_back(0);
+}
+
+bb_t IntermediateRepresentation::new_block(const bb_t& p) {
+    bb_t index = basic_blocks.size();
+    basic_blocks.emplace_back(index, basic_blocks[p].identifier_values, p);
     doms.push_back(p);
     return index;
 }
 
-int IntermediateRepresentation::new_block(const int& p, Blocktype t) {
-    int index = static_cast<int>(basic_blocks.size());
-    basic_blocks.emplace_back(index, p, t);
+bb_t IntermediateRepresentation::new_block(const bb_t& p, Blocktype t) {
+    bb_t index = basic_blocks.size();
+    basic_blocks.emplace_back(index, basic_blocks[p].identifier_values, p, t);
     doms.push_back(p);
     return index;
 }
 
-int IntermediateRepresentation::new_block(const int& p1, const int& p2) {
-    int index = static_cast<int>(basic_blocks.size());
-    basic_blocks.emplace_back(index, p1, p2);
-    doms.push_back(intersect(p1, p2));
+bb_t IntermediateRepresentation::new_block(const bb_t& p1, const bb_t& p2) {
+    bb_t index = basic_blocks.size();
+    bb_t idom = intersect(p1, p2);
+    basic_blocks.emplace_back(index, basic_blocks[idom].identifier_values, p1, p2);
+    doms.push_back(idom);
     return index;
 }
 
-void IntermediateRepresentation::add_instruction(const int& b, Opcode op, int x1, int x2) {
+instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2) {
+    instruct_t instruct = search_cse(b, op, x1, x2);
+    if(instruct != -1) return instruct;
     basic_blocks[b].add_instruction(++instruction_count, op, x1, x2);  
+    return instruction_count;
 } 
-void IntermediateRepresentation::add_instruction(const int& b, Opcode op, int x1)  {
+instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& x1)  {
+    instruct_t instruct = search_cse(b, op, x1, -1);
+    if(instruct != -1) return instruct;
     basic_blocks[b].add_instruction(++instruction_count, op, x1, -1);  
+    return instruction_count;
 } 
-void IntermediateRepresentation::add_instruction(const int& b, Opcode op) {
+instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op) {
+    instruct_t instruct = search_cse(b, op, -1, -1);
+    if(instruct != -1) return instruct;
     basic_blocks[b].add_instruction(++instruction_count, op, -1, -1);  
-} 
+    return instruction_count;
+}
+
+instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2) {
+    if(op > CSE_COUNT) return -1;
+    bb_t curr_block = b;
+    while(true) {
+        for(const instruct_t& instruct : basic_blocks[b].partitioned_instructions[op]) {
+            if(op == basic_blocks[b].instructions[instruct].opcode &&
+               x1 == basic_blocks[b].instructions[instruct].larg   &&
+               x2 == basic_blocks[b].instructions[instruct].rarg)
+            return basic_blocks[b].instructions[instruct].instruction_number;
+        }
+        if(curr_block == 0) return -1;
+        curr_block = doms[curr_block];
+    }
+}
+
+instruct_t IntermediateRepresentation::get_ident_value(const bb_t& b, const ident_t& ident) {    
+    return basic_blocks[b].get_ident_value(ident);
+}
+
+void IntermediateRepresentation::change_ident_value(const bb_t& b, const ident_t& ident, const instruct_t& instruct) {
+    basic_blocks[b].change_instruction(ident, instruct);
+}
 
 std::string IntermediateRepresentation::to_dotlang() const {
     std::string msg = "digraph G {\n";
     for(const BasicBlock& b : basic_blocks) 
         msg += b.to_dotlang();
     for(const BasicBlock& b : basic_blocks){
-        for(const int& p : b.predecessors) {
+        for(const auto& p : b.predecessors) {
             msg += std::format("bb{}:s -> bb{}:n ", p, b.index);
             if(b.type == BRANCH) {
                 msg += "[label=\"branch\"]";
@@ -92,82 +130,3 @@ std::string IntermediateRepresentation::to_dotlang() const {
     msg += "}\n";
     return msg;
 }
-
-int main() {
-    // Dotlang Test
-    IntermediateRepresentation ir;
-    int zero{0};
-    int one = ir.new_block(zero);
-    int two = ir.new_block(one, FALLTHROUGH);
-    int three = ir.new_block(one, BRANCH);
-    int four = ir.new_block(two, three);
-
-    ir.add_instruction(one, READ);
-    ir.add_instruction(one, ADD, 1, 1);
-    ir.add_instruction(zero, CONST, 0);
-    ir.add_instruction(one, CMP, 1, 3);
-    ir.add_instruction(one, BGE, 4, 10);
-    ir.add_instruction(two, ADD, 2, 2);
-    ir.add_instruction(four, PHI, 6, 2);
-    ir.add_instruction(four, PHI, 6, 1);
-    ir.add_instruction(two, BRA, 7);
-    ir.add_instruction(three, EMPTY);
-    ir.add_instruction(four, WRITE, 8);
-    std::cout << ir.to_dotlang();
-
-    // Dominance Test (old and is incompatible to current design of IntermediateRepresentation)
-    IntermediateRepresentation ir1;
-    int zero1{0};
-    int one1   = ir1.new_block(zero1);
-    int two1   = ir1.new_block(one1);
-    int three1 = ir1.new_block(two1);
-    int four1  = ir1.new_block(two1);
-    int five  = ir1.new_block(three1, four1);
-    int six   = ir1.new_block(one1);
-    int seven = ir1.new_block(five, six);
-    int eight = ir1.new_block(seven);
-    int nine  = ir1.new_block(seven);
-    int ten   = ir1.new_block(eight, nine);
-    int eleven    = ir1.new_block(ten);
-    int twelve    = ir1.new_block(eleven);
-    int thirteen  = ir1.new_block(eleven);
-    int fourteen  = ir1.new_block(twelve, thirteen);
-    int fifteen   = ir1.new_block(ten);
-    int sixteen   = ir1.new_block(fifteen);
-    int seventeen = ir1.new_block(fifteen);
-    int eighteen  = ir1.new_block(sixteen, seventeen);
-    int nineteen  = ir1.new_block(fourteen, eighteen); 
-    std::cout << ir1.to_dotlang();
-}
-
-/*
-Postorder:         right, left, root
-Reverse Postorder: root, left, right
-       0    
-       |
-       1
-      / \
-     2   6 
-    / \  |
-   3  4  |
-   \ /   |
-    5    |
-     \   |
-      \  |
-       \ |
-        7
-       / \
-      8  9
-      \ /
-      10
-     /  \
-    /    \
-   11    15
-  /  \  /  \
- 12 13 16  17
-  \ /   \ /
-  14     18
-   \    /
-    \  /
-     19
-*/

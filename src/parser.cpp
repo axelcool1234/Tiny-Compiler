@@ -11,7 +11,7 @@ template<typename... Args>
 bool Parser::is_identifier_index(const Token& token, Args... args) {
     if(token.type != TokenType::IDENTIFIER)
         return false;
-    return ((std::get<int>(token.payload) == static_cast<int>(args)) || ...);
+    return ((std::get<int>(token.payload) == -static_cast<int>(args)) || ...);
 }
 
 void Parser::variable_declaration() {
@@ -27,70 +27,82 @@ void Parser::variable_declaration() {
     }
 }
 
-void Parser::statement_sequence() {
+void Parser::statement_sequence(const bb_t& curr_block) {
     if(is_terminal_kind(lexer.token, Terminal::LBRACE))
         lexer.next();
     while(!is_terminal_kind(lexer.token, Terminal::RBRACE)) {
-        statement();
+        statement(curr_block);
         if(is_terminal_kind(lexer.token, Terminal::SEMICOLON))
             lexer.next();
     }
 }
 
-void Parser::statement() {
-    switch(lexer.token){
-
-
+void Parser::statement(const bb_t& curr_block) {
+    if(is_identifier_index(lexer.token, Keyword::LET)) {
+        lexer.next();
+        let_statement(curr_block);
     }
 }
 
-int Parser::expression() {
-    int result = term();
+void Parser::let_statement(const bb_t& curr_block) {
+    ident_t ident = std::get<int>(lexer.token.payload);
+    lexer.next();
+    if(is_terminal_kind(lexer.token, Terminal::ASSIGN)){
+        lexer.next();
+        ir.change_ident_value(curr_block, ident, expression(curr_block));
+    }
+}
+
+instruct_t Parser::expression(const bb_t& curr_block) {
+    instruct_t result = term(curr_block);
     while(is_terminal_kind(lexer.token, Terminal::PLUS, Terminal::MINUS)) { 
         if(is_terminal_kind(lexer.token, Terminal::PLUS)){
             lexer.next();
-            result += factor();
+            result = ir.add_instruction(curr_block, Opcode::ADD, result, term(curr_block));
         }      
         else {
             lexer.next();
-            result -= factor();
+            result = ir.add_instruction(curr_block, Opcode::SUB, result, term(curr_block));
         }
     }
     return result;
 }
 
-int Parser::term() {
-    int result = factor();
+instruct_t Parser::term(const bb_t& curr_block) {
+    instruct_t result = factor(curr_block);
     while(is_terminal_kind(lexer.token, Terminal::MUL, Terminal::DIV)) {
         if(is_terminal_kind(lexer.token, Terminal::MUL)) {
             lexer.next();
-            result *= factor();
+            result = ir.add_instruction(curr_block, Opcode::MUL, result, factor(curr_block));
         }
         else {
             lexer.next();
-            result /= factor();
+            result = ir.add_instruction(curr_block, Opcode::DIV, result, factor(curr_block));
         }
     }
     return result;
 }
 
-int Parser::factor() {
-    int result = 0;
+instruct_t Parser::factor(const bb_t& curr_block) {
+    instruct_t result;
     if(lexer.token.type == TokenType::IDENTIFIER){
-        result = lexer.load(std::get<int>(lexer.token.payload));
+        result = ir.get_ident_value(curr_block, std::get<int>(lexer.token.payload));
         lexer.next();
+        return result;
     } 
     else if(lexer.token.type == TokenType::CONSTANT) {
-        result = std::get<int>(lexer.token.payload);
+        result = ir.add_instruction(const_block, Opcode::CONST, std::get<int>(lexer.token.payload));        
         lexer.next();
+        return result;
     }
     else if (is_terminal_kind(lexer.token, Terminal::LPAREN)) {
         lexer.next();
-        result = expression();
+        result = expression(curr_block);
         if(is_terminal_kind(lexer.token, Terminal::RPAREN))
             lexer.next();
+        return result;
     }
-    return result;
+    throw std::runtime_error("Parser error in factor function.");
 }
 
 Parser::Parser() : lexer(std::cin) { lexer.next(); }
@@ -100,12 +112,15 @@ void Parser::computation() {
         lexer.next();
         variable_declaration();
         // function_declaration();
-        statement_sequence();
+        ir.establish_const_block(lexer.ident_index);
+        bb_t curr_block = ir.new_block(const_block);
+        statement_sequence(curr_block);
+        std::cout << ir.to_dotlang();
         if(is_terminal_kind(lexer.token, Terminal::PERIOD)) return;
     }
 }
 
-// int main() {
-//   Parser p;
-//   p.computation();
-// }
+int main() {
+  Parser p;
+  p.computation();
+}

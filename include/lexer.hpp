@@ -85,14 +85,15 @@ enum class TokenType {
     IDENTIFIER,
 };
 
-class Token {
-public:
+struct Token {
     std::variant<Terminal, int> payload;
     TokenType type;
     void print();
     Token(TokenType ty, std::variant<Terminal, int> pl) : payload(pl), type(ty) {}
     Token() = default;
 };
+
+using ident_t = size_t;
 
 class Lexer {
 private:
@@ -102,22 +103,20 @@ private:
         CONSTANT,
     };
     std::map<std::string, int> identifier_table{
-#define KEYWORD(name, encoding) {#encoding, static_cast<int>(Keyword::name)},
+#define KEYWORD(name, encoding) {#encoding, -static_cast<int>(Keyword::name)},
         KEYWORD_LIST
 #undef KEYWORD
     };
-    std::vector<int> identifier_values;
     std::istream& input;
     void unget(const char& ch);
     void ident_tok(const std::string& lexeme);
     void const_tok(const std::string& lexeme);
     void term_tok(const char& ch);
 public:
+    ident_t ident_index{};
     Token token;
     Lexer(std::istream& in) : input(in) {}
     void next();
-    void store(int index, int value);
-    int load(int index);
 };
 
 class LexerException : public std::exception {

@@ -13,15 +13,18 @@ private:
     std::vector<int> doms;
     int instruction_count = 0;
 public:
-    IntermediateRepresentation() : basic_blocks({ BasicBlock{0} }), doms( {0} ) {}
     void compute_dominators();
-    int intersect(int b1, int b2) const;
-    int new_block(const int& p);
-    int new_block(const int& p, Blocktype t);
-    int new_block(const int& p1, const int& p2);
-    void add_instruction(const int& b, Opcode op, int x1, int x2); 
-    void add_instruction(const int& b, Opcode op, int x1); 
-    void add_instruction(const int& b, Opcode op); 
+    bb_t intersect(bb_t b1, bb_t b2) const;
+    void establish_const_block(const ident_t& ident_count);
+    bb_t new_block(const bb_t& p);
+    bb_t new_block(const bb_t& p, Blocktype t);
+    bb_t new_block(const bb_t& p1, const bb_t& p2);
+    instruct_t add_instruction(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2); 
+    instruct_t add_instruction(const bb_t& b, Opcode op, const instruct_t& x1); 
+    instruct_t add_instruction(const bb_t& b, Opcode op); 
+    instruct_t search_cse(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2);
+    instruct_t get_ident_value(const bb_t& b, const ident_t& ident);
+    void change_ident_value(const bb_t& b, const ident_t& ident, const instruct_t& instruct);
     std::string to_dotlang() const;
 };
 

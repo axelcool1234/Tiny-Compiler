@@ -9,3 +9,5 @@ std::string Instruction::to_dotlang() const {
     return msg;
 }
 
+Instruction::Instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2) 
+    : instruction_number(num), opcode(op), larg(x1), rarg(x2) {};

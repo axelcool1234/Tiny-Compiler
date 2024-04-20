@@ -47,20 +47,12 @@ void Lexer::next() {
     }while(true);  
 }
 
-void Lexer::store(int index, int value) {
-    identifier_values[index] = value;
-}
-
-int Lexer::load(int index) {
-    return identifier_values[index];
-}
-
 void Lexer::ident_tok(const std::string& lexeme) {
     int index;
     if (!identifier_table.contains(lexeme)) {
-        index = identifier_values.size();
+        index = ident_index;
         identifier_table[lexeme] = index;
-        identifier_values.push_back(0);
+        ++ident_index;
     }
     else index = identifier_table[lexeme] - static_cast<int>(Keyword::KEYWORD_COUNT);
     token = Token{ TokenType::IDENTIFIER, identifier_table[lexeme] };

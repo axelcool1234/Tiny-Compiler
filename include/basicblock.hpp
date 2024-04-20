@@ -11,20 +11,22 @@ enum Blocktype {
     JOIN,
     NONE
 };
-
-class BasicBlock {
-private:
+using ident_t = size_t;
+using bb_t = size_t;
+struct BasicBlock {
     std::vector<Instruction> instructions;
-    std::vector<std::vector<int>> sorted_instructions;
-public:
+    std::vector<std::vector<instruct_t>> partitioned_instructions;
     Blocktype type;
-    int index;
-    std::vector<int> predecessors;
-    BasicBlock(int i)                     : sorted_instructions(CSE_COUNT, std::vector<int>{}), type(NONE), index(i) {}
-    BasicBlock(int i, int p)              : sorted_instructions(CSE_COUNT, std::vector<int>{}), type(NONE), index(i), predecessors({p}) {}
-    BasicBlock(int i, int p, Blocktype t) : sorted_instructions(CSE_COUNT, std::vector<int>{}), type(t),    index(i), predecessors({p}) {}
-    BasicBlock(int i, int p1, int p2)     : sorted_instructions(CSE_COUNT, std::vector<int>{}), type(JOIN), index(i), predecessors({p1, p2}) {}
-    void add_instruction(const int& num, Opcode op, const int& x1, const int& x2);
+    bb_t index;
+    std::vector<bb_t> predecessors;
+    std::vector<ident_t> identifier_values;
+    BasicBlock(const bb_t& i, const ident_t& ident_count);
+    BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals, const bb_t& p);              
+    BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals, const bb_t& p, Blocktype t); 
+    BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals, const bb_t& p1, const bb_t& p2);    
+    void add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2);
+    instruct_t get_ident_value(const ident_t& ident);
+    void change_instruction(const ident_t& ident, const instruct_t& instruct);
     std::string to_dotlang() const;
 };
 

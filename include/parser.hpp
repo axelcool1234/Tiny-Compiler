@@ -8,6 +8,7 @@ class Parser {
 private:
     Lexer lexer;
     IntermediateRepresentation ir;
+    const int const_block = 0;
 
     // Helpers
     template<typename... Args>
@@ -19,12 +20,13 @@ private:
     // Parsing
     void variable_declaration();
     // void function_declaration();
-    void statement_sequence();
+    void statement_sequence(const bb_t& curr_block);
+    void statement(const bb_t& curr_block);
+    void let_statement(const bb_t& curr_block);
 
-    void statement();
-    int expression();
-    int term();
-    int factor();
+    instruct_t expression(const bb_t& curr_block);
+    instruct_t term(const bb_t& curr_block);
+    instruct_t factor(const bb_t& curr_block);
 
 public:
     Parser();
