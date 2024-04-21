@@ -61,30 +61,30 @@ bb_t IntermediateRepresentation::new_block(const bb_t& p1, const bb_t& p2) {
     return index;
 }
 
-instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2) {
+instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     if(basic_blocks[b].instructions.size() != 0 && basic_blocks[b].instructions.front().opcode == Opcode::EMPTY) {
         Instruction& instruction = basic_blocks[b].instructions.front();
         instruction.opcode = op;
-        instruction.larg = x1;
-        instruction.rarg = x2;
+        instruction.larg = larg;
+        instruction.rarg = rarg;
         return instruction.instruction_number;
     }
     return -1;
 }
-instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2) {
-    instruct_t instruct = search_cse(b, op, x1, x2);
+instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
+    instruct_t instruct = search_cse(b, op, larg, rarg);
     if(instruct != -1) return instruct;
-    instruct = change_empty(b, op, x1, x2);   
+    instruct = change_empty(b, op, larg, rarg);   
     if(instruct != -1) return instruct;
-    basic_blocks[b].add_instruction(++instruction_count, op, x1, x2);  
+    basic_blocks[b].add_instruction(++instruction_count, op, larg, rarg);  
     return instruction_count;
 } 
-instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& x1)  {
-    instruct_t instruct = search_cse(b, op, x1, -1);
+instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg)  {
+    instruct_t instruct = search_cse(b, op, larg, -1);
     if(instruct != -1) return instruct;
-    instruct = change_empty(b, op, x1, -1);   
+    instruct = change_empty(b, op, larg, -1);   
     if(instruct != -1) return instruct;
-    basic_blocks[b].add_instruction(++instruction_count, op, x1, -1);  
+    basic_blocks[b].add_instruction(++instruction_count, op, larg, -1);  
     return instruction_count;
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op) {
@@ -113,14 +113,14 @@ void IntermediateRepresentation::set_branch_location(const bb_t& b, const instru
     instruction.rarg = rarg;
 }
 
-instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2) {
+instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     if(op > CSE_COUNT) return -1;
     bb_t curr_block = b;
     while(true) {
         for(const instruct_t& instruct : basic_blocks[b].partitioned_instructions[op]) {
             if(op == basic_blocks[b].instructions[instruct].opcode &&
-               x1 == basic_blocks[b].instructions[instruct].larg   &&
-               x2 == basic_blocks[b].instructions[instruct].rarg)
+               larg == basic_blocks[b].instructions[instruct].larg &&
+               rarg == basic_blocks[b].instructions[instruct].rarg)
             return basic_blocks[b].instructions[instruct].instruction_number;
         }
         if(curr_block == 0) return -1;
