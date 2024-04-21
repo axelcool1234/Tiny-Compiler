@@ -19,12 +19,16 @@ public:
     bb_t new_block(const bb_t& p);
     bb_t new_block(const bb_t& p, Blocktype t);
     bb_t new_block(const bb_t& p1, const bb_t& p2);
+    instruct_t change_empty(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2);
     instruct_t add_instruction(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2); 
     instruct_t add_instruction(const bb_t& b, Opcode op, const instruct_t& x1); 
     instruct_t add_instruction(const bb_t& b, Opcode op); 
+    instruct_t first_instruction(const bb_t& b);
     instruct_t search_cse(const bb_t& b, Opcode op, const instruct_t& x1, const instruct_t& x2);
     instruct_t get_ident_value(const bb_t& b, const ident_t& ident);
     void change_ident_value(const bb_t& b, const ident_t& ident, const instruct_t& instruct);
+    void set_branch_cond(const bb_t& b, Opcode op, const instruct_t& larg);
+    void set_branch_location(const bb_t& b, const instruct_t& rarg);
     std::string to_dotlang() const;
 };
 

@@ -21,6 +21,10 @@ std::string BasicBlock::to_dotlang() const {
         msg += instructions[i].to_dotlang(); 
         if(i != instructions.size() - 1) msg += "|";
     }
+    if(branch_instruction.instruction_number != -1) {
+        msg += "|";
+        msg += branch_instruction.to_dotlang();
+    }
     msg += "}\"];\n";
     return msg;
 }
@@ -34,6 +38,16 @@ BasicBlock::BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals
 BasicBlock::BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals, const bb_t& p, Blocktype t) 
     : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(t),    index(i), predecessors({p}), identifier_values(dom_ident_vals) {}
 
-BasicBlock::BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals, const bb_t& p1, const bb_t& p2)    
-    : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(JOIN), index(i), predecessors({p1, p2}), identifier_values(dom_ident_vals) {}
-
+BasicBlock::BasicBlock(const bb_t& i, const std::vector<ident_t>& p1_ident_vals, const std::vector<ident_t>& p2_ident_vals, const bb_t& p1, const bb_t& p2, int& instruction_count)    
+   : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(JOIN), index(i), predecessors({p1, p2})
+{
+    for(size_t i = 0; i < p1_ident_vals.size(); ++i) {
+        if(p1_ident_vals[i] != p2_ident_vals[i]) {
+            add_instruction(++instruction_count, Opcode::PHI, p1_ident_vals[i], p2_ident_vals[i]);
+            identifier_values.emplace_back(instruction_count);
+        } 
+        else {
+            identifier_values.emplace_back(p1_ident_vals[i]);
+        }
+    }
+}
