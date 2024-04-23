@@ -80,11 +80,3 @@ void Lexer::term_tok(const char& ch) {
     else throw LexerException{ "Failed to tokenize given input. Cannot identify text as either an identifier, constant or terminal!" };
 }
 
-// int main() {
-//   Lexer lexer(std::cin);
-//   while (true) {
-//     lexer.next();
-//     lexer.token.print();
-//   }
-//   return 0;
-// }

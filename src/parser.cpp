@@ -215,7 +215,3 @@ void Parser::computation() {
     }
 }
 
-int main() {
-  Parser p;
-  p.computation();
-}
