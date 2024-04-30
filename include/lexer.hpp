@@ -20,6 +20,9 @@ struct Token {
     TokenType type;
     std::variant<Terminal, int> payload;
 
+    /*
+     * Prints the token's information based off what type it is.
+     */
     void print();
 };
 
@@ -44,6 +47,10 @@ public:
     void next();
 
 private:
+    /*
+     * Stores an integer to identify keywords, functions, and variables.
+     * Stores KEYWORDS as non-positive enum values. Stores user functions and variables as positive values.
+     */ 
     std::map<std::string, int> identifier_table {
 #define KEYWORD(name, encoding) {#encoding, -static_cast<int>(Keyword::name)},
         KEYWORD_LIST
@@ -51,8 +58,21 @@ private:
     };
 
     std::istreambuf_iterator<char> istream;
+
+    /* 
+     * Creates an identifier token by iterating character by character until a non alphanumeric character is found.
+     */
     void tokenize_identifier();
+
+    /*
+     * Creates a constant token by iterating character by character until a non digit character is found.
+     */
     void tokenize_constant();
+
+    /*
+     * Creates a terminal token by checking for a 2-char terminal, and if invalid, checks for a 1-char terminal.
+     * If it isn't either, the token's type is changed to TokenType::INVALID.
+     */
     void tokenize_terminal();
 };
 
