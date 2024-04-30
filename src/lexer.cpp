@@ -1,16 +1,114 @@
 #include "lexer.hpp"
+#include "token.hpp"
+
+
 /*
-Deterministic Finite Automata of our Lexer
-                [-------------------------------------START----------------------------------------]
-         [a-z] /           |                   |                     |           |                 \ [0-9]
-              /            | [;()*+-/.]        |[!]                  |[>]        | [<]              \ 
-    [ IDENTIFIER ]   [ 1-char TERMINAL ]     ( no accept )   [ > TERMINAL ] [ < TERMINAL ]      [ CONSTANT ]
-        | ^                                    | [=]                 | [=]      | [-=]               | ^
-        |/ [a-z0-9]                            .-----> [ 2-char TERMINAL ] <----.                    |/ [0-9]
- */
+ *  Deterministic Finite Automata of our Lexer
+ *              [-------------------------------------START----------------------------------------]
+ *       [a-z] /           |                   |                     |           |                 \ [0-9]
+ *            /            | [;()*+-/.]        |[!]                  |[>]        | [<]              \ 
+ *  [ IDENTIFIER ]   [ 1-char TERMINAL ]     ( no accept )   [ > TERMINAL ] [ < TERMINAL ]      [ CONSTANT ]
+ *      | ^                                    | [=]                 | [=]      | [-=]               | ^
+ *      |/ [a-z0-9]                            .-----> [ 2-char TERMINAL ] <----.                    |/ [0-9] */
+
+
+void Lexer::next() {
+    std::string lexeme;
+
+    // Advance past whitespace
+    while (std::isspace(*istream)) { ++istream; }
+
+    if (std::islower(*istream)) {
+        tokenize_identifier();
+    } else if (std::isdigit(*istream)) {
+        tokenize_constant();
+    } else {
+        tokenize_terminal();
+    }
+
+    if (token.type == TokenType::INVALID) {
+        throw LexerException("Failed to tokenize given input. Cannot identify text as either an identifier, constant or terminal!");
+    }
+}
+
+
+void Lexer::tokenize_identifier() {
+    std::string lexeme;
+
+    while (std::isalnum(*istream)) {
+        lexeme.push_back(*(istream++));
+    }
+
+    if (!identifier_table.contains(lexeme)) {
+        identifier_table[lexeme] = ident_index;
+        ident_index++;
+    }
+
+    token = Token {
+        .type    = TokenType::IDENTIFIER,
+        .payload = identifier_table.at(lexeme)
+    };
+};
+
+
+void Lexer::tokenize_constant()
+{
+    int val{};
+
+    // read in number, store in current token
+    do {
+        val = 10 * val + (*istream - '0');
+        ++istream;
+    } while (std::isdigit(*istream));
+
+    token = Token {
+        .type    = TokenType::CONSTANT,
+        .payload = val
+    }; 
+}
+
+
+void Lexer::tokenize_terminal()
+{
+    Terminal term;
+    char temp = *istream;
+    ++istream;
+
+    // Check for valid 2-char terminal symbol
+    term = static_cast<Terminal>(encode(temp, *istream));
+    if (terminals.contains(term)) {
+        token = Token{
+            .type    = TokenType::TERMINAL,
+            .payload = term
+        };
+        ++istream;
+        return;
+    }
+
+    // Check for valid 1-char terminal symbol
+    term = static_cast<Terminal>(encode(temp));
+    if (terminals.contains(term)) {
+        token = Token{
+            .type    = TokenType::TERMINAL,
+            .payload = term
+        };
+        return;
+    }
+}
+
+
+Lexer::Lexer(std::istream& in)
+    :istream{in} {}
+
+
+LexerException::LexerException(const std::string &msg) : message(msg) {}
+const char* LexerException::what() const noexcept {
+    return message.c_str();
+}
+
 
 void Token::print() {
-    switch(type){
+    switch (type) {
         case TokenType::TERMINAL:
             std::cout << "Terminal Token: " << static_cast<uint16_t>(std::get<Terminal>(payload)); 
             break;
@@ -20,63 +118,8 @@ void Token::print() {
         case TokenType::IDENTIFIER:
             std::cout << "Identifier Token: Index = " << std::get<int>(payload);
             break;
-        case TokenType::INVALID:
+        default:
             std::cout << "Invalid Token";
     }
     std::cout << std::endl;
 }
-void Lexer::next() {
-    State state = State::START; std::string lexeme; char c; 
-    do {
-        input.get(c);
-        switch(state){
-            case State::START:
-                if(std::isspace(c)) continue;
-                else if(std::isalpha(c)) state = State::IDENTIFIER;
-                else if(std::isdigit(c)) state = State::CONSTANT;
-                else { term_tok(c); return; } // Either fails or returns terminal token.
-                break;
-            case State::IDENTIFIER:
-                if(!isalnum(c)) { input.unget(); ident_tok(lexeme); return; }
-                break;
-            case State::CONSTANT:
-                if(!std::isdigit(c)) { input.unget(); const_tok(lexeme); return; }
-                break;
-        }
-        lexeme += c;
-    }while(true);  
-}
-
-void Lexer::ident_tok(const std::string& lexeme) {
-    int index;
-    if (!identifier_table.contains(lexeme)) {
-        index = ident_index;
-        identifier_table[lexeme] = index;
-        ++ident_index;
-    }
-    else index = identifier_table[lexeme] - static_cast<int>(Keyword::KEYWORD_COUNT);
-    token = Token{ TokenType::IDENTIFIER, identifier_table[lexeme] };
-}
-
-void Lexer::const_tok(const std::string& lexeme) {
-    token = Token { TokenType::CONSTANT, std::stoi(lexeme) }; 
-}
-
-void Lexer::term_tok(const char& ch) {
-    Terminal term;
-    // Check for 2-char terminal
-    char temp;
-    input.get(temp);
-    term = static_cast<Terminal>(encode(ch, temp));
-    if(terminals.contains(term)) { 
-        token = Token{ TokenType::TERMINAL, term };
-        return;
-    }
-    input.unget(); 
-    // Check for 1-char terminal
-    term = static_cast<Terminal>(encode(ch));
-    bool res = terminals.contains(term);
-    if(res) token = Token{ TokenType::TERMINAL, term };
-    else throw LexerException{ "Failed to tokenize given input. Cannot identify text as either an identifier, constant or terminal!" };
-}
-
