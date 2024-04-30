@@ -126,7 +126,7 @@ void Parser::if_statement(bb_t& curr_block) {
         lexer.next();
     }
     bb_t og_curr_block = curr_block;
-    curr_block = ir.new_block(then_block, else_block);
+    curr_block = ir.new_block(then_block, else_block, og_curr_block);
     ir.set_branch_cond(then_block, Opcode::BRA, ir.first_instruction(curr_block));
     ir.set_branch_location(og_curr_block, ir.first_instruction(og_else_block));
 }

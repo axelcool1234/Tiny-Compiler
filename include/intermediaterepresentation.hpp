@@ -75,18 +75,17 @@ public:
     bb_t new_block(const bb_t& p, Blocktype t);
 
     /*
-     * Creates a new block with the given parents. The block's
-     * type will be JOIN, given it has two parents. When created,
-     * intersect function will be called to determine the new block's
-     * immediate dominator. The block will also start with generated
+     * Creates a new block with the given parents and immediate dominator. The block's
+     * type will be JOIN, given it has two parents. The block will also start with generated
      * phi functions based off the discrepencies in the parent blocks'
      * identifier values.
      *
      * @param p1 The index of the first parent block of the new block.
      * @param p2 The index of the second parent block of the new block.
+     * @param idom The immediate dominator of the new block.
      * @return The index of the new block.
      */
-    bb_t new_block(const bb_t& p1, const bb_t& p2);
+    bb_t new_block(const bb_t& p1, const bb_t& p2, const bb_t& idom);
 
     /*
      * Given a block that potentially only contains an EMPTY instruction, change that

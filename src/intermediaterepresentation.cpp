@@ -55,9 +55,8 @@ bb_t IntermediateRepresentation::new_block(const bb_t& p, Blocktype t) {
     return index;
 }
 
-bb_t IntermediateRepresentation::new_block(const bb_t& p1, const bb_t& p2) {
+bb_t IntermediateRepresentation::new_block(const bb_t& p1, const bb_t& p2, const bb_t& idom) {
     bb_t index = basic_blocks.size();
-    bb_t idom = intersect(p1, p2);
     basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values, basic_blocks[p2].identifier_values, 
                               p1, p2, instruction_count);
     doms.push_back(idom);
