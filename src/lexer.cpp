@@ -13,8 +13,6 @@
 
 
 void Lexer::next() {
-    std::string lexeme;
-
     // Advance past whitespace
     while (std::isspace(*istream)) { ++istream; }
 
@@ -35,7 +33,7 @@ void Lexer::next() {
 void Lexer::tokenize_identifier() {
     std::string lexeme;
 
-    while (std::isalnum(*istream)) {
+    while (std::islower(*istream) || std::isdigit(*istream)) {
         lexeme.push_back(*(istream++));
     }
 
@@ -94,6 +92,9 @@ void Lexer::tokenize_terminal()
         };
         return;
     }
+
+    // If it isn't a 1-char or 2-char terminal, then this is invalid!
+    token.type = TokenType::INVALID;
 }
 
 
