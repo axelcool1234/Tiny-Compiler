@@ -3,7 +3,6 @@
 
 #include "instruction.hpp"
 #include <vector>
-#include <algorithm>
 
 enum Blocktype {
     FALLTHROUGH,

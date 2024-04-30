@@ -3,9 +3,6 @@
 
 #include "basicblock.hpp"
 #include <vector>
-#include <algorithm>
-#include <ranges>
-#include <iostream>
 
 class IntermediateRepresentation {
 private:

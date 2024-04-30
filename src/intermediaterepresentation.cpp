@@ -1,4 +1,7 @@
 #include "intermediaterepresentation.hpp"
+#include <algorithm>
+#include <ranges>
+#include <format>
 
 // Cooper-Harvey-Kennedy 
 // Iterative Reverse Postorder Dominance Algorithm

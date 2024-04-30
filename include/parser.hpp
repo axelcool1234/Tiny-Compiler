@@ -1,6 +1,5 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
-// #include "tokenizer.hpp"
 #include "intermediaterepresentation.hpp"
 #include "lexer.hpp"
 

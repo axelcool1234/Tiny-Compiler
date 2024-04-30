@@ -1,10 +1,7 @@
 #ifndef INSTRUCTION_HPP
 #define INSTRUCTION_HPP
 
-#include <map>
 #include <string>
-#include <format>
-#include <unordered_set>
 #include <vector>
 
 // OTHER is an index for non-CSE opcodes

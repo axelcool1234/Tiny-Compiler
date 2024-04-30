@@ -1,4 +1,5 @@
 #include "instruction.hpp"
+#include <format>
 
 std::string Instruction::to_dotlang() const {
     std::string msg = std::format("{}: {}", instruction_number, opcode_str_list[opcode]);

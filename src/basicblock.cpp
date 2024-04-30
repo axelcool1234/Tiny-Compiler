@@ -1,4 +1,5 @@
 #include "basicblock.hpp"
+#include <format>
 
 void BasicBlock::add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2) {
     instructions.emplace_back(num, op, x1, x2);
