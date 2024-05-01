@@ -3,6 +3,7 @@
 int main(int argc, char *argv[])
 {
     Parser p;
-    p.computation(); 
+    p.parse(); 
+    p.print();
     return 0;
 }

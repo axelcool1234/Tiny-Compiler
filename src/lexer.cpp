@@ -1,6 +1,4 @@
 #include "lexer.hpp"
-#include "token.hpp"
-
 
 /*
  *  Deterministic Finite Automata of our Lexer
@@ -13,14 +11,14 @@
 
 
 void Lexer::next() {
-    // Advance past whitespace
+    // Always skip whitespace
     while (std::isspace(*istream)) { ++istream; }
 
-    if (std::islower(*istream)) {
+    if (std::islower(*istream)) { // lowercase alphas (for the first char) belong to identifier tokens.
         tokenize_identifier();
-    } else if (std::isdigit(*istream)) {
+    } else if (std::isdigit(*istream)) { // digits (for the first char) belong to constant tokens.
         tokenize_constant();
-    } else {
+    } else { // symbols are for terminals.
         tokenize_terminal();
     }
 
@@ -33,19 +31,29 @@ void Lexer::next() {
 void Lexer::tokenize_identifier() {
     std::string lexeme;
 
+    // identifiers can have lowercase alphas or digits (just lowercase alphas for the first char)
     while (std::islower(*istream) || std::isdigit(*istream)) {
         lexeme.push_back(*(istream++));
     }
 
+    // Check if this identifier has been seen before
     if (!identifier_table.contains(lexeme)) {
         identifier_table[lexeme] = ident_index;
         ident_index++;
     }
 
-    token = Token {
-        .type    = TokenType::IDENTIFIER,
-        .payload = identifier_table.at(lexeme)
-    };
+    const int& ident_value = identifier_table.at(lexeme);     
+    if(ident_value >= 0) {
+        token = Token {
+            .type    = TokenType::USER_IDENTIFIER,
+            .payload = static_cast<ident_t>(ident_value)
+        };
+    } else {
+        token = Token {
+            .type    = TokenType::KEYWORD_IDENTIFIER,
+            .payload = static_cast<Keyword>(-ident_value)
+        };
+    }
 };
 
 
@@ -53,7 +61,7 @@ void Lexer::tokenize_constant()
 {
     int val{};
 
-    // read in number, store in current token
+    // Read until a non-digit is found (builds an integer for the const token)
     do {
         val = 10 * val + (*istream - '0');
         ++istream;
@@ -105,22 +113,4 @@ Lexer::Lexer(std::istream& in)
 LexerException::LexerException(const std::string &msg) : message(msg) {}
 const char* LexerException::what() const noexcept {
     return message.c_str();
-}
-
-
-void Token::print() {
-    switch (type) {
-        case TokenType::TERMINAL:
-            std::cout << "Terminal Token: " << static_cast<uint16_t>(std::get<Terminal>(payload)); 
-            break;
-        case TokenType::CONSTANT:
-            std::cout << "Constant Token: " << std::get<int>(payload); 
-            break;
-        case TokenType::IDENTIFIER:
-            std::cout << "Identifier Token: Index = " << std::get<int>(payload);
-            break;
-        default:
-            std::cout << "Invalid Token";
-    }
-    std::cout << std::endl;
 }
