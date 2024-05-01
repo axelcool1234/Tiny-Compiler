@@ -14,12 +14,10 @@ OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 TESTS = compilertest_main
 EXECUTABLE = compiler
 
-# all: setup $(EXECUTABLE)
-
 tests: setup $(TESTS)
 
 debug: CFLAGS += $(DFLAGS)
-debug: all
+debug: tests
 
 $(EXECUTABLE): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $(BIN_DIR)/$@

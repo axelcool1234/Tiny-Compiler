@@ -72,6 +72,14 @@ void Parser::else_statement_sequence(bb_t& curr_block) {
     }
 }
 
+void Parser::while_statement_sequence(bb_t& curr_block) {
+    while(!is_identifier_index(lexer.token, Keyword::OD)) {
+        statement(curr_block);
+        if(is_terminal_kind(lexer.token, Terminal::SEMICOLON))
+            lexer.next();
+    }
+}
+
 void Parser::statement(bb_t& curr_block) {
     if(is_identifier_index(lexer.token, Keyword::LET)) {
         lexer.next();
@@ -132,7 +140,22 @@ void Parser::if_statement(bb_t& curr_block) {
 }
 
 void Parser::while_statement(bb_t& curr_block) {
-
+    curr_block = ir.new_block(curr_block);
+    relation(curr_block);
+    bb_t while_block = ir.new_block(curr_block, FALLTHROUGH);
+    const bb_t og_while_block = while_block;
+    if(is_identifier_index(lexer.token, Keyword::DO)) {
+        lexer.next();
+        while_statement_sequence(while_block);
+    }
+    if(is_identifier_index(lexer.token, Keyword::OD)) {
+        lexer.next();        
+    }  
+    bb_t og_curr_block = curr_block;
+    ir.generate_phi(og_curr_block, while_block);
+    ir.set_branch_cond(while_block, Opcode::BRA, ir.first_instruction(og_curr_block));
+    curr_block = ir.new_block(curr_block, BRANCH);
+    ir.set_branch_location(og_curr_block, ir.first_instruction(curr_block));
 }
 
 void Parser::return_statement(bb_t& curr_block) {

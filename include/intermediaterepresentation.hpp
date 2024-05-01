@@ -138,6 +138,61 @@ public:
      */
     instruct_t add_instruction(const bb_t& b, Opcode op); 
 
+    
+    /*
+     * Attempts to add a new instruction to the given block at the beginning of its instruction vector. 
+     * If a pre-existing instruction with the same opcode and arguments already exists, that instruction's 
+     * instruction number will be returned instead. If the given block only contains the EMPTY instruction, 
+     * the given opcode and arguments will replace that instead of creating a new instruction. 
+     *
+     * @param b The given block's index.
+     * @param op The opcode of the new instruction.
+     * @param larg The left argument of the new instruction.
+     * @param rarg The right argument of the new instruction.
+     * @return The instruction number of the instruction, which could either be a common subexpression
+     * (and thus not a new instruction), or the replaced EMPTY instruction. Otherwise it'll be the
+     * instruction number of the newly created instruction.
+     */
+    instruct_t prepend_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg); 
+
+   /*
+    * Given a while loop's scope from its header block to its branch back block,
+    * this function generates phi functions based off the differences in identifier values
+    * of the loop header block and branch back block. Then, the instruction numbers of the
+    * new phi functions are propagated across the while loop's scope, replacing old identifier
+    * values with the new phi functions' instruction numbers.
+    *
+    * @param loop_header The while loop's header.
+    * @param branch_back The while loop's branch block.
+    */
+    void generate_phi(const bb_t& loop_header, const bb_t& branch_back);
+
+    /*
+     * Given a vector of tuples containing information about identifiers that should be changed and what their value should be
+     * changed to, this function will update those identifiers with the given new values, starting from
+     * the given current block and up through the control flow graph until (but not including) the stop block.
+     * 
+     * @param curr_block The first block to be changed.
+     * @param stop_block The dominating (not necessarily immediate dominator) block that this function stops at. This block
+     * is not changed.
+     * @param changed_idents First argument is the index of the identifier in any basic block's identifier values vector. Second
+     * argument is the new instruction number it should be changed to. Third argument is the old instruction number that should be changed to
+     * the new instruction number.
+     */
+    void update_ident_vals_until(bb_t curr_block, bb_t stop_block, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents);
+
+    /*
+     * Given a block and a tuple containing information about identifiers that should be changed and what their value should be changed to,
+     * this function will update those identifiers with the given new values for this block.
+     *
+     * @param b The given block.
+     * @param changed_idents First argument is the index of the identifier in any basic block's identifier values vector. Second
+     * argument is the new instruction number it should be changed to. Third argument is the old instruction number that should be changed to
+     * the new instruction number.
+     * @param skip_phi If true, phi instructions are not changed. Else, they are changed like every other instruction.
+     */
+    void update_ident_vals(const bb_t& b, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents, const bool& skip_phi);
+
     /*
      * Returns the instruction number of the given block's first instruction.
      * If the given block is completely empty, an EMPTY instruction is added to

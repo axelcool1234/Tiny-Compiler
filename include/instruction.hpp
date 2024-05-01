@@ -12,6 +12,7 @@
     OPCODE(SUB, sub) \
     OPCODE(MUL, mul) \
     OPCODE(DIV, div) \
+    OPCODE(CONST, const) \
     OPCODE(CSE_COUNT, ) \
     OPCODE(CMP, cmp) \
     OPCODE(PHI, phi) \
@@ -25,7 +26,6 @@
     OPCODE(BGT, bgt) \
     OPCODE(JSR, jsr) \
     OPCODE(RET, ret) \
-    OPCODE(CONST, const) \
     OPCODE(GETPAR1, getpar1) \
     OPCODE(GETPAR2, getpar2) \
     OPCODE(GETPAR3, getpar3) \

@@ -1,6 +1,11 @@
 #include "basicblock.hpp"
 #include <format>
 
+void BasicBlock::prepend_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2) {
+    instructions.emplace(instructions.begin(), num, op, x1, x2);
+    if(op < CSE_COUNT) partitioned_instructions[op].emplace_back(instructions.size() - 1);
+}
+
 void BasicBlock::add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2) {
     instructions.emplace_back(num, op, x1, x2);
     if(op < CSE_COUNT) partitioned_instructions[op].emplace_back(instructions.size() - 1);
@@ -33,13 +38,13 @@ std::string BasicBlock::to_dotlang() const {
 BasicBlock::BasicBlock(const bb_t& i, const ident_t& ident_count)                                    
     : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(NONE), index(i), identifier_values(ident_count) {}
 
-BasicBlock::BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals, const bb_t& p)              
+BasicBlock::BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p)              
     : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(NONE), index(i), predecessors({p}), identifier_values(dom_ident_vals) {}
 
-BasicBlock::BasicBlock(const bb_t& i, const std::vector<ident_t>& dom_ident_vals, const bb_t& p, Blocktype t) 
+BasicBlock::BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p, Blocktype t) 
     : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(t),    index(i), predecessors({p}), identifier_values(dom_ident_vals) {}
 
-BasicBlock::BasicBlock(const bb_t& i, const std::vector<ident_t>& p1_ident_vals, const std::vector<ident_t>& p2_ident_vals, const bb_t& p1, const bb_t& p2, int& instruction_count)    
+BasicBlock::BasicBlock(const bb_t& i, const std::vector<instruct_t>& p1_ident_vals, const std::vector<instruct_t>& p2_ident_vals, const bb_t& p1, const bb_t& p2, int& instruction_count)    
    : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(JOIN), index(i), predecessors({p1, p2})
 {
     for(size_t i = 0; i < p1_ident_vals.size(); ++i) {

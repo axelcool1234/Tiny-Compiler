@@ -2,3 +2,4 @@
 build/
 bin/
 temp.txt
+compile_commands.json

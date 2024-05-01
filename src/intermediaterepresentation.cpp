@@ -73,10 +73,18 @@ instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, co
     }
     return -1;
 }
+instruct_t IntermediateRepresentation::prepend_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
+    instruct_t instruct = search_cse(b, op, larg, rarg);
+    if(instruct != -1) return instruct;
+    instruct = change_empty(b, op, larg, rarg);
+    if(instruct != -1) return instruct;
+    basic_blocks[b].prepend_instruction(++instruction_count, op, larg, rarg);  
+    return instruction_count;
+}
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     instruct_t instruct = search_cse(b, op, larg, rarg);
     if(instruct != -1) return instruct;
-    instruct = change_empty(b, op, larg, rarg);   
+    instruct = change_empty(b, op, larg, rarg);
     if(instruct != -1) return instruct;
     basic_blocks[b].add_instruction(++instruction_count, op, larg, rarg);  
     return instruction_count;
@@ -84,7 +92,7 @@ instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op,
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg)  {
     instruct_t instruct = search_cse(b, op, larg, -1);
     if(instruct != -1) return instruct;
-    instruct = change_empty(b, op, larg, -1);   
+    instruct = change_empty(b, op, larg, -1);
     if(instruct != -1) return instruct;
     basic_blocks[b].add_instruction(++instruction_count, op, larg, -1);  
     return instruction_count;
@@ -92,7 +100,7 @@ instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op,
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op) {
     instruct_t instruct = search_cse(b, op, -1, -1);
     if(instruct != -1) return instruct;
-    instruct = change_empty(b, op, -1, -1);   
+    instruct = change_empty(b, op, -1, -1); 
     if(instruct != -1) return instruct;
     basic_blocks[b].add_instruction(++instruction_count, op, -1, -1);  
     return instruction_count;
@@ -127,6 +135,46 @@ instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, cons
         }
         if(curr_block == 0) return -1;
         curr_block = doms[curr_block];
+    }
+}
+
+void IntermediateRepresentation::generate_phi(const bb_t& loop_header, const bb_t& branch_back) {
+    std::vector<instruct_t>& loop_ident_vals = basic_blocks[loop_header].identifier_values;
+    const std::vector<instruct_t>& branch_ident_vals = basic_blocks[branch_back].identifier_values;
+    std::vector<std::tuple<int, instruct_t, instruct_t>> changed_idents;
+
+    for(size_t i = 0; i < loop_ident_vals.size(); ++i) {
+        if(loop_ident_vals[i] != branch_ident_vals[i]) {
+            instruct_t old_ident_val = loop_ident_vals[i];
+            prepend_instruction(loop_header, Opcode::PHI, loop_ident_vals[i], branch_ident_vals[i]);
+            changed_idents.emplace_back(i, instruction_count, old_ident_val);
+        } 
+    }
+    bb_t curr_block = branch_back;
+    update_ident_vals_until(branch_back, loop_header, changed_idents);    
+    update_ident_vals(loop_header, changed_idents, true);
+}
+
+void IntermediateRepresentation::update_ident_vals_until(bb_t curr_block, bb_t stop_block, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents) {
+    while(curr_block != stop_block) {
+        bb_t idom = doms[curr_block];
+        update_ident_vals(curr_block, changed_idents, false);
+        if(basic_blocks[curr_block].predecessors.size() == 2) {
+            update_ident_vals_until(basic_blocks[curr_block].predecessors[0], idom, changed_idents);
+            update_ident_vals_until(basic_blocks[curr_block].predecessors[1], idom, changed_idents);
+        }
+        curr_block = idom;
+    }
+}
+
+void IntermediateRepresentation::update_ident_vals(const bb_t& b, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents, const bool& skip_phi) {
+    for(const auto& pair : changed_idents) {
+        basic_blocks[b].identifier_values[std::get<0>(pair)] = std::get<1>(pair);
+        for(auto& instruct : basic_blocks[b].instructions) {
+            if(skip_phi && instruct.opcode == PHI) continue;
+            if(instruct.larg == std::get<2>(pair)) instruct.larg = std::get<1>(pair); 
+            if(instruct.rarg == std::get<2>(pair)) instruct.rarg = std::get<1>(pair);
+        }
     }
 }
 
