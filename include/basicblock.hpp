@@ -8,10 +8,12 @@ enum Blocktype {
     FALLTHROUGH,
     BRANCH,
     JOIN,
-    NONE
+    NONE,
+    INVALID, // A block should NEVER be this type. This exists for IntermediateRepresentation functions that want to
+            // communicate that a Blocktype shouldn't be specified when creating a new BasicBlock. 
 };
 using ident_t = size_t;
-using bb_t = size_t;
+using bb_t = ssize_t;
 struct BasicBlock {
     std::vector<Instruction> instructions;
     std::vector<std::vector<instruct_t>> partitioned_instructions;

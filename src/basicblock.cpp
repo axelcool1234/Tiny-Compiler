@@ -47,6 +47,7 @@ BasicBlock::BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_v
 BasicBlock::BasicBlock(const bb_t& i, const std::vector<instruct_t>& p1_ident_vals, const std::vector<instruct_t>& p2_ident_vals, const bb_t& p1, const bb_t& p2, int& instruction_count)    
    : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(JOIN), index(i), predecessors({p1, p2})
 {
+    // Generate phi functions for conflicting identifier values.
     for(size_t i = 0; i < p1_ident_vals.size(); ++i) {
         if(p1_ident_vals[i] != p2_ident_vals[i]) {
             add_instruction(++instruction_count, Opcode::PHI, p1_ident_vals[i], p2_ident_vals[i]);

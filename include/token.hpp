@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include <unordered_set>
-
+#include <variant>
 
 inline constexpr std::uint16_t encode(char ch) {
     return ch;
@@ -47,7 +47,6 @@ static const std::unordered_set<Terminal> terminals{
 #undef TERMINAL
 };
 
-
 #define KEYWORD_LIST \
     KEYWORD(VAR         , var       ) \
     KEYWORD(LET         , let       ) \
@@ -65,10 +64,30 @@ static const std::unordered_set<Terminal> terminals{
     KEYWORD(MAIN        , main      ) \
 
 enum class Keyword {
+    DUMMY,
 #define KEYWORD(name, encoding) name,
     KEYWORD_LIST
 #undef KEYWORD
     KEYWORD_COUNT
 };
 
-#endif
+enum class TokenType {
+    INVALID,            /* Initial state of a token if default initialized. */
+    TERMINAL,           /* Refers to terminal symbols of the language. i.e. '<' or '+'. */
+    CONSTANT,           /* Refers to constant values, only integers are supported in Tiny. */
+    USER_IDENTIFIER,    /* Refers to identifiers for variables and functions. */
+    KEYWORD_IDENTIFIER, /* Refers to identifiers for reserved keywords. */
+};
+
+using ident_t = size_t;
+struct Token {
+    TokenType type;
+    std::variant<Terminal, Keyword, ident_t, int> payload;
+
+    /*
+     * Prints the token's information based off what type it is.
+     */
+    void print();
+};
+
+#endif // TOKEN_HPP

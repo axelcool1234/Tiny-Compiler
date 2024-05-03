@@ -3,29 +3,7 @@
 
 #include <iostream>
 #include <map>
-#include <variant>
-
 #include "token.hpp"
-
-
-enum class TokenType {
-    INVALID,        /* Initial state of a token if default initialized. */
-    TERMINAL,       /* Refers to terminal symbols of the language. i.e. '<' or '+'. */
-    CONSTANT,       /* Refers to constant values, only integers are supported in Tiny. */
-    IDENTIFIER,     /* Refers to names for variables and functions. */
-};
-
-
-struct Token {
-    TokenType type;
-    std::variant<Terminal, int> payload;
-
-    /*
-     * Prints the token's information based off what type it is.
-     */
-    void print();
-};
-
 
 class LexerException : public std::exception {
 public:
@@ -44,6 +22,10 @@ public:
 
     ident_t ident_index = 0;
     Token token;
+
+    /* 
+     * Consumes a variable amount of characters from the input to produce the next valid token.
+     */ 
     void next();
 
 private:
