@@ -245,9 +245,8 @@ void Parser::if_statement(bb_t& curr_block) {
     if(is_keyword_identifier(lexer.token, Keyword::ELSE)) {
         lexer.next();        
         else_statement_sequence(else_block);
-    } else { // "fi"
-        fi();
     }
+    fi();
 
     // Create JOIN block
     join(curr_block, then_block, else_block, og_else_block);
