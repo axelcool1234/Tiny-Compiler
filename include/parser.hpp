@@ -21,6 +21,9 @@ private:
     IntermediateRepresentation ir;
     const int const_block = 0;
 
+    void match(Keyword k);
+    void match(Terminal t);
+
     /* Helpers */
 
     /*

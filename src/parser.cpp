@@ -1,4 +1,37 @@
 #include "parser.hpp"
+#include "token.hpp"
+
+
+void Parser::parse() {
+    computation();
+}
+
+void Parser::computation() {
+    /* "main" [ variable_declaration ] { function_declaration } "{" statSequence "}" "." */
+    match(Keyword::MAIN);
+    bb_t curr_block = variable_declaration();
+    // function_declaration();
+    match(Terminal::LBRACE);
+
+    main_statement_sequence(curr_block);
+
+    match(Terminal::RBRACE);
+    match(Terminal::PERIOD);
+}
+
+
+void Parser::match(Keyword k) {
+    if(!is_keyword_identifier(lexer.token, k)) 
+        throw ParserException(std::string{"Expected "} + Lexer::to_string(k));
+    lexer.next();
+}
+
+void Parser::match(Terminal t) {
+    if(!is_terminal(lexer.token, t)) 
+        throw ParserException(std::string{"Expected "} + Lexer::to_string(t));
+    lexer.next();
+}
+
 
 template<typename... Args>
 bool Parser::is_terminal(const Token& token, Args... args) {
@@ -98,25 +131,10 @@ T Parser::check_and_next_return(const std::string& msg) {
     return obj;
 }
 
-Parser::Parser() : lexer(std::cin) { lexer.next(); }
-
-void Parser::parse() {
-    computation();
-}
+Parser::Parser() : lexer(std::cin) {}
 
 void Parser::print() {
     std::cout << ir.to_dotlang();
-}
-
-void Parser::computation() {
-    /* "main" [ variable_declaration ] { function_declaration } "{" statSequence "}" "." */
-    main();
-    bb_t curr_block = variable_declaration();
-    // function_declaration();
-    lbrace();
-    main_statement_sequence(curr_block);
-    rbrace();
-    period();
 }
 
 void Parser::main() {

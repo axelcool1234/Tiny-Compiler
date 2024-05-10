@@ -1,4 +1,6 @@
 #include "lexer.hpp"
+#include "token.hpp"
+#include <iterator>
 
 /*
  *  Deterministic Finite Automata of our Lexer
@@ -13,6 +15,12 @@
 void Lexer::next() {
     // Always skip whitespace
     while (std::isspace(*istream)) { ++istream; }
+
+    // If we are at EOF, then always return invalid tokens
+    if (istream == std::istreambuf_iterator<char>{}) {
+        token.type = TokenType::INVALID;
+        return;
+    }
 
     if (std::islower(*istream)) { // lowercase alphas (for the first char) belong to identifier tokens.
         tokenize_identifier();
@@ -107,10 +115,90 @@ void Lexer::tokenize_terminal()
 
 
 Lexer::Lexer(std::istream& in)
-    :istream{in} {}
+    :istream{in} {next();}
 
 
 LexerException::LexerException(const std::string &msg) : message(msg) {}
 const char* LexerException::what() const noexcept {
     return message.c_str();
+}
+
+
+std::string Lexer::to_string(Keyword k) {
+    switch (k) {
+        case Keyword::VAR:
+            return {"VAR"};
+        case Keyword::LET:
+            return {"LET"};
+        case Keyword::CALL:
+            return {"CALL"};
+        case Keyword::IF:
+            return {"IF"};
+        case Keyword::THEN:
+            return {"THEN"};
+        case Keyword::ELSE:
+            return {"ELSE"};
+        case Keyword::FI:
+            return {"FI"};
+        case Keyword::WHILE:
+            return {"WHILE"};
+        case Keyword::DO:
+            return {"DO"};
+        case Keyword::OD:
+            return {"OD"};
+        case Keyword::RETURN:
+            return {"RETURN"};
+        case Keyword::VOID:
+            return {"VOID"};
+        case Keyword::FUNCTION:
+            return {"FUNCTION"};
+        case Keyword::MAIN:
+            return {"MAIN"};
+        default:
+            return {""};
+    }
+}
+
+
+std::string Lexer::to_string(Terminal t) {
+    switch (t) {
+        case Terminal::SEMICOLON:
+            return {"VAR"};
+        case Terminal::COMMA:
+            return {"LET"};
+        case Terminal::LPAREN:
+            return {"CALL"};
+        case Terminal::RPAREN:
+            return {"IF"};
+        case Terminal::LBRACE:
+            return {"THEN"};
+        case Terminal::RBRACE:
+            return {"ELSE"};
+        case Terminal::MUL:
+            return {"FI"};
+        case Terminal::DIV:
+            return {"WHILE"};
+        case Terminal::PLUS:
+            return {"DO"};
+        case Terminal::MINUS:
+            return {"OD"};
+        case Terminal::PERIOD:
+            return {"RETURN"};
+        case Terminal::ASSIGN:
+            return {"VOID"};
+        case Terminal::EQ:
+            return {"FUNCTION"};
+        case Terminal::NEQ:
+            return {"MAIN"};
+        case Terminal::LT:
+            return {"MAIN"};
+        case Terminal::LE:
+            return {"MAIN"};
+        case Terminal::GT:
+            return {"MAIN"};
+        case Terminal::GE:
+            return {"MAIN"};
+        default:
+            return {};
+    }
 }
