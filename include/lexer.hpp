@@ -28,6 +28,9 @@ public:
      */ 
     void next();
 
+    static std::string to_string(Keyword k);
+    static std::string to_string(Terminal k);
+
 private:
     /*
      * Stores an integer to identify keywords, functions, and variables.
