@@ -2,8 +2,10 @@
 #define TOKEN_HPP
 
 #include <cstdint>
+#include <string>
 #include <unordered_set>
 #include <variant>
+#include <vector>
 
 inline constexpr std::uint16_t encode(char ch) {
     return ch;

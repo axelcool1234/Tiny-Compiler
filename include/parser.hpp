@@ -8,7 +8,7 @@ public:
     Parser();
 
     /*
-     * Given an stdin of Tiny code, parses into an intermediate representation of the Tiny code.
+     * Given an stdin of Tiny code, parses given code into an intermediate representation.
      */ 
      void parse();
 
@@ -21,9 +21,6 @@ private:
     IntermediateRepresentation ir;
     const int const_block = 0;
 
-    void match(Keyword k);
-    void match(Terminal t);
-
     /* Helpers */
 
     /*
@@ -34,41 +31,26 @@ private:
      * @return true if the given token is of type TERMINAL and matches one of the given terminals.
      */
     template<typename... Args>
-    bool is_terminal(const Token& token, Args... args);
-
-    /*
-     * Checks if the given token is of type TERMINAL.
-     * 
-     * @param token The given token being checked.
-     * @return true if the given token is of type TERMINAL.
-     */ 
-    bool is_terminal(const Token& token);
+    bool token_is(const Token& token, const Terminal& terminal, Args... args);
 
     /*
      * Checks if the given token matches any of the given keywords.
      *
      * @param token The given token being checked.
      * @param args The set of keywords the token is being checked against.
-     * @return true if the given token is of type KEYWORD_IDENTIFIER and matches one of the given keywords.
-     */ 
-    template<typename... Args>
-    bool is_keyword_identifier(const Token& token, Args... args);
-
-    /*
-     * Checks if the given token is of type KEYWORD_IDENTIFIER.
-     *
-     * @param token The given token being checked.
-     * @return true if the given token is of type KEYWORD_IDENTIFIER.
-     */ 
-    bool is_keyword_identifier(const Token& token);
-
-    /*
-     * Checks if the given token is of type USER_IDENTIFIER.
-     *
-     * @param token The given token being checked.
-     * @return true if the given token is of type USER_IDENTIFIER.
+     * @return true if the given token is of type KEYWORD and matches one of the given keywords.
      */
-    bool is_user_identifier(const Token& token);
+    template<typename... Args>
+    bool token_is(const Token& token, const Keyword& keyword, Args... args);
+
+    /*
+     * Checks if the given token is of type T.
+     *
+     * @param token The given token being checked.
+     * @return true if the given token is of type T.
+     */
+    template<typename T>
+    bool token_is(const Token& token);
 
     /*
      * Continually parses statements until one of the given keywords are reached.
@@ -103,57 +85,58 @@ private:
      */
     Opcode terminal_to_opcode(const Terminal& terminal);
 
-    /*
-     * Checks that the current token in the lexer is the given terminal. If it isn't,
-     * an exception is raised with the given message. Calls lexer.next() on success.
-     *
-     * @param t The given terminal the lexer's token should be.
-     * @param msg The message given to the raised exception if the lexer's token isn't the given terminal.
-     */
-    void check_and_next(Terminal t, const std::string& msg);
-
-    /*
-     * Checks that the current token in the lexer is the given keyword. If it isn't,
-     * an exception is raised with the given message. Calls lexer.next() on success.
-     *
-     * @param k The given keyword the lexer's token should be.
-     * @param msg The message given to the raised exception if the lexer's token isn't the given keyword.
-     */
-    void check_and_next(Keyword k,  const std::string& msg);
-
-    /*
-     * Checks that the current token is of type USER_IDENTIFIER. If it isn't,
-     * an exception is raised with the given message. Calls lexer.next() on success.
-     *
-     * @param msg The message given to the raised exception if the lexer's token isn't of type USER_IDENTIFIER.
-     */
-    void check_and_next(const std::string& msg);
-
-    /*
-     * Checks that the current token is of type T. If it isn't,
-     * an exception is raised with the given message. If it is, an object of
-     * type T is retrieved from the token's payload. Calls lexer.next() and then returns
-     * the object.
-     *
-     * @param msg The message given to the raised exception if the lexer' token isn't of type T.
-     * @retun an object of type T retrieved from the token's payload is return upon success.
-     */ 
+   /*
+    * Checks the type of the current token. If it isn't the specified type T, an exception
+    * is raised with the expected token type.
+    */
     template<typename T>
-    T check_and_next_return(const std::string& msg);
+    void assert_type();
+
+   /*
+    * Checks that the current token in the lexer is the given keyword. If it isn't,
+    * an exception is raised with the expected token. Calls lexer.next() on success.
+    *
+    * @param k The given keyword the lexer's token should be.
+    */
+    void match(Keyword k);
+
+   /*
+    * Checks that the current token in the lexer is the given terminal. If it isn't,
+    * an exception is raised with the expected token. Calls lexer.next() on success.
+    *
+    * @param t The given terminal the lexer's token should be.
+    */
+    void match(Terminal t);
+
+   /*
+    * Checks that the current token is of type T. If it isn't,
+    * an exception is raised with the expected type. If it is, an object of
+    * type T is retrieved from the token's payload. Calls lexer.next() and then returns
+    * the object.
+    *
+    * @param msg The message given to the raised exception if the lexer' token isn't of type T.
+    * @return an object of type T retrieved from the token's payload is return upon success.
+    */ 
+    template<typename T>
+    void match();
+
+   /*
+    * Checks that the current token is of type T. If it isn't,
+    * an exception is raised with the expected type. If it is, an object of
+    * type T is retrieved from the token's payload. Calls lexer.next() and then returns
+    * the object.
+    *
+    * @param msg The message given to the raised exception if the lexer' token isn't of type T.
+    * @return an object of type T retrieved from the token's payload is return upon success.
+    */ 
+    template<typename T>
+    T match_return();
 
     /* Computation */
     void computation();
-    void main();
-    void lbrace();
-    void rbrace();
-    void period();
 
     /* Declarations */
     bb_t variable_declaration();
-    void var();
-    void variable_identifier();
-    void semicolon();
-
     void function_declaration();
 
     /* Statement Sequences */
@@ -167,21 +150,15 @@ private:
 
     // "let" statement
     void let_statement(const bb_t& curr_block);
-    ident_t let_ident();
-    void let_assign();
 
     void func_statement(bb_t& curr_block);
 
     // "if" statement
     void if_statement(bb_t& curr_block);
-    void then();
-    void fi();
     void join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block, const bb_t& og_else_block);
 
     // "while" statement
     void while_statement(bb_t& curr_block);
-    void while_do();
-    void while_od();
     void branch(bb_t& curr_block, const bb_t& while_block);
 
     // "return" statement
@@ -189,7 +166,6 @@ private:
 
     // relations
     void relation(const bb_t& curr_block);
-    Terminal relation_op();
 
     // Base parsing
     instruct_t expression(const bb_t& curr_block);
