@@ -1,134 +1,9 @@
 #include "parser.hpp"
 #include "token.hpp"
 
-
+/* API */
 void Parser::parse() {
     computation();
-}
-
-void Parser::computation() {
-    /* "main" [ variable_declaration ] { function_declaration } "{" statSequence "}" "." */
-    match(Keyword::MAIN);
-    bb_t curr_block = variable_declaration();
-    // function_declaration();
-    match(Terminal::LBRACE);
-
-    main_statement_sequence(curr_block);
-
-    match(Terminal::RBRACE);
-    match(Terminal::PERIOD);
-}
-
-
-void Parser::match(Keyword k) {
-    if(!is_keyword_identifier(lexer.token, k)) 
-        throw ParserException(std::string{"Expected "} + Lexer::to_string(k));
-    lexer.next();
-}
-
-void Parser::match(Terminal t) {
-    if(!is_terminal(lexer.token, t)) 
-        throw ParserException(std::string{"Expected "} + Lexer::to_string(t));
-    lexer.next();
-}
-
-
-template<typename... Args>
-bool Parser::is_terminal(const Token& token, Args... args) {
-    if(token.type != TokenType::TERMINAL)
-        return false;
-    return ((std::get<Terminal>(token.payload) == args) || ...);
-}
-bool Parser::is_terminal(const Token& token) {
-    return token.type == TokenType::TERMINAL;
-}
-
-template<typename... Args>
-bool Parser::is_keyword_identifier(const Token& token, Args... args) {
-    if(token.type != TokenType::KEYWORD_IDENTIFIER)
-        return false;
-    return ((std::get<Keyword>(token.payload) == args) || ...);
-}
-bool Parser::is_keyword_identifier(const Token& token) {
-    return token.type != TokenType::KEYWORD_IDENTIFIER;
-}
-
-
-bool Parser::is_user_identifier(const Token& token) {
-    return token.type == TokenType::USER_IDENTIFIER;
-}
-
-template<typename... Args>
-void Parser::keyword_sequence_helper(bb_t& curr_block, Args... args) {
-    while((!is_keyword_identifier(lexer.token, args) && ...)) {
-        statement_handler(curr_block);
-    } 
-}
-
-template<typename... Args>
-void Parser::terminal_sequence_helper(bb_t& curr_block, Args... args) {
-    while((!is_terminal(lexer.token, args) && ...)) {
-        statement_handler(curr_block);
-    } 
-}
-
-void Parser::statement_handler(bb_t& curr_block) {
-    statement(curr_block);
-    // TODO: Figure out a way to enforce semicolons for all but the last statement.
-    if(is_terminal(lexer.token, Terminal::SEMICOLON))
-        lexer.next();
-}
-
-Opcode Parser::terminal_to_opcode(const Terminal& terminal) {
-    switch(terminal) {
-        case Terminal::EQ:
-            return Opcode::BNE;
-        case Terminal::NEQ:
-            return Opcode::BEQ;
-        case Terminal::LT:
-            return Opcode::BGE;
-        case Terminal::LE:
-            return Opcode::BGT;
-        case Terminal::GT:
-            return Opcode::BLE;
-        case Terminal::GE:
-            return Opcode::BLT;
-        default:
-            throw ParserException("Invalid terminal to opcode conversion!");
-    }
-}
-
-void Parser::check_and_next(Keyword k, const std::string& msg) {
-    if(!is_keyword_identifier(lexer.token, k)) 
-        throw ParserException(msg);
-    lexer.next();
-}
-
-void Parser::check_and_next(Terminal t, const std::string& msg) {
-    if(!is_terminal(lexer.token, t))
-        throw ParserException(msg);
-    lexer.next();
-}
-
-void Parser::check_and_next(const std::string& msg) {
-    if(!is_user_identifier(lexer.token))
-        throw ParserException(msg);
-    lexer.next();
-}
-
-template<typename T>
-T Parser::check_and_next_return(const std::string& msg) {
-    if (std::is_same<T, ident_t>::value) {
-        if(!is_user_identifier(lexer.token))
-            throw ParserException(msg);
-    } 
-    else if (std::is_same<T, Terminal>::value) {
-        if(!is_terminal(lexer.token))
-            throw ParserException(msg);
-    }
-    T obj = std::get<T>(lexer.token.payload);
-    lexer.next();
-    return obj;
 }
 
 Parser::Parser() : lexer(std::cin) {}
@@ -137,47 +12,30 @@ void Parser::print() {
     std::cout << ir.to_dotlang();
 }
 
-void Parser::main() {
-    check_and_next(Keyword::MAIN, "Expected 'main'!");
-}
-
-void Parser::lbrace() {
-    check_and_next(Terminal::LBRACE, "Expected '{' for main!"); 
-}
-
-void Parser::rbrace() {
-    check_and_next(Terminal::RBRACE, "Expected '}' for main!"); 
-}
-
-void Parser::period() {
-    if(!is_terminal(lexer.token, Terminal::PERIOD))
-        throw ParserException("Expected '.' for main!");
+/* Parsing main function of Tiny program */
+void Parser::computation() {
+    /* "main" [ variable_declaration ] { function_declaration } "{" statSequence "}" "." */
+    match(Keyword::MAIN);
+    bb_t curr_block = variable_declaration();
+    // function_declaration();
+    match(Terminal::LBRACE);
+    main_statement_sequence(curr_block);
+    match(Terminal::RBRACE);
+    match(Terminal::PERIOD);
 }
 
 /* Declarations */
 bb_t Parser::variable_declaration() {
     /* "var" ident { "," ident } ";" */
-    var();
-    variable_identifier();
-    while(is_terminal(lexer.token, Terminal::COMMA)) {
+    match(Keyword::VAR);
+    match<ident_t>();
+    while(token_is(lexer.token, Terminal::COMMA)) {
         lexer.next();
-        variable_identifier();
+        match<ident_t>();
     }
-    semicolon();
+    match(Terminal::SEMICOLON);
     ir.establish_const_block(lexer.ident_index);
     return ir.new_block(const_block);
-}
-
-void Parser::var() {
-    check_and_next(Keyword::VAR,"Expected 'var' in variable declaration!");
-}
-
-void Parser::variable_identifier() {
-    check_and_next("Expected user identifier in variable declaration!");
-}
-
-void Parser::semicolon() {
-    check_and_next(Terminal::SEMICOLON,"Expected ';' in variable declaration!");
 }
 
 void function_declaration() {
@@ -203,27 +61,21 @@ void Parser::while_statement_sequence(bb_t& while_block) {
 
 /* Statements */
 void Parser::statement(bb_t& curr_block) {
-    if(lexer.token.type != TokenType::KEYWORD_IDENTIFIER)
-        throw ParserException("Expected reserved keyword in statement!");
-    switch(std::get<Keyword>(lexer.token.payload)) {
+    assert_type<Keyword>();
+    switch(match_return<Keyword>()) {
         case Keyword::LET:
-            lexer.next();
             let_statement(curr_block);
             break;
         case Keyword::CALL:
-            lexer.next();
             func_statement(curr_block);
             break;
         case Keyword::IF:
-            lexer.next();
             if_statement(curr_block);
             break;
         case Keyword::WHILE:
-            lexer.next();
             while_statement(curr_block);
             break;
         case Keyword::RETURN:
-            lexer.next();
             return_statement(curr_block);
             break;
         default:
@@ -233,17 +85,9 @@ void Parser::statement(bb_t& curr_block) {
 
 void Parser::let_statement(const bb_t& curr_block) {
     /* ident "<-" expression */
-    ident_t ident = let_ident();
-    let_assign();
+    ident_t ident = match_return<ident_t>();
+    match(Terminal::ASSIGN);
     ir.change_ident_value(curr_block, ident, expression(curr_block));
-}
-
-ident_t Parser::let_ident() {
-    return check_and_next_return<ident_t>("Expected user identifier in let statement!"); 
-}
-
-void Parser::let_assign() {
-    check_and_next(Terminal::ASSIGN,"Expected assignment terminal '<-' in let statement!");
 }
 
 void Parser::func_statement(bb_t& curr_block) {
@@ -253,29 +97,21 @@ void Parser::func_statement(bb_t& curr_block) {
 void Parser::if_statement(bb_t& curr_block) {
     /* relation "then" statement_sequence [ "else" statement_sequence ] "fi" */
     relation(curr_block);
-    then();
+    match(Keyword::THEN);
     bb_t then_block = ir.new_block(curr_block, FALLTHROUGH);
     then_statement_sequence(then_block);
 
     // "else"
     bb_t else_block = ir.new_block(curr_block, BRANCH);
     const bb_t og_else_block = else_block;
-    if(is_keyword_identifier(lexer.token, Keyword::ELSE)) {
+    if(token_is(lexer.token, Keyword::ELSE)) {
         lexer.next();        
         else_statement_sequence(else_block);
     }
-    fi();
+    match(Keyword::FI);
 
     // Create JOIN block
     join(curr_block, then_block, else_block, og_else_block);
-}
-
-void Parser::then() {
-    check_and_next(Keyword::THEN,"Expected 'then' in if statement!");
-}
-
-void Parser::fi() {
-    check_and_next(Keyword::FI,"Expected 'fi' in if statement!");
 }
 
 void Parser::join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block, const bb_t& og_else_block) {
@@ -296,20 +132,12 @@ void Parser::while_statement(bb_t& curr_block) {
     const bb_t og_while_block = while_block;
 
     // "do" statement_sequence "od"
-    while_do();
+    match(Keyword::DO);
     while_statement_sequence(while_block);
-    while_od();
+    match(Keyword::OD);
 
     // Create BRANCH block
     branch(curr_block, while_block);
-}
-
-void Parser::while_do() {
-    check_and_next(Keyword::DO,"Expected 'do' in while statement!");
-}
-
-void Parser::while_od() {
-    check_and_next(Keyword::OD,"Expected 'od' in while statement!");
 }
 
 void Parser::branch(bb_t& curr_block, const bb_t& while_block) {
@@ -328,7 +156,7 @@ void Parser::return_statement(bb_t& curr_block) {
 void Parser::relation(const bb_t& curr_block) {
     /* expression1 rel_op expression2 */
     instruct_t x = expression(curr_block);
-    Terminal rel_op = relation_op();
+    Terminal rel_op = match_return<Terminal>();
     instruct_t y = expression(curr_block);
 
     // Set up CMP instruction and branch instruction.
@@ -336,19 +164,14 @@ void Parser::relation(const bb_t& curr_block) {
     ir.set_branch_cond(curr_block, terminal_to_opcode(rel_op), cmp);    
 }
 
-Terminal Parser::relation_op() {
-    return check_and_next_return<Terminal>("Expected terminal in relation!");
-}
-
 /* Base Parsing */
 instruct_t Parser::expression(const bb_t& curr_block) {
     instruct_t result = term(curr_block);
-    while(is_terminal(lexer.token, Terminal::PLUS, Terminal::MINUS)) { 
-        if(is_terminal(lexer.token, Terminal::PLUS)){
+    while(token_is(lexer.token, Terminal::PLUS, Terminal::MINUS)) {
+        if(token_is(lexer.token, Terminal::PLUS)) {
             lexer.next();
             result = ir.add_instruction(curr_block, Opcode::ADD, result, term(curr_block));
-        }      
-        else {
+        } else {
             lexer.next();
             result = ir.add_instruction(curr_block, Opcode::SUB, result, term(curr_block));
         }
@@ -358,12 +181,11 @@ instruct_t Parser::expression(const bb_t& curr_block) {
 
 instruct_t Parser::term(const bb_t& curr_block) {
     instruct_t result = factor(curr_block);
-    while(is_terminal(lexer.token, Terminal::MUL, Terminal::DIV)) {
-        if(is_terminal(lexer.token, Terminal::MUL)) {
+    while(token_is(lexer.token, Terminal::MUL, Terminal::DIV)) {
+        if(token_is(lexer.token, Terminal::MUL)) {
             lexer.next();
             result = ir.add_instruction(curr_block, Opcode::MUL, result, factor(curr_block));
-        }
-        else {
+        } else {
             lexer.next();
             result = ir.add_instruction(curr_block, Opcode::DIV, result, factor(curr_block));
         }
@@ -373,22 +195,123 @@ instruct_t Parser::term(const bb_t& curr_block) {
 
 instruct_t Parser::factor(const bb_t& curr_block) {
     instruct_t result;
-    if(lexer.token.type == TokenType::USER_IDENTIFIER){
+    if(token_is<ident_t>(lexer.token)) {
         result = ir.get_ident_value(curr_block, std::get<ident_t>(lexer.token.payload));
         lexer.next();
         return result;
-    } 
-    else if(lexer.token.type == TokenType::CONSTANT) {
+    } else if (token_is<int>(lexer.token)) { 
         result = ir.add_instruction(const_block, Opcode::CONST, std::get<int>(lexer.token.payload));        
         lexer.next();
         return result;
     }
-    else if (is_terminal(lexer.token, Terminal::LPAREN)) {
+    else if (token_is(lexer.token, Terminal::LPAREN)) {
         lexer.next();
         result = expression(curr_block);
-        if(is_terminal(lexer.token, Terminal::RPAREN))
+        if(token_is(lexer.token, Terminal::RPAREN))
             lexer.next();
         return result;
     }
     throw ParserException("Expected user identifier, constant or '(' in factor.");
+}
+
+/* Helpers */
+void Parser::match(Keyword k) {
+    if(!token_is(lexer.token, k)) 
+        throw ParserException(std::string{"Expected "} + Lexer::to_string(k));
+    lexer.next();
+}
+
+void Parser::match(Terminal t) {
+    if(!token_is(lexer.token, t)) 
+        throw ParserException(std::string{"Expected "} + Lexer::to_string(t));
+    lexer.next();
+}
+
+template<typename T>
+void Parser::match() {
+    assert_type<T>();
+    lexer.next();
+}
+
+template<typename T>
+T Parser::match_return() {
+    assert_type<T>();
+    T obj = std::get<T>(lexer.token.payload);
+    lexer.next();
+    return obj;
+}
+
+template<typename T>
+void Parser::assert_type() {
+    if (!token_is<T>(lexer.token))
+        throw ParserException("Expected " + std::string { typeid(T).name() } + " type");
+}
+
+template<typename... Args>
+bool Parser::token_is(const Token& token, const Terminal& terminal, Args... args) {
+    return (token.type == TokenType::TERMINAL) && 
+           ((std::get<Terminal>(token.payload) == terminal) ||
+           ((std::get<Terminal>(token.payload) == args) || ...));
+}
+
+template<typename... Args>
+bool Parser::token_is(const Token& token, const Keyword& keyword, Args... args) {
+    return (token.type == TokenType::KEYWORD_IDENTIFIER) && 
+           ((std::get<Keyword>(token.payload) == keyword) ||
+           ((std::get<Keyword>(token.payload) == args) || ...));
+}
+
+template<typename T>
+bool Parser::token_is(const Token& token) {
+    if constexpr (std::is_same_v<T, Terminal>) {
+        return token.type == TokenType::TERMINAL;
+    } else if constexpr (std::is_same_v<T, Keyword>) {
+        return token.type == TokenType::KEYWORD_IDENTIFIER;
+    } else if constexpr (std::is_same_v<T, ident_t>){
+        return token.type == TokenType::USER_IDENTIFIER;
+    } else if constexpr (std::is_same_v<T, int>) {
+        return token.type == TokenType::CONSTANT;
+    } else { 
+        throw ParserException("Invalid token type called from function 'token_is'"); 
+    }
+}
+
+template<typename... Args>
+void Parser::keyword_sequence_helper(bb_t& curr_block, Args... args) {
+    while((!token_is(lexer.token, args) && ...)) {
+        statement_handler(curr_block);
+    } 
+}
+
+template<typename... Args>
+void Parser::terminal_sequence_helper(bb_t& curr_block, Args... args) {
+    while((!token_is(lexer.token, args) && ...)) {
+        statement_handler(curr_block);
+    } 
+}
+
+void Parser::statement_handler(bb_t& curr_block) {
+    statement(curr_block);
+    // TODO: Figure out a way to enforce semicolons for all but the last statement.
+    if(token_is(lexer.token, Terminal::SEMICOLON))
+        lexer.next();
+}
+
+Opcode Parser::terminal_to_opcode(const Terminal& terminal) {
+    switch(terminal) {
+        case Terminal::EQ:
+            return Opcode::BNE;
+        case Terminal::NEQ:
+            return Opcode::BEQ;
+        case Terminal::LT:
+            return Opcode::BGE;
+        case Terminal::LE:
+            return Opcode::BGT;
+        case Terminal::GT:
+            return Opcode::BLE;
+        case Terminal::GE:
+            return Opcode::BLT;
+        default:
+            throw ParserException("Invalid terminal to opcode conversion!");
+    }
 }

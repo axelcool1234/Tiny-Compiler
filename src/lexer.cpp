@@ -126,79 +126,22 @@ const char* LexerException::what() const noexcept {
 
 std::string Lexer::to_string(Keyword k) {
     switch (k) {
-        case Keyword::VAR:
-            return {"VAR"};
-        case Keyword::LET:
-            return {"LET"};
-        case Keyword::CALL:
-            return {"CALL"};
-        case Keyword::IF:
-            return {"IF"};
-        case Keyword::THEN:
-            return {"THEN"};
-        case Keyword::ELSE:
-            return {"ELSE"};
-        case Keyword::FI:
-            return {"FI"};
-        case Keyword::WHILE:
-            return {"WHILE"};
-        case Keyword::DO:
-            return {"DO"};
-        case Keyword::OD:
-            return {"OD"};
-        case Keyword::RETURN:
-            return {"RETURN"};
-        case Keyword::VOID:
-            return {"VOID"};
-        case Keyword::FUNCTION:
-            return {"FUNCTION"};
-        case Keyword::MAIN:
-            return {"MAIN"};
-        default:
-            return {""};
+#define KEYWORD(name, encoding) case Keyword::name: return #name;
+    KEYWORD_LIST
+#undef KEYWORD
+    default:
+        return "UNKNOWN KEYWORD";
     }
 }
 
 
 std::string Lexer::to_string(Terminal t) {
-    switch (t) {
-        case Terminal::SEMICOLON:
-            return {"VAR"};
-        case Terminal::COMMA:
-            return {"LET"};
-        case Terminal::LPAREN:
-            return {"CALL"};
-        case Terminal::RPAREN:
-            return {"IF"};
-        case Terminal::LBRACE:
-            return {"THEN"};
-        case Terminal::RBRACE:
-            return {"ELSE"};
-        case Terminal::MUL:
-            return {"FI"};
-        case Terminal::DIV:
-            return {"WHILE"};
-        case Terminal::PLUS:
-            return {"DO"};
-        case Terminal::MINUS:
-            return {"OD"};
-        case Terminal::PERIOD:
-            return {"RETURN"};
-        case Terminal::ASSIGN:
-            return {"VOID"};
-        case Terminal::EQ:
-            return {"FUNCTION"};
-        case Terminal::NEQ:
-            return {"MAIN"};
-        case Terminal::LT:
-            return {"MAIN"};
-        case Terminal::LE:
-            return {"MAIN"};
-        case Terminal::GT:
-            return {"MAIN"};
-        case Terminal::GE:
-            return {"MAIN"};
-        default:
-            return {};
+        switch (t) {
+#define TERMINAL(name, encoding) case Terminal::name: return #name;
+    TERMINAL_LIST
+#undef TERMINAL
+    default:
+        return "UNKNOWN TERMINAL";
     }
 }
+
