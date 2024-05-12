@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "token.hpp"
+#include <format>
 
 /* API */
 void Parser::parse() {
@@ -188,12 +189,10 @@ instruct_t Parser::term(const bb_t& curr_block) {
 instruct_t Parser::factor(const bb_t& curr_block) {
     instruct_t result;
     if(token_is<ident_t>(lexer.token)) {
-        result = ir.get_ident_value(curr_block, std::get<ident_t>(lexer.token.payload));
-        lexer.next();
+        result = ir.get_ident_value(curr_block, match_return<ident_t>());
         return result;
     } else if (token_is<int>(lexer.token)) { 
-        result = ir.add_instruction(const_block, Opcode::CONST, std::get<int>(lexer.token.payload));        
-        lexer.next();
+        result = ir.add_instruction(const_block, Opcode::CONST, match_return<int>());        
         return result;
     }
     else if (token_is(lexer.token, Terminal::LPAREN)) {
@@ -207,15 +206,28 @@ instruct_t Parser::factor(const bb_t& curr_block) {
 }
 
 /* Helpers */
-void Parser::match(Keyword k) {
-    if(!token_is(lexer.token, k)) 
-        throw ParserException(std::string{"Expected "} + Lexer::to_string(k));
-    lexer.next();
+template<typename T, typename... Args>
+bool Parser::token_is(const Token& token, const T& expected, const Args&... args) {
+    return (std::holds_alternative<T>(token)) && 
+           ((std::get<T>(token) == expected) ||
+           ((std::get<T>(token) == args) || ...));
 }
 
-void Parser::match(Terminal t) {
-    if(!token_is(lexer.token, t)) 
-        throw ParserException(std::string{"Expected "} + Lexer::to_string(t));
+template<typename T>
+bool Parser::token_is(const Token& token) {
+    return std::holds_alternative<T>(token);
+}
+
+template<typename T>
+void Parser::assert_type() {
+    if (!token_is<T>(lexer.token))
+        throw ParserException(std::format("Expected type {}, received type {} instead .", typeid(T).name(), to_string(lexer.token))); 
+}
+
+template<typename T>
+void Parser::match(const T& expected) {
+    if(!token_is(lexer.token, expected)) 
+        throw ParserException(std::format("Expected {}, received {} instead.", to_string(expected), to_string(lexer.token))); 
     lexer.next();
 }
 
@@ -228,44 +240,9 @@ void Parser::match() {
 template<typename T>
 T Parser::match_return() {
     assert_type<T>();
-    T obj = std::get<T>(lexer.token.payload);
+    T obj = std::get<T>(lexer.token);
     lexer.next();
     return obj;
-}
-
-template<typename T>
-void Parser::assert_type() {
-    if (!token_is<T>(lexer.token))
-        throw ParserException("Expected " + std::string { typeid(T).name() } + " type");
-}
-
-template<typename... Args>
-bool Parser::token_is(const Token& token, const Terminal& terminal, Args... args) {
-    return (token.type == TokenType::TERMINAL) && 
-           ((std::get<Terminal>(token.payload) == terminal) ||
-           ((std::get<Terminal>(token.payload) == args) || ...));
-}
-
-template<typename... Args>
-bool Parser::token_is(const Token& token, const Keyword& keyword, Args... args) {
-    return (token.type == TokenType::KEYWORD_IDENTIFIER) && 
-           ((std::get<Keyword>(token.payload) == keyword) ||
-           ((std::get<Keyword>(token.payload) == args) || ...));
-}
-
-template<typename T>
-bool Parser::token_is(const Token& token) {
-    if constexpr (std::is_same_v<T, Terminal>) {
-        return token.type == TokenType::TERMINAL;
-    } else if constexpr (std::is_same_v<T, Keyword>) {
-        return token.type == TokenType::KEYWORD_IDENTIFIER;
-    } else if constexpr (std::is_same_v<T, ident_t>){
-        return token.type == TokenType::USER_IDENTIFIER;
-    } else if constexpr (std::is_same_v<T, int>) {
-        return token.type == TokenType::CONSTANT;
-    } else { 
-        throw ParserException("Invalid token type called from function 'token_is'"); 
-    }
 }
 
 Opcode Parser::terminal_to_opcode(const Terminal& terminal) {

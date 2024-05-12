@@ -1,22 +1,31 @@
 #include "token.hpp"
-#include <iostream>
 
-void Token::print() {
-    switch (type) {
-        case TokenType::TERMINAL:
-            std::cout << "Terminal Token: " << static_cast<uint16_t>(std::get<Terminal>(payload)); 
-            break;
-        case TokenType::CONSTANT:
-            std::cout << "Constant Token: " << std::get<int>(payload); 
-            break;
-        case TokenType::USER_IDENTIFIER:
-            std::cout << "User Identifier Token: Index = " << std::get<int>(payload);
-            break;
-        case TokenType::KEYWORD_IDENTIFIER:
-            std::cout << "Keyword Identifier Token: Index = " << -std::get<int>(payload);
-            break;
-        default:
-            std::cout << "Invalid Token";
-    }
-    std::cout << std::endl;
+std::string to_string(const Token& t) {
+    return std::visit([](auto&& arg) -> std::string
+    {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, Keyword>) {
+            switch (arg) {
+        #define KEYWORD(name, encoding) case Keyword::name: return #name;
+            KEYWORD_LIST
+        #undef KEYWORD
+            default:
+                return "UNKNOWN KEYWORD";
+            }
+        } else if constexpr (std::is_same_v<T, Terminal>) {
+            switch (arg) {
+        #define TERMINAL(name, encoding) case Terminal::name: return #name;
+            TERMINAL_LIST
+        #undef TERMINAL
+            default:
+                return "UNKNOWN TERMINAL";
+            }
+        } else if constexpr (std::is_same_v<T, ident_t>) {
+            return std::to_string(arg);  
+        } else if constexpr (std::is_same_v<T, int>) {
+            return std::to_string(arg);
+        } else if constexpr (std::is_same_v<T, Invalid>) {
+            return "INVALID TOKEN";
+        } 
+    }, t);
 }

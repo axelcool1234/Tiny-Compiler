@@ -18,7 +18,7 @@ void Lexer::next() {
 
     // If we are at EOF, then always return invalid tokens
     if (istream == std::istreambuf_iterator<char>{}) {
-        token.type = TokenType::INVALID;
+        token = Invalid();
         return;
     }
 
@@ -30,7 +30,7 @@ void Lexer::next() {
         tokenize_terminal();
     }
 
-    if (token.type == TokenType::INVALID) {
+    if (std::holds_alternative<Invalid>(token)) {
         throw LexerException("Failed to tokenize given input. Cannot identify text as either an identifier, constant or terminal!");
     }
 }
@@ -52,15 +52,9 @@ void Lexer::tokenize_identifier() {
 
     const int& ident_value = identifier_table.at(lexeme);     
     if(ident_value >= 0) {
-        token = Token {
-            .type    = TokenType::USER_IDENTIFIER,
-            .payload = static_cast<ident_t>(ident_value)
-        };
+        token = static_cast<ident_t>(ident_value);
     } else {
-        token = Token {
-            .type    = TokenType::KEYWORD_IDENTIFIER,
-            .payload = static_cast<Keyword>(-ident_value)
-        };
+        token = static_cast<Keyword>(-ident_value);
     }
 };
 
@@ -75,10 +69,7 @@ void Lexer::tokenize_constant()
         ++istream;
     } while (std::isdigit(*istream));
 
-    token = Token {
-        .type    = TokenType::CONSTANT,
-        .payload = val
-    }; 
+    token = val;
 }
 
 
@@ -91,10 +82,7 @@ void Lexer::tokenize_terminal()
     // Check for valid 2-char terminal symbol
     term = static_cast<Terminal>(encode(temp, *istream));
     if (terminals.contains(term)) {
-        token = Token{
-            .type    = TokenType::TERMINAL,
-            .payload = term
-        };
+        token = term;
         ++istream;
         return;
     }
@@ -102,15 +90,12 @@ void Lexer::tokenize_terminal()
     // Check for valid 1-char terminal symbol
     term = static_cast<Terminal>(encode(temp));
     if (terminals.contains(term)) {
-        token = Token{
-            .type    = TokenType::TERMINAL,
-            .payload = term
-        };
+        token = term;
         return;
     }
 
     // If it isn't a 1-char or 2-char terminal, then this is invalid!
-    token.type = TokenType::INVALID;
+    token = Invalid();
 }
 
 
@@ -122,26 +107,3 @@ LexerException::LexerException(const std::string &msg) : message(msg) {}
 const char* LexerException::what() const noexcept {
     return message.c_str();
 }
-
-
-std::string Lexer::to_string(Keyword k) {
-    switch (k) {
-#define KEYWORD(name, encoding) case Keyword::name: return #name;
-    KEYWORD_LIST
-#undef KEYWORD
-    default:
-        return "UNKNOWN KEYWORD";
-    }
-}
-
-
-std::string Lexer::to_string(Terminal t) {
-        switch (t) {
-#define TERMINAL(name, encoding) case Terminal::name: return #name;
-    TERMINAL_LIST
-#undef TERMINAL
-    default:
-        return "UNKNOWN TERMINAL";
-    }
-}
-
