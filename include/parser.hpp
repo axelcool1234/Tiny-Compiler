@@ -53,29 +53,6 @@ private:
     bool token_is(const Token& token);
 
     /*
-     * Continually parses statements until one of the given keywords are reached.
-     *
-     * @param curr_block The current block being worked on by the parser.
-     */
-    template<typename... Args>
-    void keyword_sequence_helper(bb_t& curr_block, Args... args);
-
-    /*
-     * Continually parses statements until one of the given terminals are reached.
-     *
-     * @param curr_block The current block being worked on by the parser.
-     */
-    template<typename... Args>
-    void terminal_sequence_helper(bb_t& curr_block, Args... args);
-
-    /*
-     * Parses a statement and then parses a semicolon.
-     *
-     * @param curr_block The current block being worked on by the parser.
-     */
-    void statement_handler(bb_t& curr_block);
-
-    /*
      * Translates a terminal to an appropriate opcode that'd be used. Note,
      * that the opposite opcode is produced due to branching rules being flipped
      * in Assembly.
@@ -140,12 +117,8 @@ private:
     void function_declaration();
 
     /* Statement Sequences */
-    void main_statement_sequence(bb_t& curr_block);
-    void then_statement_sequence(bb_t& then_block);
-    void else_statement_sequence(bb_t& else_block);
-    void while_statement_sequence(bb_t& while_block);
-
-    /* Statements */
+    template<typename... Args>
+    void statement_sequence(bb_t& curr_block, Args... args);
     void statement(bb_t& curr_block);
 
     // "let" statement
