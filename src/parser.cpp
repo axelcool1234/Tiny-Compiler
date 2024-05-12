@@ -54,7 +54,6 @@ void Parser::statement_sequence(bb_t& curr_block, Args... args) {
 }
 
 void Parser::statement(bb_t& curr_block) {
-    assert_type<Keyword>();
     switch(match_return<Keyword>()) {
         case Keyword::LET:
             let_statement(curr_block);
