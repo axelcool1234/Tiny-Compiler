@@ -73,23 +73,11 @@ enum class Keyword {
     KEYWORD_COUNT
 };
 
-enum class TokenType {
-    INVALID,            /* Initial state of a token if default initialized. */
-    TERMINAL,           /* Refers to terminal symbols of the language. i.e. '<' or '+'. */
-    CONSTANT,           /* Refers to constant values, only integers are supported in Tiny. */
-    USER_IDENTIFIER,    /* Refers to identifiers for variables and functions. */
-    KEYWORD_IDENTIFIER, /* Refers to identifiers for reserved keywords. */
-};
-
 using ident_t = size_t;
-struct Token {
-    TokenType type;
-    std::variant<Terminal, Keyword, ident_t, int> payload;
+using Invalid = std::monostate;
+// ident_t is for user identifiers. int is for constants.
+using Token = std::variant<Invalid, Terminal, Keyword, ident_t, int>;
 
-    /*
-     * Prints the token's information based off what type it is.
-     */
-    void print();
-};
+std::string to_string(const Token& t);
 
 #endif // TOKEN_HPP

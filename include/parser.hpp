@@ -22,26 +22,15 @@ private:
     const int const_block = 0;
 
     /* Helpers */
-
     /*
-     * Checks if the given token matches any of the given terminals.
+     * Checks if the given token matches any of the given terminals/keywords.
      *
      * @param token The given token being checked.
-     * @param args The set of terminals the token is being checked against.
-     * @return true if the given token is of type TERMINAL and matches one of the given terminals.
+     * @param args The set of terminals/keywords the token is being checked against.
+     * @return true if the given token is of type T and matches one of the given terminals/keywords.
      */
-    template<typename... Args>
-    bool token_is(const Token& token, const Terminal& terminal, Args... args);
-
-    /*
-     * Checks if the given token matches any of the given keywords.
-     *
-     * @param token The given token being checked.
-     * @param args The set of keywords the token is being checked against.
-     * @return true if the given token is of type KEYWORD and matches one of the given keywords.
-     */
-    template<typename... Args>
-    bool token_is(const Token& token, const Keyword& keyword, Args... args);
+    template<typename T, typename... Args>
+    bool token_is(const Token& token, const T& expected, const Args&... args);
 
     /*
      * Checks if the given token is of type T.
@@ -52,16 +41,6 @@ private:
     template<typename T>
     bool token_is(const Token& token);
 
-    /*
-     * Translates a terminal to an appropriate opcode that'd be used. Note,
-     * that the opposite opcode is produced due to branching rules being flipped
-     * in Assembly.
-     *
-     * @param terminal The given terminal.
-     * @return The opcode appropriate for the given terminal.
-     */
-    Opcode terminal_to_opcode(const Terminal& terminal);
-
    /*
     * Checks the type of the current token. If it isn't the specified type T, an exception
     * is raised with the expected token type.
@@ -70,28 +49,20 @@ private:
     void assert_type();
 
    /*
-    * Checks that the current token in the lexer is the given keyword. If it isn't,
-    * an exception is raised with the expected token. Calls lexer.next() on success.
+    * Checks that the current token in the lexer is the given keyword/terminal. If it isn't,
+    * an exception is raised with the expected token and the current token in the lexer. 
+    * Calls lexer.next() on success.
     *
-    * @param k The given keyword the lexer's token should be.
+    * @param expected The given keyword/terminal the lexer's token should be.
     */
-    void match(Keyword k);
+    template<typename T>
+    void match(const T& expected);   
 
    /*
-    * Checks that the current token in the lexer is the given terminal. If it isn't,
-    * an exception is raised with the expected token. Calls lexer.next() on success.
+    * Checks that the current token is of type T. If it isn't, an exception is raised with 
+    * the expected type. If it is, an object of type T is retrieved from the token's payload. 
+    * Calls lexer.next() on success.
     *
-    * @param t The given terminal the lexer's token should be.
-    */
-    void match(Terminal t);
-
-   /*
-    * Checks that the current token is of type T. If it isn't,
-    * an exception is raised with the expected type. If it is, an object of
-    * type T is retrieved from the token's payload. Calls lexer.next() and then returns
-    * the object.
-    *
-    * @param msg The message given to the raised exception if the lexer' token isn't of type T.
     * @return an object of type T retrieved from the token's payload is return upon success.
     */ 
     template<typename T>
@@ -108,6 +79,16 @@ private:
     */ 
     template<typename T>
     T match_return();
+
+    /*
+     * Translates a terminal to an appropriate opcode that'd be used. Note,
+     * that the opposite opcode is produced due to branching rules being flipped
+     * in Assembly.
+     *
+     * @param terminal The given terminal.
+     * @return The opcode appropriate for the given terminal.
+     */
+    Opcode terminal_to_opcode(const Terminal& terminal);
 
     /* Computation */
     void computation();
