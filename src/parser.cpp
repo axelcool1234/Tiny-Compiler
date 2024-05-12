@@ -19,7 +19,7 @@ void Parser::computation() {
     bb_t curr_block = variable_declaration();
     // function_declaration();
     match(Terminal::LBRACE);
-    main_statement_sequence(curr_block);
+    statement_sequence(curr_block, Terminal::RBRACE);
     match(Terminal::RBRACE);
     match(Terminal::PERIOD);
 }
@@ -42,24 +42,17 @@ void function_declaration() {
     
 }
 
-/* Statement Sequences */
-void Parser::main_statement_sequence(bb_t& curr_block) {
-    terminal_sequence_helper(curr_block, Terminal::RBRACE);
+/* Statements  */
+template<typename... Args>
+void Parser::statement_sequence(bb_t& curr_block, Args... args) {
+    while((!token_is(lexer.token, args) && ...)) {
+        statement(curr_block);
+        // TODO: Figure out a way to enforce semicolons for all but the last statement.
+        if(token_is(lexer.token, Terminal::SEMICOLON))
+            lexer.next();
+    } 
 }
 
-void Parser::then_statement_sequence(bb_t& then_block) {
-    keyword_sequence_helper(then_block, Keyword::ELSE, Keyword::FI);
-}
-
-void Parser::else_statement_sequence(bb_t& else_block) {
-    keyword_sequence_helper(else_block, Keyword::FI);
-}
-
-void Parser::while_statement_sequence(bb_t& while_block) {
-    keyword_sequence_helper(while_block, Keyword::OD);
-}
-
-/* Statements */
 void Parser::statement(bb_t& curr_block) {
     assert_type<Keyword>();
     switch(match_return<Keyword>()) {
@@ -99,14 +92,14 @@ void Parser::if_statement(bb_t& curr_block) {
     relation(curr_block);
     match(Keyword::THEN);
     bb_t then_block = ir.new_block(curr_block, FALLTHROUGH);
-    then_statement_sequence(then_block);
+    statement_sequence(then_block, Keyword::ELSE, Keyword::FI);
 
     // "else"
     bb_t else_block = ir.new_block(curr_block, BRANCH);
     const bb_t og_else_block = else_block;
     if(token_is(lexer.token, Keyword::ELSE)) {
         lexer.next();        
-        else_statement_sequence(else_block);
+        statement_sequence(else_block, Keyword::FI);
     }
     match(Keyword::FI);
 
@@ -133,7 +126,7 @@ void Parser::while_statement(bb_t& curr_block) {
 
     // "do" statement_sequence "od"
     match(Keyword::DO);
-    while_statement_sequence(while_block);
+    statement_sequence(while_block, Keyword::OD);
     match(Keyword::OD);
 
     // Create BRANCH block
@@ -274,27 +267,6 @@ bool Parser::token_is(const Token& token) {
     } else { 
         throw ParserException("Invalid token type called from function 'token_is'"); 
     }
-}
-
-template<typename... Args>
-void Parser::keyword_sequence_helper(bb_t& curr_block, Args... args) {
-    while((!token_is(lexer.token, args) && ...)) {
-        statement_handler(curr_block);
-    } 
-}
-
-template<typename... Args>
-void Parser::terminal_sequence_helper(bb_t& curr_block, Args... args) {
-    while((!token_is(lexer.token, args) && ...)) {
-        statement_handler(curr_block);
-    } 
-}
-
-void Parser::statement_handler(bb_t& curr_block) {
-    statement(curr_block);
-    // TODO: Figure out a way to enforce semicolons for all but the last statement.
-    if(token_is(lexer.token, Terminal::SEMICOLON))
-        lexer.next();
 }
 
 Opcode Parser::terminal_to_opcode(const Terminal& terminal) {
