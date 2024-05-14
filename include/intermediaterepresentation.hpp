@@ -7,8 +7,6 @@
 class IntermediateRepresentation {
 public:
     bool ignore = false;
-    void set_return(const bb_t& b);
-    bool will_return(const bb_t& b) const;
     /*
      * Resets the doms vector and recomputes the dominators for every basic
      * block in the basic_blocks vector
@@ -220,6 +218,20 @@ public:
      * identifier in the given block.
      */
     void change_ident_value(const bb_t& b, const ident_t& ident, const instruct_t& instruct);
+
+    /*
+     * Sets the given block's will_return bool to true.
+     * 
+     * @param b The given block's index.
+     */ 
+    void set_return(const bb_t& b);
+
+    /* 
+     * Returns the given block's will_return bool value.
+     *
+     * @param b The given block's index.
+     */
+    bool will_return(const bb_t& b) const;
 
     /* 
      * Sets the opcode (aka condition) for the given block's branch instruction. This
