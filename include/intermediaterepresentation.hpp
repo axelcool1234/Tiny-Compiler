@@ -6,6 +6,8 @@
 
 class IntermediateRepresentation {
 public:
+    void set_return(const bb_t& b);
+    bool will_return(const bb_t& b) const;
     /*
      * Resets the doms vector and recomputes the dominators for every basic
      * block in the basic_blocks vector

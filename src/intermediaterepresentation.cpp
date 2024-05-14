@@ -120,12 +120,21 @@ instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op)
     return add_instruction_helper(b, op, -1, -1, false);
 }
 
+void IntermediateRepresentation::set_return(const bb_t& b) {
+    basic_blocks[b].will_return = true;
+}
+
+bool IntermediateRepresentation::will_return(const bb_t& b) const {
+    return basic_blocks[b].will_return;
+}
 
 void IntermediateRepresentation::set_branch_cond(const bb_t& b, Opcode op, const instruct_t& larg) {
     Instruction& instruction = basic_blocks[b].branch_instruction;
+    if(will_return(b)) return;
     if(instruction.instruction_number == -1) instruction.instruction_number = ++instruction_count;
     instruction.opcode = op;
     instruction.larg = larg;
+    if(op == Opcode::RET) set_return(b);
 }
 
 void IntermediateRepresentation::set_branch_location(const bb_t& b, const instruct_t& rarg) {

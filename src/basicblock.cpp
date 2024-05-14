@@ -28,7 +28,7 @@ std::string BasicBlock::to_dotlang() const {
         if(i != instructions.size() - 1) msg += "|";
     }
     if(branch_instruction.instruction_number != -1) {
-        msg += "|";
+        if(instructions.size() != 0) msg += "|";
         msg += branch_instruction.to_dotlang();
     }
     msg += "}\"];\n";
