@@ -8,6 +8,7 @@
 // This algorithm is implicitly ran just for new blocks that are added to the data structure.
 // Only run this if the whole thing needs to be recalculated for some reason.
 void IntermediateRepresentation::compute_dominators() {
+    if(ignore) return;
     std::ranges::fill(doms, -1);
     doms[0] = basic_blocks[0].index; // entry block
     bool changed = true;
@@ -29,6 +30,7 @@ void IntermediateRepresentation::compute_dominators() {
 }
 
 bb_t IntermediateRepresentation::intersect(bb_t b1, bb_t b2) const {
+    if(ignore) return -1;
     while(b1 != b2) {
         while(b1 > b2) b1 = doms[b1];
         while(b2 > b1) b2 = doms[b2];
@@ -37,11 +39,13 @@ bb_t IntermediateRepresentation::intersect(bb_t b1, bb_t b2) const {
 }
 
 void IntermediateRepresentation::establish_const_block(const ident_t& ident_count) {
+    if(ignore) return;
     basic_blocks.emplace_back(0, ident_count);
     doms.push_back(0);
 }
 
 bb_t IntermediateRepresentation::new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t) {
+    if(ignore) return -1;
     bb_t index = basic_blocks.size();
     if(t != Blocktype::INVALID) { // New block has 1 parent, and either FALLTHROUGH or BRANCH Blocktype.
         basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values, p1, t);
@@ -67,18 +71,22 @@ bb_t IntermediateRepresentation::new_block_helper(const bb_t& p1, const bb_t& p2
 } 
 
 bb_t IntermediateRepresentation::new_block(const bb_t& p) {
+    if(ignore) return -1;
     return new_block_helper(p, -1, -1, Blocktype::INVALID);
 }
 
 bb_t IntermediateRepresentation::new_block(const bb_t& p, Blocktype t) {
+    if(ignore) return -1;
     return new_block_helper(p, -1, -1, t);
 }
 
 bb_t IntermediateRepresentation::new_block(const bb_t& p1, const bb_t& p2, const bb_t& idom) {
+    if(ignore) return -1;
     return new_block_helper(p1, p2, idom, Blocktype::INVALID);
 }
 
 instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
+    if(ignore) return -1;
     if(basic_blocks[b].instructions.size() != 0 && basic_blocks[b].instructions.front().opcode == Opcode::EMPTY) {
         Instruction& instruction = basic_blocks[b].instructions.front();
         instruction.opcode = op;
@@ -90,6 +98,7 @@ instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, co
 }
 
 instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg, const bool& prepend) {
+    if(ignore) return -1;
     // Common Subexpression Elimination
     instruct_t instruct = search_cse(b, op, larg, rarg);
     if(instruct != -1) return instruct;
@@ -108,27 +117,34 @@ instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opc
 }
 
 instruct_t IntermediateRepresentation::prepend_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
+    if(ignore) return -1;
     return add_instruction_helper(b, op, larg, rarg, true);
 }
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
+    if(ignore) return -1;
     return add_instruction_helper(b, op, larg, rarg, false);
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg)  {
+    if(ignore) return -1;
     return add_instruction_helper(b, op, larg, -1, false);
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op) {
+    if(ignore) return -1;
     return add_instruction_helper(b, op, -1, -1, false);
 }
 
 void IntermediateRepresentation::set_return(const bb_t& b) {
+    if(ignore) return;
     basic_blocks[b].will_return = true;
 }
 
 bool IntermediateRepresentation::will_return(const bb_t& b) const {
+    if(ignore) return false;
     return basic_blocks[b].will_return;
 }
 
 void IntermediateRepresentation::set_branch_cond(const bb_t& b, Opcode op, const instruct_t& larg) {
+    if(ignore) return;
     Instruction& instruction = basic_blocks[b].branch_instruction;
     if(will_return(b)) return;
     if(instruction.instruction_number == -1) instruction.instruction_number = ++instruction_count;
@@ -138,11 +154,13 @@ void IntermediateRepresentation::set_branch_cond(const bb_t& b, Opcode op, const
 }
 
 void IntermediateRepresentation::set_branch_location(const bb_t& b, const instruct_t& rarg) {
+    if(ignore) return;
     Instruction& instruction = basic_blocks[b].branch_instruction;
     instruction.rarg = rarg;
 }
 
 instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
+    if(ignore) return -1;
     if(op > CSE_COUNT) return -1;
     bb_t curr_block = b;
     while(true) {
@@ -158,6 +176,8 @@ instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, cons
 }
 
 void IntermediateRepresentation::generate_phi(const bb_t& loop_header, const bb_t& branch_back) {
+    if(ignore) return;
+    if(will_return(branch_back)) return;
     std::vector<instruct_t>& loop_ident_vals = basic_blocks[loop_header].identifier_values;
     const std::vector<instruct_t>& branch_ident_vals = basic_blocks[branch_back].identifier_values;
     std::vector<std::tuple<int, instruct_t, instruct_t>> changed_idents;
@@ -175,6 +195,7 @@ void IntermediateRepresentation::generate_phi(const bb_t& loop_header, const bb_
 }
 
 void IntermediateRepresentation::update_ident_vals_until(bb_t curr_block, bb_t stop_block, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents) {
+    if(ignore) return;
     while(curr_block != stop_block) {
         bb_t idom = doms[curr_block];
         update_ident_vals(curr_block, changed_idents, false);
@@ -187,6 +208,7 @@ void IntermediateRepresentation::update_ident_vals_until(bb_t curr_block, bb_t s
 }
 
 void IntermediateRepresentation::update_ident_vals(const bb_t& b, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents, const bool& skip_phi) {
+    if(ignore) return;
     // changed_idents<0, 1, 2>:
     // 0: index of identifier to change
     // 1: new instruction number to change to
@@ -202,15 +224,18 @@ void IntermediateRepresentation::update_ident_vals(const bb_t& b, const std::vec
 }
 
 instruct_t IntermediateRepresentation::first_instruction(const bb_t& b) {
+    if(ignore) return -1;
     if(basic_blocks[b].instructions.size() == 0) add_instruction(b, Opcode::EMPTY);
     return basic_blocks[b].instructions.front().instruction_number;
 }
 
 instruct_t IntermediateRepresentation::get_ident_value(const bb_t& b, const ident_t& ident) {    
+    if(ignore) return -1;
     return basic_blocks[b].get_ident_value(ident);
 }
 
 void IntermediateRepresentation::change_ident_value(const bb_t& b, const ident_t& ident, const instruct_t& instruct) {
+    if(ignore) return;
     basic_blocks[b].change_instruction(ident, instruct);
 }
 

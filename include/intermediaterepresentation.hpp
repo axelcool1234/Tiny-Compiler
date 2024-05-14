@@ -6,6 +6,7 @@
 
 class IntermediateRepresentation {
 public:
+    bool ignore = false;
     void set_return(const bb_t& b);
     bool will_return(const bb_t& b) const;
     /*

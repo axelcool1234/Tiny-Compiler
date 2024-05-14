@@ -98,9 +98,20 @@ private:
     void function_declaration();
 
     /* Statement Sequences */
+    /*
+     * Continually parses statements until the given keywords/terminals are reached.
+     * If the ir is in ignore mode, a fake dummy block is passed to the statement call to
+     * prevent the curr_block from being affected. Else, the curr_block is passed to the
+     * statement call, and if that statement is gaurunteed to return, then the ir's ignore 
+     * mode is activated.
+     *
+     * @param curr_block The current block of the ir.
+     * @param args a variadic amount of terminals and/or keywords that stop the statement 
+     * parsing when reached.
+     */
     template<typename... Args>
     void statement_sequence(bb_t& curr_block, Args... args);
-    bool statement(bb_t& curr_block);
+    bool statement(bb_t& curr_block); // returns true if the statement will always return.
 
     // "let" statement
     void let_statement(const bb_t& curr_block);
@@ -111,7 +122,7 @@ private:
     void void_function_statement(const bb_t& curr_block);
 
     // "if" statement
-    bool if_statement(bb_t& curr_block);
+    bool if_statement(bb_t& curr_block); // returns true if the if statement will always return.
     void join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block);
 
     // "while" statement
