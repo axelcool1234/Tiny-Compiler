@@ -46,31 +46,35 @@ void function_declaration() {
 /* Statements  */
 template<typename... Args>
 void Parser::statement_sequence(bb_t& curr_block, Args... args) {
+    bool returned = false;
     while((!token_is(lexer.token, args) && ...)) {
-        statement(curr_block);
-        // TODO: Figure out a way to enforce semicolons for all but the last statement.
-        if(token_is(lexer.token, Terminal::SEMICOLON))
+        if(!returned) {
+            returned = statement(curr_block);
+            // TODO: Figure out a way to enforce semicolons for all but the last statement.
+            if(token_is(lexer.token, Terminal::SEMICOLON))
+                lexer.next();
+        } else {
             lexer.next();
+        }
     } 
 }
 
-void Parser::statement(bb_t& curr_block) {
+bool Parser::statement(bb_t& curr_block) {
     switch(match_return<Keyword>()) {
         case Keyword::LET:
             let_statement(curr_block);
-            break;
+            return false;
         case Keyword::CALL:
-            func_statement(curr_block);
-            break;
+            void_function_statement(curr_block);
+            return false;
         case Keyword::IF:
-            if_statement(curr_block);
-            break;
+            return if_statement(curr_block);
         case Keyword::WHILE:
             while_statement(curr_block);
-            break;
+            return false;
         case Keyword::RETURN:
             return_statement(curr_block);
-            break;
+            return true;
         default:
             throw ParserException("Invalid reserved keyword in statement!");
     }    
@@ -83,11 +87,19 @@ void Parser::let_statement(const bb_t& curr_block) {
     ir.change_ident_value(curr_block, ident, expression(curr_block));
 }
 
-void Parser::func_statement(bb_t& curr_block) {
+void Parser::nonvoid_function_statement(const bb_t& curr_block) {
 
 }
 
-void Parser::if_statement(bb_t& curr_block) {
+void Parser::void_function_statement(const bb_t& curr_block) {
+
+}
+
+void Parser::function_statement(const bb_t& curr_block) {
+
+}
+
+bool Parser::if_statement(bb_t& curr_block) {
     /* relation "then" statement_sequence [ "else" statement_sequence ] "fi" */
     relation(curr_block);
     match(Keyword::THEN);
@@ -103,15 +115,32 @@ void Parser::if_statement(bb_t& curr_block) {
     }
     match(Keyword::FI);
 
-    // Create JOIN block
-    join(curr_block, then_block, else_block, og_else_block);
+    // Set branch location for dominator block
+    ir.set_branch_location(curr_block, ir.first_instruction(og_else_block));
+
+    // If both blocks return, no need to continue.
+    if(ir.will_return(then_block) && ir.will_return(else_block)) {
+         ir.set_return(curr_block);
+         return true;
+    }
+
+    // If one of the blocks returns, no need to join.
+    if(ir.will_return(then_block)) {
+         curr_block = else_block;
+         return false;
+    } else if (ir.will_return(else_block)) {
+        curr_block = then_block;
+        return false;
+    }
+
+    // Create JOIN block if both blocks do not return.
+    join(curr_block, then_block, else_block);
+    return false;
 }
 
-void Parser::join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block, const bb_t& og_else_block) {
-    bb_t og_curr_block = curr_block;
-    curr_block = ir.new_block(then_block, else_block, og_curr_block);
+void Parser::join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block) {
+    curr_block = ir.new_block(then_block, else_block, curr_block);
     ir.set_branch_cond(then_block, Opcode::BRA, ir.first_instruction(curr_block));
-    ir.set_branch_location(og_curr_block, ir.first_instruction(og_else_block));
 }
 
 void Parser::while_statement(bb_t& curr_block) {
@@ -142,7 +171,17 @@ void Parser::branch(bb_t& curr_block, const bb_t& while_block) {
 }
 
 void Parser::return_statement(bb_t& curr_block) {
-
+    // [ expression ]
+    // Check for a potential expression after "return"
+    if(token_is(lexer.token, Keyword::CALL) ||
+       token_is(lexer.token, Terminal::LPAREN, Terminal::RPAREN) ||
+       token_is<int>(lexer.token) ||
+       token_is<ident_t>(lexer.token)) {
+        instruct_t expr = expression(curr_block);
+        ir.set_branch_cond(curr_block, Opcode::RET, expr);
+        return;
+    }
+    ir.set_branch_cond(curr_block, Opcode::RET, -1);
 }
 
 /* Relations */
@@ -194,15 +233,17 @@ instruct_t Parser::factor(const bb_t& curr_block) {
     } else if (token_is<int>(lexer.token)) { 
         result = ir.add_instruction(const_block, Opcode::CONST, match_return<int>());        
         return result;
-    }
-    else if (token_is(lexer.token, Terminal::LPAREN)) {
+    } else if (token_is(lexer.token, Terminal::LPAREN)) {
         lexer.next();
         result = expression(curr_block);
         if(token_is(lexer.token, Terminal::RPAREN))
             lexer.next();
         return result;
+    } else if (token_is(lexer.token, Keyword::CALL)) {
+        lexer.next();
+        nonvoid_function_statement(curr_block);
     }
-    throw ParserException("Expected user identifier, constant or '(' in factor.");
+    throw ParserException("Expected user identifier, constant, function call, or '(' in factor.");
 }
 
 /* Helpers */

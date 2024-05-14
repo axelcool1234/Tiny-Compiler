@@ -100,16 +100,19 @@ private:
     /* Statement Sequences */
     template<typename... Args>
     void statement_sequence(bb_t& curr_block, Args... args);
-    void statement(bb_t& curr_block);
+    bool statement(bb_t& curr_block);
 
     // "let" statement
     void let_statement(const bb_t& curr_block);
 
-    void func_statement(bb_t& curr_block);
+    // "function" statement
+    void function_statement(const bb_t& curr_block);
+    void nonvoid_function_statement(const bb_t& curr_block);
+    void void_function_statement(const bb_t& curr_block);
 
     // "if" statement
-    void if_statement(bb_t& curr_block);
-    void join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block, const bb_t& og_else_block);
+    bool if_statement(bb_t& curr_block);
+    void join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block);
 
     // "while" statement
     void while_statement(bb_t& curr_block);
