@@ -28,13 +28,15 @@ void Parser::computation() {
 /* Declarations */
 bb_t Parser::variable_declaration() {
     /* "var" ident { "," ident } ";" */
-    match(Keyword::VAR);
-    match<ident_t>();
-    while(token_is(lexer.token, Terminal::COMMA)) {
+    if(token_is(lexer.token, Keyword::VAR)){
         lexer.next();
         match<ident_t>();
+        while(token_is(lexer.token, Terminal::COMMA)) {
+            lexer.next();
+            match<ident_t>();
+        }
+        match(Terminal::SEMICOLON);
     }
-    match(Terminal::SEMICOLON);
     ir.establish_const_block(lexer.ident_index);
     return ir.new_block(const_block);
 }
