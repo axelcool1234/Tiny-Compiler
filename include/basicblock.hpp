@@ -18,7 +18,7 @@ struct BasicBlock {
     std::vector<Instruction> instructions;
     std::vector<std::vector<instruct_t>> partitioned_instructions;
     Blocktype type;
-    bool will_return = false;
+    bool will_return = false; // If the block is guaranteed to return, this'll be true.
     bb_t index;
     std::vector<bb_t> predecessors;
     std::vector<instruct_t> identifier_values;
