@@ -46,17 +46,19 @@ void function_declaration() {
 /* Statements  */
 template<typename... Args>
 void Parser::statement_sequence(bb_t& curr_block, Args... args) {
-    bool returned = false;
+    bool prev_ignore = ir.ignore;
+    bb_t dummy = -1;
     while((!token_is(lexer.token, args) && ...)) {
-        if(!returned) {
-            returned = statement(curr_block);
-            // TODO: Figure out a way to enforce semicolons for all but the last statement.
-            if(token_is(lexer.token, Terminal::SEMICOLON))
-                lexer.next();
+        if(prev_ignore || ir.ignore) {
+            statement(dummy);
         } else {
-            lexer.next();
+            ir.ignore = statement(curr_block);
         }
+        // TODO: Figure out a way to enforce semicolons for all but the last statement.
+        if(token_is(lexer.token, Terminal::SEMICOLON))
+            lexer.next();
     } 
+    ir.ignore = prev_ignore;
 }
 
 bool Parser::statement(bb_t& curr_block) {
@@ -76,7 +78,7 @@ bool Parser::statement(bb_t& curr_block) {
             return_statement(curr_block);
             return true;
         default:
-            throw ParserException("Invalid reserved keyword in statement!");
+            throw ParserException(std::format("Invalid reserved keyword in statement! Received {}", to_string(lexer.token)));
     }    
 }
 
