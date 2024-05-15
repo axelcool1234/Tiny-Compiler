@@ -94,8 +94,12 @@ private:
     void computation();
 
     /* Declarations */
-    bb_t variable_declaration();
-    void function_declaration();
+    void variable_declaration();
+
+    bb_t function_declaration();
+    void formal_parameters(bb_t& func_block);
+    std::vector<ident_t> formal_parameters();
+    instruct_t function_body(const std::vector<ident_t>& formal_params, const std::vector<instruct_t>& func_first_instructs);
 
     /* Statement Sequences */
     /*
@@ -117,9 +121,8 @@ private:
     void let_statement(const bb_t& curr_block);
 
     // "function" statement
-    void function_statement(const bb_t& curr_block);
-    void nonvoid_function_statement(const bb_t& curr_block);
-    void void_function_statement(const bb_t& curr_block);
+    instruct_t function_statement(const bb_t& curr_block);
+    instruct_t predefined_function_statement(const bb_t& curr_block);
 
     // "if" statement
     bool if_statement(bb_t& curr_block); // returns true if the if statement will always return.

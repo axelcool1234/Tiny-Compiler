@@ -17,8 +17,8 @@ void Parser::print() {
 void Parser::computation() {
     /* "main" [ variable_declaration ] { function_declaration } "{" statSequence "}" "." */
     match(Keyword::MAIN);
-    bb_t curr_block = variable_declaration();
-    // function_declaration();
+    variable_declaration();
+    bb_t curr_block = function_declaration();
     match(Terminal::LBRACE);
     statement_sequence(curr_block, Terminal::RBRACE);
     match(Terminal::RBRACE);
@@ -26,7 +26,7 @@ void Parser::computation() {
 }
 
 /* Declarations */
-bb_t Parser::variable_declaration() {
+void Parser::variable_declaration() {
     /* "var" ident { "," ident } ";" */
     if(token_is(lexer.token, Keyword::VAR)){
         lexer.next();
@@ -37,12 +37,91 @@ bb_t Parser::variable_declaration() {
         }
         match(Terminal::SEMICOLON);
     }
-    ir.establish_const_block(lexer.ident_index);
-    return ir.new_block(const_block);
 }
 
-void function_declaration() {
-    
+bb_t Parser::function_declaration() {
+    /* [ "void" ] "function" ident formal_parameters ";" function_body ";" */ 
+    // these are declared vars of the main function. 
+    std::vector<std::string> saved_identifier_strings = lexer.wipe();     
+
+    // contains identifier strings for previously defined functions. (e.g., "function foo()" would have "foo" in this vector)
+    std::vector<std::string> func_strings{}; 
+
+    // contains instruction numbers of the first instruction of previously defined functions.
+    std::vector<instruct_t> func_first_instructs{};
+
+    while(token_is(lexer.token, Keyword::VOID, Keyword::FUNCTION)) {
+        // "void"
+        bool void_func = token_is(lexer.token, Keyword::VOID);
+        if(void_func) lexer.next();
+
+        // "function"
+        lexer.wipe();
+        match(Keyword::FUNCTION);
+        lexer.insert_ident(func_strings);
+        ident_t func_ident = match_return<ident_t>();
+        func_strings.emplace_back(lexer.last_ident_string);
+
+        // formal_parameters ";" function_body ";"
+        std::vector<ident_t> formal_params = formal_parameters();
+        match(Terminal::SEMICOLON);
+        func_first_instructs.emplace_back(function_body(formal_params, func_first_instructs));
+        match(Terminal::SEMICOLON);
+    }
+
+    // Establish main function
+    lexer.wipe();
+    lexer.insert_ident(std::move(func_strings));
+    lexer.insert_ident(std::move(saved_identifier_strings));
+    bb_t main_block = ir.new_function(const_block, lexer.ident_index);
+
+    // Make all the inserted identifiers of previously defined functions point to their first instruction
+    ident_t index = 0;
+    for(const auto& first_instruct : func_first_instructs) {
+        ir.change_ident_value(main_block, index, first_instruct);
+        ++index;
+    }
+    return main_block;
+}
+
+std::vector<ident_t> Parser::formal_parameters() {
+    // "(" [ ident { "," ident } ] ")"
+    std::vector<ident_t> formal_params{};
+    match(Terminal::LPAREN);
+    if(!token_is(lexer.token, Terminal::RPAREN)) {
+        formal_params.emplace_back(match_return<ident_t>());
+    }
+    while(!token_is(lexer.token, Terminal::RPAREN)) {
+        match(Terminal::COMMA);
+        formal_params.emplace_back(match_return<ident_t>());
+    }
+    match(Terminal::RPAREN);
+    return formal_params;
+}
+
+instruct_t Parser::function_body(const std::vector<ident_t>& formal_params, const std::vector<instruct_t>& func_first_instructs) {
+    /* [ variable_declaration ] "{" statement_sequence "}" */
+    variable_declaration();
+    bb_t func_block = ir.new_function(const_block, lexer.ident_index);
+    const bb_t& og_func_block = func_block;
+
+    // Make all previously defined functions point to their first instruction
+    ident_t index = 0;
+    for(const auto& first_instruct : func_first_instructs) {
+        ir.change_ident_value(func_block, index, first_instruct);
+        ++index;
+    }
+    ir.change_ident_value(func_block, index, ir.first_instruction(func_block));
+
+    // Add GETPAR instructions
+    for(const auto& param : formal_params) {
+        ir.change_ident_value(func_block, param, ir.add_instruction(func_block, Opcode::GETPAR));
+    }
+
+    match(Terminal::LBRACE);
+    statement_sequence(func_block, Terminal::RBRACE);
+    match(Terminal::RBRACE);
+    return ir.first_instruction(og_func_block);
 }
 
 /* Statements  */
@@ -69,7 +148,7 @@ bool Parser::statement(bb_t& curr_block) {
             let_statement(curr_block);
             return false;
         case Keyword::CALL:
-            void_function_statement(curr_block);
+            function_statement(curr_block);
             return false;
         case Keyword::IF:
             return if_statement(curr_block);
@@ -91,16 +170,46 @@ void Parser::let_statement(const bb_t& curr_block) {
     ir.change_ident_value(curr_block, ident, expression(curr_block));
 }
 
-void Parser::nonvoid_function_statement(const bb_t& curr_block) {
-
+instruct_t Parser::predefined_function_statement(const bb_t& curr_block) {
+    instruct_t result;
+    switch(match_return<Keyword>()) {
+        case Keyword::READ:
+            match(Terminal::LPAREN);
+            match(Terminal::RPAREN);
+            return ir.add_instruction(curr_block, Opcode::READ);
+        case Keyword::WRITE:
+            result = ir.add_instruction(curr_block, Opcode::WRITE, expression(curr_block));
+            return result;
+        case Keyword::WRITENL:
+            match(Terminal::LPAREN);
+            match(Terminal::RPAREN);
+            return ir.add_instruction(curr_block, Opcode::WRITENL);
+        default:
+            throw ParserException(std::format("Invalid reserved keyword in function call! Received {}", to_string(lexer.token)));
+    }
 }
 
-void Parser::void_function_statement(const bb_t& curr_block) {
+instruct_t Parser::function_statement(const bb_t& curr_block) {
+    /* ident [ "(" [ expression { "," expression } ] ")" ] */
+    // Predefined functions
+    if(token_is<Keyword>(lexer.token)) {
+        return predefined_function_statement(curr_block);
+    }
 
-}
-
-void Parser::function_statement(const bb_t& curr_block) {
-
+    // User defined functions
+    ident_t ident = match_return<ident_t>();
+    if(token_is(lexer.token, Terminal::LPAREN)) {
+        lexer.next();
+        if(!token_is(lexer.token, Terminal::RPAREN)) {
+            ir.add_instruction(curr_block, Opcode::SETPAR, expression(curr_block));
+        }
+        while(!token_is(lexer.token, Terminal::RPAREN)) {
+            match(Terminal::COMMA);
+            ir.add_instruction(curr_block, Opcode::SETPAR, expression(curr_block));
+        }
+        match(Terminal::RPAREN);
+    }
+    return ir.add_instruction(curr_block, Opcode::JSR, ir.get_ident_value(curr_block, ident));
 }
 
 bool Parser::if_statement(bb_t& curr_block) {
@@ -230,22 +339,18 @@ instruct_t Parser::term(const bb_t& curr_block) {
 }
 
 instruct_t Parser::factor(const bb_t& curr_block) {
-    instruct_t result;
     if(token_is<ident_t>(lexer.token)) {
-        result = ir.get_ident_value(curr_block, match_return<ident_t>());
-        return result;
+        return ir.get_ident_value(curr_block, match_return<ident_t>());
     } else if (token_is<int>(lexer.token)) { 
-        result = ir.add_instruction(const_block, Opcode::CONST, match_return<int>());        
-        return result;
+        return ir.add_instruction(const_block, Opcode::CONST, match_return<int>());        
     } else if (token_is(lexer.token, Terminal::LPAREN)) {
         lexer.next();
-        result = expression(curr_block);
-        if(token_is(lexer.token, Terminal::RPAREN))
-            lexer.next();
+        instruct_t result = expression(curr_block);
+        match(Terminal::RPAREN);
         return result;
     } else if (token_is(lexer.token, Keyword::CALL)) {
         lexer.next();
-        nonvoid_function_statement(curr_block);
+        return function_statement(curr_block);
     }
     throw ParserException("Expected user identifier, constant, function call, or '(' in factor.");
 }

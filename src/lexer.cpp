@@ -11,6 +11,24 @@
  *      | ^                                    | [=]                 | [=]      | [-=]               | ^
  *      |/ [a-z0-9]                            .-----> [ 2-char TERMINAL ] <----.                    |/ [0-9] */
 
+std::vector<std::string> Lexer::wipe() {
+    std::vector<std::string> removed_keys;    
+    for (auto it = identifier_table.begin(); it != identifier_table.end(); ++it) {
+        if (it->second >= 0)
+            removed_keys.push_back(it->first);
+    }
+    for (const auto& key : removed_keys) {
+        identifier_table.erase(key);
+    }
+    return removed_keys;
+}
+
+void Lexer::insert_ident(const std::vector<std::string>& ident_strings) {
+    for(const auto& str : ident_strings) {
+        identifier_table[str] = ident_index; 
+        ++ident_index;
+    }
+}
 
 void Lexer::next() {
     // Always skip whitespace
@@ -22,7 +40,7 @@ void Lexer::next() {
         return;
     }
 
-    if (std::islower(*istream)) { // lowercase alphas (for the first char) belong to identifier tokens.
+    if (std::isalpha(*istream)) { // alphas (for the first char) belong to identifier tokens.
         tokenize_identifier();
     } else if (std::isdigit(*istream)) { // digits (for the first char) belong to constant tokens.
         tokenize_constant();
@@ -40,22 +58,23 @@ void Lexer::tokenize_identifier() {
     std::string lexeme;
 
     // identifiers can have lowercase alphas or digits (just lowercase alphas for the first char)
-    while (std::islower(*istream) || std::isdigit(*istream)) {
+    while (std::isalpha(*istream) || std::isdigit(*istream)) {
         lexeme.push_back(*(istream++));
     }
 
     // Check if this identifier has been seen before
-    if (!identifier_table.contains(lexeme)) {
+    if(!identifier_table.contains(lexeme)) {
         identifier_table[lexeme] = ident_index;
-        ident_index++;
+        ++ident_index;
     }
-
     const int& ident_value = identifier_table.at(lexeme);     
+
     if(ident_value >= 0) {
         token = static_cast<ident_t>(ident_value);
     } else {
         token = static_cast<Keyword>(-ident_value);
     }
+    last_ident_string = std::move(lexeme);
 };
 
 

@@ -25,9 +25,11 @@
     OPCODE(BGT, bgt) \
     OPCODE(JSR, jsr) \
     OPCODE(RET, ret) \
+    OPCODE(GETPAR, getpar) \
     OPCODE(GETPAR1, getpar1) \
     OPCODE(GETPAR2, getpar2) \
     OPCODE(GETPAR3, getpar3) \
+    OPCODE(SETPAR, setpar) \
     OPCODE(SETPAR1, setpar1) \
     OPCODE(SETPAR2, setpar2) \
     OPCODE(SETPAR3, setpar3) \

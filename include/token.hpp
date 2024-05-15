@@ -50,20 +50,23 @@ static const std::unordered_set<Terminal> terminals{
 };
 
 #define KEYWORD_LIST \
-    KEYWORD(VAR         , var       ) \
-    KEYWORD(LET         , let       ) \
-    KEYWORD(CALL        , call      ) \
-    KEYWORD(IF          , if        ) \
-    KEYWORD(THEN        , then      ) \
-    KEYWORD(ELSE        , else      ) \
-    KEYWORD(FI          , fi        ) \
-    KEYWORD(WHILE       , while     ) \
-    KEYWORD(DO          , do        ) \
-    KEYWORD(OD          , od        ) \
-    KEYWORD(RETURN      , return    ) \
-    KEYWORD(VOID        , void      ) \
-    KEYWORD(FUNCTION    , function  ) \
-    KEYWORD(MAIN        , main      ) \
+    KEYWORD(VAR         , var           ) \
+    KEYWORD(LET         , let           ) \
+    KEYWORD(CALL        , call          ) \
+    KEYWORD(IF          , if            ) \
+    KEYWORD(THEN        , then          ) \
+    KEYWORD(ELSE        , else          ) \
+    KEYWORD(FI          , fi            ) \
+    KEYWORD(WHILE       , while         ) \
+    KEYWORD(DO          , do            ) \
+    KEYWORD(OD          , od            ) \
+    KEYWORD(RETURN      , return        ) \
+    KEYWORD(VOID        , void          ) \
+    KEYWORD(FUNCTION    , function      ) \
+    KEYWORD(MAIN        , main          ) \
+    KEYWORD(READ        , InputNum      ) \
+    KEYWORD(WRITE       , OutputNum     ) \
+    KEYWORD(WRITENL     , OutputNewLine )   
 
 enum class Keyword {
     DUMMY,
@@ -73,7 +76,7 @@ enum class Keyword {
     KEYWORD_COUNT
 };
 
-using ident_t = size_t;
+using ident_t = ssize_t;
 using Invalid = std::monostate;
 // ident_t is for user identifiers. int is for constants.
 using Token = std::variant<Invalid, Terminal, Keyword, ident_t, int>;
