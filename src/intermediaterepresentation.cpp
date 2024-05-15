@@ -3,6 +3,8 @@
 #include <ranges>
 #include <format>
 
+IntermediateRepresentation::IntermediateRepresentation() : basic_blocks{0}, doms{0} {} 
+
 // Cooper-Harvey-Kennedy 
 // Iterative Reverse Postorder Dominance Algorithm
 // This algorithm is implicitly ran just for new blocks that are added to the data structure.
@@ -38,10 +40,12 @@ bb_t IntermediateRepresentation::intersect(bb_t b1, bb_t b2) const {
     return b1;
 }
 
-void IntermediateRepresentation::establish_const_block(const ident_t& ident_count) {
-    if(ignore) return;
-    basic_blocks.emplace_back(0, ident_count);
-    doms.push_back(0);
+bb_t IntermediateRepresentation::new_function(const bb_t& idom, const ident_t& ident_count) {
+    // TODO: OUTDATED!
+    bb_t index = basic_blocks.size();
+    basic_blocks.emplace_back(index, ident_count, idom);
+    doms.push_back(idom);
+    return index;
 }
 
 bb_t IntermediateRepresentation::new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t) {

@@ -2,10 +2,12 @@
 #define INTERMEDIATEREPRESENTATION_HPP
 
 #include "basicblock.hpp"
+#include <unordered_map>
 #include <vector>
 
 class IntermediateRepresentation {
 public:
+    IntermediateRepresentation();
     bool ignore = false;
     /*
      * Resets the doms vector and recomputes the dominators for every basic
@@ -24,17 +26,6 @@ public:
      * @return The common dominator between block b1 and block b2.
      */
     bb_t intersect(bb_t b1, bb_t b2) const;
-
-    /*
-     * Once the declared variables of a Tiny program is parsed, this
-     * function should be called to establish the first block of the IR.
-     * This block is used for constants. All identifiers are default 
-     * initialized to 0.
-     *
-     * @param ident_count The amount of declared variables that need to be
-     * initialized. 
-     */
-    void establish_const_block(const ident_t& ident_count);
 
     /*
      * Creates a new block with the given parent. The block's
@@ -67,6 +58,14 @@ public:
      * @return The index of the new block.
      */
     bb_t new_block(const bb_t& p1, const bb_t& p2, const bb_t& idom);
+
+    /*
+     * Given an immediate dominator, creates a new block for a function.
+     *
+     * @param idom The new block's immediate dominator.
+     * @param ident_count The current amount of identifiers.
+     */ 
+    bb_t new_function(const bb_t& idom, const ident_t& ident_count);
 
     /*
      * Given a block that potentially only contains an EMPTY instruction, change that

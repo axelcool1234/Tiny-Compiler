@@ -35,8 +35,11 @@ std::string BasicBlock::to_dotlang() const {
     return msg;
 }
 
-BasicBlock::BasicBlock(const bb_t& i, const ident_t& ident_count)                                    
-    : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(NONE), index(i), identifier_values(ident_count) {}
+BasicBlock::BasicBlock(const bb_t& i)                                    
+    : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(NONE), index(i) {}
+
+BasicBlock::BasicBlock(const bb_t& i, const ident_t& ident_count, const bb_t& p)               
+    : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(NONE), index(i), predecessors({p}), identifier_values(ident_count) {}
 
 BasicBlock::BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p)              
     : partitioned_instructions(CSE_COUNT, std::vector<instruct_t>{}), type(NONE), index(i), predecessors({p}), identifier_values(dom_ident_vals) {}

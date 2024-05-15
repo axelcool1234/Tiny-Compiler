@@ -12,7 +12,7 @@ enum Blocktype {
     INVALID, // A block should NEVER be this type. This exists for IntermediateRepresentation functions that want to
             // communicate that a Blocktype shouldn't be specified when creating a new BasicBlock. 
 };
-using ident_t = size_t;
+using ident_t = ssize_t;
 using bb_t = ssize_t;
 struct BasicBlock {
     std::vector<Instruction> instructions;
@@ -23,7 +23,8 @@ struct BasicBlock {
     std::vector<bb_t> predecessors;
     std::vector<instruct_t> identifier_values;
     Instruction branch_instruction{-1, EMPTY, -1, -1};
-    BasicBlock(const bb_t& i, const ident_t& ident_count);
+    BasicBlock(const bb_t& i);
+    BasicBlock(const bb_t& i, const ident_t& ident_count, const bb_t& p); 
     BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p);              
     BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p, Blocktype t); 
     BasicBlock(const bb_t& i, const std::vector<instruct_t>& p1_ident_vals, 
