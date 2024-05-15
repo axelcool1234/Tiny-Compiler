@@ -12,6 +12,7 @@
  *      |/ [a-z0-9]                            .-----> [ 2-char TERMINAL ] <----.                    |/ [0-9] */
 
 std::vector<std::string> Lexer::wipe() {
+    ident_index = 0;
     std::vector<std::string> removed_keys;    
     for (auto it = identifier_table.begin(); it != identifier_table.end(); ++it) {
         if (it->second >= 0)

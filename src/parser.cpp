@@ -57,9 +57,9 @@ bb_t Parser::function_declaration() {
 
         // "function"
         lexer.wipe();
-        match(Keyword::FUNCTION);
         lexer.insert_ident(func_strings);
-        ident_t func_ident = match_return<ident_t>();
+        match(Keyword::FUNCTION);
+        match<ident_t>();
         func_strings.emplace_back(lexer.last_ident_string);
 
         // formal_parameters ";" function_body ";"
@@ -103,7 +103,7 @@ instruct_t Parser::function_body(const std::vector<ident_t>& formal_params, cons
     /* [ variable_declaration ] "{" statement_sequence "}" */
     variable_declaration();
     bb_t func_block = ir.new_function(const_block, lexer.ident_index);
-    const bb_t& og_func_block = func_block;
+    const bb_t og_func_block = func_block;
 
     // Make all previously defined functions point to their first instruction
     ident_t index = 0;

@@ -41,7 +41,6 @@ bb_t IntermediateRepresentation::intersect(bb_t b1, bb_t b2) const {
 }
 
 bb_t IntermediateRepresentation::new_function(const bb_t& idom, const ident_t& ident_count) {
-    // TODO: OUTDATED!
     bb_t index = basic_blocks.size();
     basic_blocks.emplace_back(index, ident_count, idom);
     doms.push_back(idom);
