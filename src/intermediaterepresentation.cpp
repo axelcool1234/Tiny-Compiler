@@ -264,7 +264,7 @@ std::string IntermediateRepresentation::to_dotlang() const {
             msg += ";\n";
         }       
     }
-    for(size_t i = 2; i < doms.size(); ++i) {
+    for(size_t i = 1; i < doms.size(); ++i) {
         msg += std::format("bb{}:b -> bb{}:b [color=blue, style=dotted, label=\"dom\"]\n", doms[i], i);
     }
     msg += "}\n";
