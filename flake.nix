@@ -19,6 +19,7 @@
         # includes tools such as gcc, make, etc.
         # gnumake
         gdb
+        nasm
       ];
     shellHook = ''
       export HELIX_RUNTIME="$PWD/runtime"

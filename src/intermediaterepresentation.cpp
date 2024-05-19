@@ -43,6 +43,7 @@ bb_t IntermediateRepresentation::intersect(bb_t b1, bb_t b2) const {
 bb_t IntermediateRepresentation::new_function(const bb_t& idom, const ident_t& ident_count) {
     bb_t index = basic_blocks.size();
     basic_blocks.emplace_back(index, ident_count, idom);
+    basic_blocks[0].successors.emplace_back(index);
     doms.push_back(idom);
     return index;
 }
@@ -52,14 +53,18 @@ bb_t IntermediateRepresentation::new_block_helper(const bb_t& p1, const bb_t& p2
     bb_t index = basic_blocks.size();
     if(t != Blocktype::INVALID) { // New block has 1 parent, and either FALLTHROUGH or BRANCH Blocktype.
         basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values, p1, t);
+        basic_blocks[p1].successors.emplace_back(index);
     }
     else if(p2 != -1) { // New block has 2 parents, and is guaranteed to have the JOIN Blocktype.
       basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values,
                                 basic_blocks[p2].identifier_values, p1, p2,
                                 instruction_count);
+      basic_blocks[p1].successors.emplace_back(index);
+      basic_blocks[p2].successors.emplace_back(index);
     }
     else { // New block has 1 parent and no specified Blocktype, so it'll be assigned the NONE Blocktype.
         basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values, p1);
+        basic_blocks[p1].successors.emplace_back(index);
     }
 
     // Either the new_block function is called with 2 parents and a specified immediate dominator,
@@ -181,6 +186,7 @@ instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, cons
 void IntermediateRepresentation::generate_phi(const bb_t& loop_header, const bb_t& branch_back) {
     if(ignore) return;
     if(will_return(branch_back)) return;
+    basic_blocks[loop_header].branch_block = branch_back;
     std::vector<instruct_t>& loop_ident_vals = basic_blocks[loop_header].identifier_values;
     const std::vector<instruct_t>& branch_ident_vals = basic_blocks[branch_back].identifier_values;
     std::vector<std::tuple<int, instruct_t, instruct_t>> changed_idents;

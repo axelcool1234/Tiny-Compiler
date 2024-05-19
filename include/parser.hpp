@@ -16,6 +16,11 @@ public:
      * Prints the intermediate representation of the parsed Tiny code.
      */
      void print();
+
+     /*
+      * Releases the intermediate representation object via move semantics.
+      */ 
+     IntermediateRepresentation release_ir();
 private:
     Lexer lexer;
     IntermediateRepresentation ir;

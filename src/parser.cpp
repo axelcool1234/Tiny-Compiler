@@ -13,6 +13,10 @@ void Parser::print() {
     std::cout << ir.to_dotlang();
 }
 
+IntermediateRepresentation Parser::release_ir() {
+    return std::move(ir);
+}
+
 /* Parsing main function of Tiny program */
 void Parser::computation() {
     /* "main" [ variable_declaration ] { function_declaration } "{" statSequence "}" "." */
