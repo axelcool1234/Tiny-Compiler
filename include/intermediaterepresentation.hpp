@@ -261,7 +261,8 @@ public:
      * IR.
      */
     std::string to_dotlang() const;
-private:
+
+// Should be private:
     /*
      * This vector contains the basic blocks of the IR.
      * The bb_t type refers to the indices of this vector.
@@ -269,18 +270,18 @@ private:
     std::vector<BasicBlock> basic_blocks;
 
     /*
-     * This vector contains the immediate dominators of every basic block
-     * in the basic_blocks vector. For example, the nth basic block's
-     * immediate dominator would be doms[n].
-     */
-    std::vector<int> doms;
-
-    /*
      * This records the amount of instructions that have been added to the
      * IR's basic blocks. This is used to get the next available instruction
      * number that can be used for a new instruction.
      */ 
     int instruction_count = 0;
+private:
+    /*
+     * This vector contains the immediate dominators of every basic block
+     * in the basic_blocks vector. For example, the nth basic block's
+     * immediate dominator would be doms[n].
+     */
+    std::vector<int> doms;
 
     // Helpers
     bb_t new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t);

@@ -21,8 +21,11 @@ struct BasicBlock {
     bool will_return = false; // If the block is guaranteed to return, this'll be true.
     bb_t index;
     std::vector<bb_t> predecessors;
+    std::vector<bb_t> successors;
     std::vector<instruct_t> identifier_values;
     Instruction branch_instruction{-1, EMPTY, -1, -1};
+    bb_t branch_block = -1; // If not -1, this is a while loop header
+    bool processed = false;
     BasicBlock(const bb_t& i);
     BasicBlock(const bb_t& i, const ident_t& ident_count, const bb_t& p); 
     BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p);              
