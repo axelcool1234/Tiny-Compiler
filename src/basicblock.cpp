@@ -11,6 +11,16 @@ void BasicBlock::add_instruction(const instruct_t& num, Opcode op, const instruc
     if(op < CSE_COUNT) partitioned_instructions[op].emplace_back(instructions.size() - 1);
 }
 
+void BasicBlock::prepend_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2, const ident_t& x1_owner, const ident_t& x2_owner) {
+    instructions.emplace(instructions.begin(), num, op, x1, x2, x1_owner, x2_owner);
+    if(op < CSE_COUNT) partitioned_instructions[op].emplace_back(instructions.size() - 1);
+}
+
+void BasicBlock::add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2, const ident_t& x1_owner, const ident_t& x2_owner) {
+    instructions.emplace_back(num, op, x1, x2, x1_owner, x2_owner);
+    if(op < CSE_COUNT) partitioned_instructions[op].emplace_back(instructions.size() - 1);
+}
+
 instruct_t BasicBlock::get_ident_value(const ident_t& ident) {
     return identifier_values[ident];
 }

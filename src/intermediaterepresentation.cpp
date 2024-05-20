@@ -105,6 +105,20 @@ instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, co
     return -1;
 }
 
+instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg) {
+    if(ignore) return -1;
+    if(basic_blocks[b].instructions.size() != 0 && basic_blocks[b].instructions.front().opcode == Opcode::EMPTY) {
+        Instruction& instruction = basic_blocks[b].instructions.front();
+        instruction.opcode = op;
+        instruction.larg = larg.first;
+        instruction.rarg = rarg.first;
+        instruction.larg_owner = larg.second;
+        instruction.rarg_owner = rarg.second;
+        return instruction.instruction_number;
+    }
+    return -1;
+}
+
 instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg, const bool& prepend) {
     if(ignore) return -1;
     // Common Subexpression Elimination
@@ -124,10 +138,37 @@ instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opc
     return instruction_count;
 }
 
+instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg, const bool& prepend) {
+    if(ignore) return -1;
+    // Common Subexpression Elimination
+    instruct_t instruct = search_cse(b, op, larg.first, rarg.first);
+    if(instruct != -1) return instruct;
+
+    // If the given block is empty, replace the EMPTY instruction with the given opcoode, larg, and rarg.
+    instruct = change_empty(b, op, larg, rarg);
+    if(instruct != -1) return instruct;
+
+    // Whether we want to append (to the end) or prepend (at the beginning) the new instruction.
+    if(prepend) {
+        basic_blocks[b].prepend_instruction(++instruction_count, op, larg.first, rarg.first, larg.second, rarg.second);  
+    } else {
+        basic_blocks[b].add_instruction(++instruction_count, op, larg.first, rarg.first, larg.second, rarg.second);  
+    }
+    return instruction_count;
+}
+
 instruct_t IntermediateRepresentation::prepend_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     if(ignore) return -1;
     return add_instruction_helper(b, op, larg, rarg, true);
 }
+instruct_t IntermediateRepresentation::prepend_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg) {
+    if(ignore) return -1;
+    return add_instruction_helper(b, op, larg, rarg, true);
+}
+instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg) {
+    if(ignore) return -1;
+    return add_instruction_helper(b, op, larg, rarg, false);
+} 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     if(ignore) return -1;
     return add_instruction_helper(b, op, larg, rarg, false);
@@ -135,6 +176,10 @@ instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op,
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg)  {
     if(ignore) return -1;
     return add_instruction_helper(b, op, larg, -1, false);
+} 
+instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg)  {
+    if(ignore) return -1;
+    return add_instruction_helper(b, op, larg, { -1, -1 }, false);
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op) {
     if(ignore) return -1;
@@ -158,6 +203,17 @@ void IntermediateRepresentation::set_branch_cond(const bb_t& b, Opcode op, const
     if(instruction.instruction_number == -1) instruction.instruction_number = ++instruction_count;
     instruction.opcode = op;
     instruction.larg = larg;
+    if(op == Opcode::RET) set_return(b);
+}
+
+void IntermediateRepresentation::set_branch_cond(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg) {
+    if(ignore) return;
+    Instruction& instruction = basic_blocks[b].branch_instruction;
+    if(will_return(b)) return;
+    if(instruction.instruction_number == -1) instruction.instruction_number = ++instruction_count;
+    instruction.opcode = op;
+    instruction.larg = larg.first;
+    instruction.larg_owner = larg.second;
     if(op == Opcode::RET) set_return(b);
 }
 
@@ -194,15 +250,24 @@ void IntermediateRepresentation::generate_phi(const bb_t& loop_header, const bb_
     for(size_t i = 0; i < loop_ident_vals.size(); ++i) {
         if(loop_ident_vals[i] != branch_ident_vals[i]) {
             instruct_t old_ident_val = loop_ident_vals[i];
-            prepend_instruction(loop_header, Opcode::PHI, loop_ident_vals[i], branch_ident_vals[i]);
+            prepend_instruction(loop_header, Opcode::PHI, { loop_ident_vals[i], i }, { branch_ident_vals[i], i });
             changed_idents.emplace_back(i, instruction_count, old_ident_val);
         } 
     }
-    bb_t curr_block = branch_back;
-    update_ident_vals_until(branch_back, loop_header, changed_idents);    
+
     update_ident_vals(loop_header, changed_idents, true);
+    update_ident_vals_loop(basic_blocks[loop_header].successors[0], changed_idents); 
 }
 
+void IntermediateRepresentation::update_ident_vals_loop(const bb_t& curr_block, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents) {
+    if(ignore) return;
+    update_ident_vals(curr_block, changed_idents, false);
+    if(basic_blocks[curr_block].successors.size() == 0) return;
+    update_ident_vals_loop(basic_blocks[curr_block].successors[0], changed_idents);
+    if(basic_blocks[curr_block].successors.size() == 2) {
+        update_ident_vals_loop(basic_blocks[curr_block].successors[1], changed_idents);
+    }
+}
 void IntermediateRepresentation::update_ident_vals_until(bb_t curr_block, bb_t stop_block, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents) {
     if(ignore) return;
     while(curr_block != stop_block) {
@@ -226,8 +291,8 @@ void IntermediateRepresentation::update_ident_vals(const bb_t& b, const std::vec
         basic_blocks[b].identifier_values[std::get<0>(triplet)] = std::get<1>(triplet);
         for(auto& instruct : basic_blocks[b].instructions) {
             if(skip_phi && instruct.opcode == PHI) continue;
-            if(instruct.larg == std::get<2>(triplet)) instruct.larg = std::get<1>(triplet); 
-            if(instruct.rarg == std::get<2>(triplet)) instruct.rarg = std::get<1>(triplet);
+            if(instruct.larg == std::get<2>(triplet) && instruct.larg_owner == std::get<0>(triplet)) instruct.larg = std::get<1>(triplet); 
+            if(instruct.rarg == std::get<2>(triplet) && instruct.rarg_owner == std::get<0>(triplet)) instruct.rarg = std::get<1>(triplet);
         }
     }
 }
@@ -255,17 +320,23 @@ std::string IntermediateRepresentation::to_dotlang() const {
     for(const BasicBlock& b : basic_blocks){
         for(const auto& p : b.predecessors) {
             msg += std::format("bb{}:s -> bb{}:n ", p, b.index);
-            if(b.type == BRANCH) {
+            if(b.type == IF_BRANCH || b.type == WHILE_BRANCH) {
                 msg += "[label=\"branch\"]";
             }
-            else if(b.type == FALLTHROUGH) {
+            else if(b.type == IF_FALLTHROUGH || b.type == WHILE_FALLTHROUGH) {
                 msg += "[label=\"fall-through\"]";
             }
-            else if(b.type == JOIN && basic_blocks[p].type == FALLTHROUGH) {
-                msg += "[label=\"branch\"]";
+            else if(b.type == JOIN && basic_blocks[p].type == IF_FALLTHROUGH) {
+                msg += "[label=\"then-branch\"]";
             }
-            else if(b.type == JOIN && basic_blocks[p].type == BRANCH) {
-                msg += "[label=\"fall-through\"]";
+            else if(b.type == JOIN && basic_blocks[p].type == WHILE_BRANCH) {
+                msg += "[label=\"od-fall-through\"]";
+            }
+            else if(b.type == JOIN && basic_blocks[p].type == IF_BRANCH) {
+                msg += "[label=\"else-fall-through\"]";
+            }
+            else if(b.type == JOIN && basic_blocks[p].type == WHILE_FALLTHROUGH) {
+                msg += "[label=\"do-branch\"]";
             }
             msg += ";\n";
         }       

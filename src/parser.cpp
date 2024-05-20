@@ -1,6 +1,7 @@
 #include "parser.hpp"
 #include "token.hpp"
 #include <format>
+#include <ranges>
 
 /* API */
 void Parser::parse() {
@@ -117,8 +118,8 @@ instruct_t Parser::function_body(const std::vector<ident_t>& formal_params, cons
     }
     ir.change_ident_value(func_block, index, ir.first_instruction(func_block));
 
-    // Add GETPAR instructions
-    for(const auto& param : formal_params) {
+    // Add GETPAR instructions (reversed since we're popping from a stack)
+    for(const auto& param : formal_params | std::views::reverse) {
         ir.change_ident_value(func_block, param, ir.add_instruction(func_block, Opcode::GETPAR));
     }
 
@@ -139,9 +140,18 @@ void Parser::statement_sequence(bb_t& curr_block, Args... args) {
         } else {
             ir.ignore = statement(curr_block);
         }
-        // TODO: Figure out a way to enforce semicolons for all but the last statement.
-        if(token_is(lexer.token, Terminal::SEMICOLON))
+
+        // Enforcing semicolons for all but the last statement.
+        if(!token_is(lexer.token, Terminal::SEMICOLON, Terminal::RBRACE) && 
+           !token_is(lexer.token,  Keyword::ELSE, Keyword::FI, Keyword::OD)) {
+            throw ParserException("Missing semicolon!");
+        } else if(token_is(lexer.token, Terminal::SEMICOLON)) {
             lexer.next();
+        }
+
+        // Could use this instead. Wont enforce semicolons for all but the last statement.
+        // if(token_is(lexer.token, Terminal::SEMICOLON))
+        //     lexer.next();
     } 
     ir.ignore = prev_ignore;
 }
@@ -171,29 +181,35 @@ void Parser::let_statement(const bb_t& curr_block) {
     /* ident "<-" expression */
     ident_t ident = match_return<ident_t>();
     match(Terminal::ASSIGN);
-    ir.change_ident_value(curr_block, ident, expression(curr_block));
+    ir.change_ident_value(curr_block, ident, expression(curr_block).first);
 }
 
-instruct_t Parser::predefined_function_statement(const bb_t& curr_block) {
-    instruct_t result;
+std::pair<instruct_t, ident_t> Parser::predefined_function_statement(const bb_t& curr_block) {
+    std::pair<instruct_t, ident_t> result;
     switch(match_return<Keyword>()) {
         case Keyword::READ:
-            match(Terminal::LPAREN);
-            match(Terminal::RPAREN);
-            return ir.add_instruction(curr_block, Opcode::READ);
+            if(token_is(lexer.token, Terminal::LPAREN)) {
+                lexer.next();
+                match(Terminal::RPAREN);
+            }
+            return { ir.add_instruction(curr_block, Opcode::READ), -1 };
         case Keyword::WRITE:
-            result = ir.add_instruction(curr_block, Opcode::WRITE, expression(curr_block));
+            match(Terminal::LPAREN);
+            result = { ir.add_instruction(curr_block, Opcode::WRITE, expression(curr_block)), -1 };
+            match(Terminal::RPAREN);
             return result;
         case Keyword::WRITENL:
-            match(Terminal::LPAREN);
-            match(Terminal::RPAREN);
-            return ir.add_instruction(curr_block, Opcode::WRITENL);
+            if(token_is(lexer.token, Terminal::LPAREN)) {
+                lexer.next();
+                match(Terminal::RPAREN);
+            }
+            return { ir.add_instruction(curr_block, Opcode::WRITENL), -1 };
         default:
             throw ParserException(std::format("Invalid reserved keyword in function call! Received {}", to_string(lexer.token)));
     }
 }
 
-instruct_t Parser::function_statement(const bb_t& curr_block) {
+std::pair<instruct_t, ident_t> Parser::function_statement(const bb_t& curr_block) {
     /* ident [ "(" [ expression { "," expression } ] ")" ] */
     // Predefined functions
     if(token_is<Keyword>(lexer.token)) {
@@ -213,18 +229,18 @@ instruct_t Parser::function_statement(const bb_t& curr_block) {
         }
         match(Terminal::RPAREN);
     }
-    return ir.add_instruction(curr_block, Opcode::JSR, ir.get_ident_value(curr_block, ident));
+    return { ir.add_instruction(curr_block, Opcode::JSR, ir.get_ident_value(curr_block, ident)), -1 };
 }
 
 bool Parser::if_statement(bb_t& curr_block) {
     /* relation "then" statement_sequence [ "else" statement_sequence ] "fi" */
     relation(curr_block);
     match(Keyword::THEN);
-    bb_t then_block = ir.new_block(curr_block, FALLTHROUGH);
+    bb_t then_block = ir.new_block(curr_block, IF_FALLTHROUGH);
     statement_sequence(then_block, Keyword::ELSE, Keyword::FI);
 
     // "else"
-    bb_t else_block = ir.new_block(curr_block, BRANCH);
+    bb_t else_block = ir.new_block(curr_block, IF_BRANCH);
     const bb_t og_else_block = else_block;
     if(token_is(lexer.token, Keyword::ELSE)) {
         lexer.next();        
@@ -267,7 +283,7 @@ void Parser::while_statement(bb_t& curr_block) {
     // Relation
     relation(curr_block);
 
-    bb_t while_block = ir.new_block(curr_block, FALLTHROUGH);
+    bb_t while_block = ir.new_block(curr_block, WHILE_FALLTHROUGH);
     const bb_t og_while_block = while_block;
 
     // "do" statement_sequence "od"
@@ -283,7 +299,7 @@ void Parser::branch(bb_t& curr_block, const bb_t& while_block) {
     bb_t og_curr_block = curr_block;
     ir.generate_phi(og_curr_block, while_block);
     ir.set_branch_cond(while_block, Opcode::BRA, ir.first_instruction(og_curr_block));
-    curr_block = ir.new_block(curr_block, BRANCH);
+    curr_block = ir.new_block(curr_block, WHILE_BRANCH);
     ir.set_branch_location(og_curr_block, ir.first_instruction(curr_block));
 }
 
@@ -294,7 +310,7 @@ void Parser::return_statement(bb_t& curr_block) {
        token_is(lexer.token, Terminal::LPAREN, Terminal::RPAREN) ||
        token_is<int>(lexer.token) ||
        token_is<ident_t>(lexer.token)) {
-        instruct_t expr = expression(curr_block);
+        std::pair<instruct_t, ident_t> expr = expression(curr_block);
         ir.set_branch_cond(curr_block, Opcode::RET, expr);
         return;
     }
@@ -304,9 +320,9 @@ void Parser::return_statement(bb_t& curr_block) {
 /* Relations */
 void Parser::relation(const bb_t& curr_block) {
     /* expression1 rel_op expression2 */
-    instruct_t x = expression(curr_block);
+    std::pair<instruct_t, ident_t> x = expression(curr_block);
     Terminal rel_op = match_return<Terminal>();
-    instruct_t y = expression(curr_block);
+    std::pair<instruct_t, ident_t> y = expression(curr_block);
 
     // Set up CMP instruction and branch instruction.
     instruct_t cmp = ir.add_instruction(curr_block, Opcode::CMP, x, y);
@@ -314,42 +330,44 @@ void Parser::relation(const bb_t& curr_block) {
 }
 
 /* Base Parsing */
-instruct_t Parser::expression(const bb_t& curr_block) {
-    instruct_t result = term(curr_block);
+std::pair<instruct_t, ident_t> Parser::expression(const bb_t& curr_block) {
+    std::pair<instruct_t, ident_t> result = term(curr_block);
     while(token_is(lexer.token, Terminal::PLUS, Terminal::MINUS)) {
         if(token_is(lexer.token, Terminal::PLUS)) {
             lexer.next();
-            result = ir.add_instruction(curr_block, Opcode::ADD, result, term(curr_block));
+            return { ir.add_instruction(curr_block, Opcode::ADD, result, term(curr_block)), -1 };
         } else {
             lexer.next();
-            result = ir.add_instruction(curr_block, Opcode::SUB, result, term(curr_block));
+            return { ir.add_instruction(curr_block, Opcode::SUB, result, term(curr_block)), -1 };
         }
     }
     return result;
 }
 
-instruct_t Parser::term(const bb_t& curr_block) {
-    instruct_t result = factor(curr_block);
+std::pair<instruct_t, ident_t> Parser::term(const bb_t& curr_block) {
+    std::pair<instruct_t, ident_t> result = factor(curr_block);
     while(token_is(lexer.token, Terminal::MUL, Terminal::DIV)) {
         if(token_is(lexer.token, Terminal::MUL)) {
             lexer.next();
-            result = ir.add_instruction(curr_block, Opcode::MUL, result, factor(curr_block));
+            return { ir.add_instruction(curr_block, Opcode::MUL, result, factor(curr_block)), -1 };
         } else {
             lexer.next();
-            result = ir.add_instruction(curr_block, Opcode::DIV, result, factor(curr_block));
+            return { ir.add_instruction(curr_block, Opcode::DIV, result, factor(curr_block)), -1 };
         }
     }
     return result;
 }
 
-instruct_t Parser::factor(const bb_t& curr_block) {
+std::pair<instruct_t, ident_t> Parser::factor(const bb_t& curr_block) {
+    ident_t ident;
     if(token_is<ident_t>(lexer.token)) {
-        return ir.get_ident_value(curr_block, match_return<ident_t>());
+        ident = match_return<ident_t>();
+        return { ir.get_ident_value(curr_block, ident), ident };
     } else if (token_is<int>(lexer.token)) { 
-        return ir.add_instruction(const_block, Opcode::CONST, match_return<int>());        
+        return { ir.add_instruction(const_block, Opcode::CONST, match_return<int>()), -1 }; 
     } else if (token_is(lexer.token, Terminal::LPAREN)) {
         lexer.next();
-        instruct_t result = expression(curr_block);
+        std::pair<instruct_t, ident_t> result = expression(curr_block);
         match(Terminal::RPAREN);
         return result;
     } else if (token_is(lexer.token, Keyword::CALL)) {

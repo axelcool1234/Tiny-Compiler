@@ -83,6 +83,23 @@ public:
     instruct_t change_empty(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg);
 
     /*
+     * Given a block that potentially only contains an EMPTY instruction, change that
+     * instruction to the given opcode and arguments, while continuing to use
+     * the now changed EMPTY instruction's instruction number. If the block doesn't
+     * meet that condition, it'll remain unchanged.
+     *
+     * @param b The index of the block being changed.
+     * @param op The opcode the EMPTY instruction whill change to.
+     * @param larg The left argument that the EMPTY instruction's larg will change to. Also contains the identifier that has
+     * been assigned this instruction.
+     * @param rarg The right argument that the EMPTY instruction's rarg will change to. Also contains the identifier that has
+     * been assigned this instruction.
+     * @return Returns the now-changed EMPTY instruction's instruction number upon success, or
+     * -1 given that the given block doesn't only contain an EMPTY instruction.
+     */
+    instruct_t change_empty(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg);
+
+    /*
      * Attempts to add a new instruction to the given block. If a pre-existing instruction with the same
      * opcode and arguments already exists, that instruction's instruction number will be returned instead.
      * If the given block only contains the EMPTY instruction, the given opcode and arguments will replace
@@ -98,6 +115,25 @@ public:
      */
     instruct_t add_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg); 
 
+    
+    /*
+     * Attempts to add a new instruction to the given block. If a pre-existing instruction with the same
+     * opcode and arguments already exists, that instruction's instruction number will be returned instead.
+     * If the given block only contains the EMPTY instruction, the given opcode and arguments will replace
+     * that instead of creating a new instruction. 
+     *
+     * @param b The given block's index.
+     * @param op The opcode of the new instruction.
+     * @param larg The left argument of the new instruction. -1 by default. Also contains the identifier assigned
+     * this instruction.
+     * @param rarg The right argument of the new instruction. -1 by default. Also contains the identifier assigned
+     * this instruction.
+     * @return The instruction number of the instruction, which could either be a common subexpression
+     * (and thus not a new instruction), or the replaced EMPTY instruction. Otherwise it'll be the
+     * instruction number of the newly created instruction.
+     */
+    instruct_t add_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg);
+
     /*
      * Attempts to add a new instruction to the given block. If a pre-existing instruction with the same
      * opcode and arguments already exists, that instruction's instruction number will be returned instead.
@@ -107,6 +143,16 @@ public:
      * @overload
      */
     instruct_t add_instruction(const bb_t& b, Opcode op, const instruct_t& larg); 
+
+    /*
+     * Attempts to add a new instruction to the given block. If a pre-existing instruction with the same
+     * opcode and arguments already exists, that instruction's instruction number will be returned instead.
+     * If the given block only contains the EMPTY instruction, the given opcode and arguments will replace
+     * that instead of creating a new instruction. 
+     *
+     * @overload
+     */
+    instruct_t add_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg);
 
     /*
      * Attempts to add a new instruction to the given block. If a pre-existing instruction with the same
@@ -135,6 +181,24 @@ public:
      */
     instruct_t prepend_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg); 
 
+    /*
+     * Attempts to add a new instruction to the given block at the beginning of its instruction vector. 
+     * If a pre-existing instruction with the same opcode and arguments already exists, that instruction's 
+     * instruction number will be returned instead. If the given block only contains the EMPTY instruction, 
+     * the given opcode and arguments will replace that instead of creating a new instruction. 
+     *
+     * @param b The given block's index.
+     * @param op The opcode of the new instruction.
+     * @param larg The left argument of the new instruction along with the identifier that has been assigned this
+     * instruction.
+     * @param rarg The right argument of the new instruction along with the identifier that has been assigned this
+     * instruction.
+     * @return The instruction number of the instruction, which could either be a common subexpression
+     * (and thus not a new instruction), or the replaced EMPTY instruction. Otherwise it'll be the
+     * instruction number of the newly created instruction.
+     */
+    instruct_t prepend_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg);
+
    /*
     * Given a while loop's scope from its header block to its branch back block,
     * this function generates phi functions based off the differences in identifier values
@@ -149,16 +213,17 @@ public:
 
     /*
      * Given a vector of tuples containing information about identifiers that should be changed and what their value should be
-     * changed to, this function will update those identifiers with the given new values, starting from
-     * the given current block and up through the control flow graph until (but not including) the stop block.
+     * changed to, this function will update those identifiers with the given new values, starting from the given current block 
+     * and down through the control flow graph until there are no blocks to travel to.
      * 
      * @param curr_block The first block to be changed.
-     * @param stop_block The dominating (not necessarily immediate dominator) block that this function stops at. This block
-     * is not changed.
      * @param changed_idents First argument is the index of the identifier in any basic block's identifier values vector. Second
      * argument is the new instruction number it should be changed to. Third argument is the old instruction number that should be changed to
      * the new instruction number.
      */
+    void update_ident_vals_loop(const bb_t& curr_block, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents);
+
+    // OUTDATED (Kept for now)
     void update_ident_vals_until(bb_t curr_block, bb_t stop_block, const std::vector<std::tuple<int, instruct_t, instruct_t>>& changed_idents);
 
     /*
@@ -244,6 +309,18 @@ public:
      */ 
     void set_branch_cond(const bb_t& b, Opcode op, const instruct_t& larg);
 
+    /* 
+     * Sets the opcode (aka condition) for the given block's branch instruction. This
+     * function is used for comparison branch instructions, and for "branch always"
+     * instructions.
+     *
+     * @param b The given block's index.
+     * @param op The opcode that'll be assigned to the branch instruction.
+     * @param larg A comparison instruction/branch instruction along with the identifier
+     * that has been assigned that instruction.
+     */ 
+    void set_branch_cond(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg);
+
     /*
      * Sets the instruction number the given block's branch instruction will branch to
      * upon success.
@@ -286,6 +363,7 @@ private:
     // Helpers
     bb_t new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t);
     instruct_t add_instruction_helper(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg, const bool& prepend);
+    instruct_t add_instruction_helper(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg, const bool& prepend);
 };
 
 #endif // INTERMEDIATEREPRESENTATION_HPP
