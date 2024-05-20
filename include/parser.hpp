@@ -126,8 +126,8 @@ private:
     void let_statement(const bb_t& curr_block);
 
     // "function" statement
-    instruct_t function_statement(const bb_t& curr_block);
-    instruct_t predefined_function_statement(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> function_statement(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> predefined_function_statement(const bb_t& curr_block);
 
     // "if" statement
     bool if_statement(bb_t& curr_block); // returns true if the if statement will always return.
@@ -144,9 +144,9 @@ private:
     void relation(const bb_t& curr_block);
 
     // Base parsing
-    instruct_t expression(const bb_t& curr_block);
-    instruct_t term(const bb_t& curr_block);
-    instruct_t factor(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> expression(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> term(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> factor(const bb_t& curr_block);
 };
 
 class ParserException : public std::exception {

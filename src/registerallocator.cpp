@@ -48,7 +48,7 @@ void SimpleAllocator::destroy_while_phi(const BasicBlock& b, const Instruction& 
 void SimpleAllocator::destroy_if_phi(const BasicBlock& b, const Instruction& i) {
     const BasicBlock& pred1 = ir.basic_blocks[b.predecessors[0]];
     const BasicBlock& pred2 = ir.basic_blocks[b.predecessors[1]];
-    if (pred1.type == Blocktype::FALLTHROUGH) {
+    if (pred1.type == Blocktype::IF_FALLTHROUGH || pred2.type == Blocktype::WHILE_BRANCH) {
         ir.add_instruction(pred1.index, Opcode::MOV, i.instruction_number, i.larg);
         ir.add_instruction(pred2.index, Opcode::MOV, i.instruction_number, i.rarg);
     } else {
@@ -58,8 +58,8 @@ void SimpleAllocator::destroy_if_phi(const BasicBlock& b, const Instruction& i) 
 }
 
 void SimpleAllocator::allocate() {
-    generate_data_section();
     destroy_phis();
+    generate_data_section();
     std::cout << ir.to_dotlang();
     convert_ir();
 }
@@ -74,60 +74,30 @@ void SimpleAllocator::convert_ir() {
 void SimpleAllocator::convert_main(const bb_t& b) {
     std::string atoi_str =
 R"(
-atoi:
-    ; Input:
-    ;   eax: Pointer to the null-terminated string
-    ; Output:
-    ;   eax: Integer value
-    
-    xor     ebx, ebx        ; Clear ebx to store the result
-    mov     ecx, eax        ; Copy the pointer to ecx (use ecx for string traversal)
-    
-    ; Handle negative sign
-    mov     al, byte [ecx]  ; Load the first character
-    cmp     al, '-'         ; Check if it's a negative sign
-    jne     .not_negative   ; Jump if it's not negative
-    inc     ecx             ; Move to the next character
-    jmp     .check_digit    ; Jump to check for digits
-    
-.not_negative:
-    
-.check_digit:
-    mov     al, byte [ecx]  ; Load the next character
-    cmp     al, 0           ; Check for null terminator
-    je      .done           ; If end of string, we are done
-    
-    cmp     al, '0'         ; Check if the character is a digit
-    jl      .invalid_char   ; If it's less than '0', it's not a valid digit
-    cmp     al, '9'         ; Check if the character is within '0' to '9' range
-    jg      .invalid_char   ; If it's greater than '9', it's not a valid digit
-    
-    ; Multiply current result by 10
-    imul    ebx, ebx, 10
-    
-    ; Convert ASCII digit to integer and add to result
-    sub     al, '0'         ; Convert ASCII digit to integer value
-    add     ebx, eax
-    
-    inc     ecx             ; Move to the next character
-    jmp     .check_digit    ; Continue checking digits
+read:
+    ; Syscall to read input
+    mov eax, 3       ; sys_read
+    mov ebx, 0       ; file descriptor 0 (stdin)
+    mov ecx, buff    ; buffer to store input
+    mov edx, 11      ; maximum number of bytes to read
+    int 0x80         ; interrupt to call kernel
 
-.invalid_char:
-    ; Handle invalid characters here if needed
-    ; For simplicity, let's just return 0 in case of an invalid character
-    xor     eax, eax        ; Clear eax (return 0)
-    ret
+    ; Convert input string to integer
+    mov esi, buff    ; ESI points to the input buffer
+    xor eax, eax     ; Clear EAX (result)
+    xor edi, edi     ; Clear EDI (multiplier)
 
-.done:
-    ; Check if the number was negative
-    mov     al, byte [eax]  ; Load the first character again
-    cmp     al, '-'         ; Check if it was negative
-    jne     .skip_neg_check ; If it was not negative, skip this part
-    neg     ebx             ; Negate the result
-.skip_neg_check:
-    
-    ; Return the result
-    mov     eax, ebx        ; Move the result to eax
+convert_loop:
+    movzx ecx, byte [esi]  ; Load current byte into ECX
+    cmp ecx, 0x0A          ; Check for newline character
+    je done                ; If newline, we're done
+    sub ecx, '0'           ; Convert ASCII to integer
+    imul eax, eax, 10      ; Multiply current result by 10
+    add eax, ecx           ; Add the current digit to the result
+    inc esi                ; Move to the next character
+    jmp convert_loop       ; Repeat for next character
+
+done:
     ret
 )";
     std::string printeax_str = 
@@ -136,7 +106,7 @@ printeax:
     mov ecx, digitSpace
     mov ebx, 10
     mov [ecx], bl
-    inc ecx
+    ; inc ecx
     mov [digitSpacePos], ecx
 
 _printEAXLoop:
@@ -180,7 +150,7 @@ _printEAXLoop2:
 
     ret
 )";
-    ofile << "section .bss" << std::endl << "buff resb 32" << std::endl;
+    ofile << "section .bss" << std::endl << "buff resb 11" << std::endl;
     ofile << "section .text" << std::endl;
     ofile << "global _start" << std::endl;
     ofile << atoi_str << std::endl; 
@@ -197,17 +167,17 @@ void SimpleAllocator::convert_function(const bb_t& b) {
         ofile << std::format("function{}:", ir.basic_blocks[b].instructions[0].instruction_number) << std::endl;
     }
     convert_scope(b);
+    ofile << "ret" << std::endl;
 }
 
 void SimpleAllocator::convert_scope(const bb_t& b) {
-    // TODO: Incorrect! I'm doing a Depth-First Search rather than a Breadth-First Search!
     convert_block(b);
     const std::vector<bb_t>& successors = ir.basic_blocks[b].successors;
     if(successors.size() == 0) {
         return;
     } else if(successors.size() == 1) {
         convert_scope(successors[0]);
-    } else if(ir.basic_blocks[successors[0]].type == Blocktype::FALLTHROUGH) {
+    } else if(ir.basic_blocks[successors[0]].type == Blocktype::IF_FALLTHROUGH || ir.basic_blocks[successors[0]].type == Blocktype::WHILE_FALLTHROUGH) {
         convert_scope(successors[0]);
         convert_scope(successors[1]);
     } else {
@@ -287,7 +257,7 @@ void SimpleAllocator::convert_instruction(const Instruction& i) {
             break;
         case(Opcode::JSR):
             ofile << std::format("call function{}", i.larg) << std::endl;
-            ofile << std::format("mov [nonconst{}], eax", i.larg);
+            ofile << std::format("mov [nonconst{}], eax", i.instruction_number);
             break;
         case(Opcode::RET):
             if(const_instructions.find(i.larg) != const_instructions.end()) {
@@ -311,7 +281,9 @@ void SimpleAllocator::convert_instruction(const Instruction& i) {
             }
             break;
         case(Opcode::GETPAR):
+            ofile << "pop ebx" << std::endl;
             ofile << "pop eax" << std::endl;
+            ofile << "push ebx" << std::endl;
             ofile << std::format("mov [nonconst{}], eax", i.instruction_number);
             break;
         case(Opcode::SETPAR):
@@ -323,13 +295,7 @@ void SimpleAllocator::convert_instruction(const Instruction& i) {
             ofile << "push eax" << std::endl;
             break;
         case(Opcode::READ):
-            ofile << "mov eax, 3" << std::endl;
-            ofile << "mov ebx, 0" << std::endl;
-            ofile << "mov ecx, buff" << std::endl;
-            ofile << "mov edx, 4" << std::endl;
-            ofile << "int 0x80" << std::endl;
-            ofile << "mov eax, buff" << std::endl;
-            ofile << "call atoi" << std::endl;
+            ofile << "call read" << std::endl;
             ofile << std::format("mov [nonconst{}], eax", i.instruction_number);
             break;
         case(Opcode::WRITE):

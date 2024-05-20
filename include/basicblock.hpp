@@ -5,8 +5,10 @@
 #include <vector>
 
 enum Blocktype {
-    FALLTHROUGH,
-    BRANCH,
+    IF_FALLTHROUGH,
+    WHILE_FALLTHROUGH,
+    IF_BRANCH,
+    WHILE_BRANCH,
     JOIN,
     NONE,
     INVALID, // A block should NEVER be this type. This exists for IntermediateRepresentation functions that want to
@@ -34,6 +36,8 @@ struct BasicBlock {
                 const std::vector<instruct_t>& p2_ident_vals, const bb_t& p1, const bb_t& p2, int& instruction_count);    
     void add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2);
     void prepend_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2);
+    void add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2, const ident_t& x1_owner, const ident_t& x2_owner);
+    void prepend_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2, const ident_t& x1_owner, const ident_t& x2_owner);
     instruct_t get_ident_value(const ident_t& ident);
     void change_instruction(const ident_t& ident, const instruct_t& instruct);
     std::string to_dotlang() const;
