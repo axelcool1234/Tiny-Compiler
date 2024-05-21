@@ -13,7 +13,6 @@
     OPCODE(DIV, div) \
     OPCODE(CONST, const) \
     OPCODE(CSE_COUNT, ) \
-    OPCODE(CMP, cmp) \
     OPCODE(PHI, phi) \
     OPCODE(END, end) \
     OPCODE(BRA, bra) \

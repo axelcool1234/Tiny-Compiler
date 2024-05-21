@@ -10,7 +10,8 @@ class RegisterAlloc {
 public:
     IntermediateRepresentation ir;
     RegisterAlloc(IntermediateRepresentation&& ir);
-    std::ofstream ofile;
+    std::ofstream ofile; // for visual output
+
 };
 
 #endif
