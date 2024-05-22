@@ -27,7 +27,11 @@ struct BasicBlock {
     std::vector<instruct_t> identifier_values;
     Instruction branch_instruction{-1, EMPTY, -1, -1};
     bb_t branch_block = -1; // If not -1, this is a while loop header
-    bool processed = false;
+    bb_t loop_header = -1; // If not -1. this is a branch-back block
+    bool processed = false; // Are you colored/register allocated?
+    bool analyzed = false; // Are you liveness analyzed?
+    bool propagated = false; // Have you had phis propagated to you already?
+    bool emitted = false; // Have you been emitted as code yet?
     BasicBlock(const bb_t& i);
     BasicBlock(const bb_t& i, const ident_t& ident_count, const bb_t& p); 
     BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p);              

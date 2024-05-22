@@ -243,6 +243,7 @@ void IntermediateRepresentation::generate_phi(const bb_t& loop_header, const bb_
     if(ignore) return;
     if(will_return(branch_back)) return;
     basic_blocks[loop_header].branch_block = branch_back;
+    basic_blocks[branch_back].loop_header = loop_header;
     std::vector<instruct_t>& loop_ident_vals = basic_blocks[loop_header].identifier_values;
     const std::vector<instruct_t>& branch_ident_vals = basic_blocks[branch_back].identifier_values;
     std::vector<std::tuple<int, instruct_t, instruct_t>> changed_idents;

@@ -352,14 +352,14 @@ public:
      * number that can be used for a new instruction.
      */ 
     int instruction_count = 0;
-private:
+
     /*
      * This vector contains the immediate dominators of every basic block
      * in the basic_blocks vector. For example, the nth basic block's
      * immediate dominator would be doms[n].
      */
     std::vector<int> doms;
-
+private:
     // Helpers
     bb_t new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t);
     instruct_t add_instruction_helper(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg, const bool& prepend);
