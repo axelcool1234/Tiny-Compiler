@@ -171,6 +171,37 @@ std::string CodeEmitter::emit_basic(const Instruction& i, const std::string& opc
 std::string CodeEmitter::emit_branch(const instruct_t& i, const std::string& opcode) {
     return std::format("{} branch{}\n", opcode, i);
 }
+
+std::string CodeEmitter::emit_write(const Instruction& instruction) {
+    std::string result = "push rbx\npush rcx\npush rdx\npush rdi\npush rsi\n";
+    if(!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX && ir.has_death_point(instruction.larg, instruction.instruction_number)) {
+        result += "call write\n";
+    } else if (!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX) {
+        result += "push rax\ncall write\npop rax\n";
+    } else {
+        result += std::format("push rax\nmov rax, {}\ncall write\npop rax\n", reg_str(instruction.larg));
+    }
+    return result + "pop rsi\npop rdi\npop rdx\npop rcx\npop rbx\n";
+}
+
+std::string CodeEmitter::emit_read(const Instruction& instruction) {
+    std::string result = "push rdi\npush rsi\npush rdx\npush rcx\n";
+    if(ir.get_assigned_register(instruction.instruction_number) == Register::RAX) {
+        result += "call read\n";
+    } else {
+        result += std::format("push rax\ncall read\nmov {}, rax\npop rax\n", reg_str(instruction.instruction_number));
+    }
+    return result + "pop rcx\npop rdx\npop rsi\npop rdi\n";
+
+}
+
+std::string CodeEmitter::emit_mov(const Instruction& instruction) {
+    if(ir.is_const_instruction(instruction.rarg) || ir.get_assigned_register(instruction.larg) != ir.get_assigned_register(instruction.rarg)) {
+        return std::format("mov {}, {}\n", reg_str(instruction.larg), reg_str(instruction.rarg));
+    }
+    return "";
+}
+
 std::string CodeEmitter::emit_instruction(const Instruction& i) {
     switch(i.opcode) {
         case(Opcode::ADD):
@@ -207,7 +238,7 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
             throw std::runtime_error("Function returns not implemented yet!");
             break;
         case(Opcode::MOV):
-            return std::format("mov {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
+            return emit_mov(i);
             break;
         case(Opcode::GETPAR):
             throw std::runtime_error("Function GETPAR not implemented yet!");
@@ -216,19 +247,19 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
             throw std::runtime_error("Function SETPAR not implemented yet!");
             break;
         case(Opcode::READ):
-            return std::format("call read\nmov {}, eax\n", reg_str(i.instruction_number));
+            return emit_read(i);
         case(Opcode::WRITE):
-            return std::format("mov eax, {}\ncall write\n", reg_str(i.larg));
+            return emit_write(i);
         case(Opcode::WRITENL):
-            return "mov rax, 1\nmov rdi, 1\nmov rsi, newline\nmov rdx, newline_len\nsyscall\n";
+            return "push rax\npush rdi\npush rsi\npush rdx\nmov rax, 1\nmov rdi, 1\nmov rsi, newline\nmov rdx, newline_len\nsyscall\npop rdx\npop rsi\npop rdi\npop rax\n";
         default:
             return "";
     }
     return "";
 }
 
-std::string CodeEmitter::reg_str(const instruct_t& instruction) {
-    if(ir.is_undefined_instruction(instruction )) return "0";
-    if(ir.is_const_instruction(instruction)) return std::format("{}", ir.get_const_value(instruction));
-    return reg_str_list.at(ir.get_assigned_register(instruction));
+std::string CodeEmitter::reg_str(const instruct_t& instruct) {
+    if(ir.is_undefined_instruction(instruct )) return "0";
+    if(ir.is_const_instruction(instruct)) return std::format("{}", ir.get_const_value(instruct));
+    return reg_str_list.at(ir.get_assigned_register(instruct));
 }
