@@ -15,7 +15,7 @@ void Parser::print() {
 }
 
 IntermediateRepresentation Parser::release_ir() {
-    return std::move(ir);
+    return ir;
 }
 
 /* Parsing main function of Tiny program */

@@ -28,7 +28,7 @@ struct BasicBlock {
     Instruction branch_instruction{-1, EMPTY, -1, -1};
     bb_t branch_block = -1; // If not -1, this is a while loop header
     bb_t loop_header = -1; // If not -1. this is a branch-back block
-    bool processed = false; // Are you colored/register allocated?
+    bool colored = false; // Are you colored/register allocated?
     bool analyzed = false; // Are you liveness analyzed?
     bool propagated = false; // Have you had phis propagated to you already?
     bool emitted = false; // Have you been emitted as code yet?

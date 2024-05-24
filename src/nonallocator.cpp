@@ -7,53 +7,53 @@
 NonAllocator::NonAllocator(IntermediateRepresentation&& ir) : ir(std::move(ir)), ofile("a.out") {}
 
 void NonAllocator::generate_data_section() {
-    ofile << "section .data" << std::endl;
-    for(const auto& instruct : ir.basic_blocks[0].instructions) {
-        const_instructions.insert(instruct.instruction_number);
-        ofile << std::format("const{} dd {}", instruct.instruction_number, instruct.larg) << std::endl;
-    }
-    for(int i = 0; i <= ir.instruction_count; ++i) {
-        if(const_instructions.find(i) != const_instructions.end()) continue;
-        ofile << std::format("nonconst{} dd 0", i) << std::endl;
-    }
-    ofile << "newline db 10" << std::endl;
-    ofile << "newline_len equ 1" << std::endl;
-    ofile << "digitSpace resb 100" << std::endl;
-    ofile << "digitSpacePos resb 8" << std::endl;
-    ofile << std::endl;
+//     ofile << "section .data" << std::endl;
+//     for(const auto& instruct : ir.basic_blocks[0].instructions) {
+//         const_instructions.insert(instruct.instruction_number);
+//         ofile << std::format("const{} dd {}", instruct.instruction_number, instruct.larg) << std::endl;
+//     }
+//     for(int i = 0; i <= ir.instruction_count; ++i) {
+//         if(const_instructions.find(i) != const_instructions.end()) continue;
+//         ofile << std::format("nonconst{} dd 0", i) << std::endl;
+//     }
+//     ofile << "newline db 10" << std::endl;
+//     ofile << "newline_len equ 1" << std::endl;
+//     ofile << "digitSpace resb 100" << std::endl;
+//     ofile << "digitSpacePos resb 8" << std::endl;
+//     ofile << std::endl;
 }
 
 void NonAllocator::destroy_phis() {
-    for(const auto& block : ir.basic_blocks) {
-        for(const auto& instruct : block.instructions) {
-            if (instruct.opcode != Opcode::PHI) continue;
-            if (block.branch_block != -1) {
-                 destroy_while_phi(block, instruct);
-            }
-            else {
-                destroy_if_phi(block, instruct);
-            }
-        }
-    }
+    // for(const auto& block : ir.basic_blocks) {
+    //     for(const auto& instruct : block.instructions) {
+    //         if (instruct.opcode != Opcode::PHI) continue;
+    //         if (block.branch_block != -1) {
+    //              destroy_while_phi(block, instruct);
+    //         }
+    //         else {
+    //             destroy_if_phi(block, instruct);
+    //         }
+    //     }
+    // }
 }
 
 void NonAllocator::destroy_while_phi(const BasicBlock& b, const Instruction& i) {
-    const BasicBlock& pred = ir.basic_blocks[b.predecessors[0]];
-    const BasicBlock& branch_block = ir.basic_blocks[b.branch_block];
-    ir.add_instruction(pred.index, Opcode::MOV, i.instruction_number, i.larg);
-    ir.add_instruction(branch_block.index, Opcode::MOV, i.instruction_number, i.rarg);
+    // const BasicBlock& pred = ir.basic_blocks[b.predecessors[0]];
+    // const BasicBlock& branch_block = ir.basic_blocks[b.branch_block];
+    // ir.add_instruction(pred.index, Opcode::MOV, i.instruction_number, i.larg);
+    // ir.add_instruction(branch_block.index, Opcode::MOV, i.instruction_number, i.rarg);
 }
 
 void NonAllocator::destroy_if_phi(const BasicBlock& b, const Instruction& i) {
-    const BasicBlock& pred1 = ir.basic_blocks[b.predecessors[0]];
-    const BasicBlock& pred2 = ir.basic_blocks[b.predecessors[1]];
-    if (pred1.type == Blocktype::IF_FALLTHROUGH || pred2.type == Blocktype::WHILE_BRANCH) {
-        ir.add_instruction(pred1.index, Opcode::MOV, i.instruction_number, i.larg);
-        ir.add_instruction(pred2.index, Opcode::MOV, i.instruction_number, i.rarg);
-    } else {
-        ir.add_instruction(pred2.index, Opcode::MOV, i.instruction_number, i.larg);
-        ir.add_instruction(pred1.index, Opcode::MOV, i.instruction_number, i.rarg);
-    }
+    // const BasicBlock& pred1 = ir.basic_blocks[b.predecessors[0]];
+    // const BasicBlock& pred2 = ir.basic_blocks[b.predecessors[1]];
+    // if (pred1.type == Blocktype::IF_FALLTHROUGH || pred2.type == Blocktype::WHILE_BRANCH) {
+    //     ir.add_instruction(pred1.index, Opcode::MOV, i.instruction_number, i.larg);
+    //     ir.add_instruction(pred2.index, Opcode::MOV, i.instruction_number, i.rarg);
+    // } else {
+    //     ir.add_instruction(pred2.index, Opcode::MOV, i.instruction_number, i.larg);
+    //     ir.add_instruction(pred1.index, Opcode::MOV, i.instruction_number, i.rarg);
+    // }
 }
 
 void NonAllocator::allocate() {
@@ -64,10 +64,10 @@ void NonAllocator::allocate() {
 }
 
 void NonAllocator::convert_ir() {
-    convert_main(ir.basic_blocks[0].successors.back());    
-    for(const auto& block : ir.basic_blocks[0].successors | std::views::reverse | std::views::drop(1)) {
-        convert_function(block);
-    }
+    // convert_main(ir.basic_blocks[0].successors.back());    
+    // for(const auto& block : ir.basic_blocks[0].successors | std::views::reverse | std::views::drop(1)) {
+    //     convert_function(block);
+    // }
 }
 
 void NonAllocator::convert_main(const bb_t& b) {
@@ -162,43 +162,43 @@ _printEAXLoop2:
 }
 
 void NonAllocator::convert_function(const bb_t& b) {
-    if(ir.basic_blocks[b].instructions.size() != 0) {
-        ofile << std::format("function{}:", ir.basic_blocks[b].instructions[0].instruction_number) << std::endl;
-    }
-    convert_scope(b);
-    ofile << "ret" << std::endl;
+    // if(ir.basic_blocks[b].instructions.size() != 0) {
+    //     ofile << std::format("function{}:", ir.basic_blocks[b].instructions[0].instruction_number) << std::endl;
+    // }
+    // convert_scope(b);
+    // ofile << "ret" << std::endl;
 }
 
 void NonAllocator::convert_scope(const bb_t& b) {
-    convert_block(b);
-    const std::vector<bb_t>& successors = ir.basic_blocks[b].successors;
-    if(successors.size() == 0) {
-        return;
-    } else if(successors.size() == 1) {
-        convert_scope(successors[0]);
-    } else if(ir.basic_blocks[successors[0]].type == Blocktype::IF_FALLTHROUGH || ir.basic_blocks[successors[0]].type == Blocktype::WHILE_FALLTHROUGH) {
-        convert_scope(successors[0]);
-        convert_scope(successors[1]);
-    } else {
-        convert_scope(successors[1]);
-        convert_scope(successors[0]);
-    }
+    // convert_block(b);
+    // const std::vector<bb_t>& successors = ir.basic_blocks[b].successors;
+    // if(successors.size() == 0) {
+    //     return;
+    // } else if(successors.size() == 1) {
+    //     convert_scope(successors[0]);
+    // } else if(ir.basic_blocks[successors[0]].type == Blocktype::IF_FALLTHROUGH || ir.basic_blocks[successors[0]].type == Blocktype::WHILE_FALLTHROUGH) {
+    //     convert_scope(successors[0]);
+    //     convert_scope(successors[1]);
+    // } else {
+    //     convert_scope(successors[1]);
+    //     convert_scope(successors[0]);
+    // }
 }
 
 void NonAllocator::convert_block(const bb_t& b) {
-    BasicBlock& block = ir.basic_blocks.at(b);
-    if(block.processed) return;
-    if(block.predecessors.size() == 2 && (!ir.basic_blocks[block.predecessors[0]].processed || !ir.basic_blocks[block.predecessors[1]].processed)) return;
-    if(block.instructions.size() != 0) {
-        ofile << std::format("branch{}:", block.instructions[0].instruction_number) << std::endl;
-        for(const auto& instruct : block.instructions) {
-            convert_instruction(instruct);
-        }
-    }
-    if(block.branch_instruction.opcode != Opcode::EMPTY) {
-        convert_instruction(block.branch_instruction);
-    }
-    block.processed = true;
+//     BasicBlock& block = ir.basic_blocks.at(b);
+//     if(block.colored) return;
+//     if(block.predecessors.size() == 2 && (!ir.basic_blocks[block.predecessors[0]].colored || !ir.basic_blocks[block.predecessors[1]].colored)) return;
+//     if(block.instructions.size() != 0) {
+//         ofile << std::format("branch{}:", block.instructions[0].instruction_number) << std::endl;
+//         for(const auto& instruct : block.instructions) {
+//             convert_instruction(instruct);
+//         }
+//     }
+//     if(block.branch_instruction.opcode != Opcode::EMPTY) {
+//         convert_instruction(block.branch_instruction);
+//     }
+//     block.colored = true;
 }
 
 void NonAllocator::convert_instruction(const Instruction& i) {

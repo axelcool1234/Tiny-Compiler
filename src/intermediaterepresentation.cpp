@@ -2,8 +2,14 @@
 #include <algorithm>
 #include <ranges>
 #include <format>
+#include <iostream>
+#include <stdexcept>
 
 IntermediateRepresentation::IntermediateRepresentation() : basic_blocks{0}, doms{0} {} 
+
+void IntermediateRepresentation::init_live_ins() {
+    live_ins.assign(basic_blocks.size(), std::unordered_set<instruct_t>());
+}
 
 // Cooper-Harvey-Kennedy 
 // Iterative Reverse Postorder Dominance Algorithm
@@ -135,6 +141,7 @@ instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opc
     } else {
         basic_blocks[b].add_instruction(++instruction_count, op, larg, rarg);  
     }
+    if(op == Opcode::CONST) const_instructions[instruction_count] = larg;
     return instruction_count;
 }
 
@@ -154,6 +161,7 @@ instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opc
     } else {
         basic_blocks[b].add_instruction(++instruction_count, op, larg.first, rarg.first, larg.second, rarg.second);  
     }
+    if(op == Opcode::CONST) const_instructions[instruction_count] = larg.first;
     return instruction_count;
 }
 
@@ -314,6 +322,189 @@ void IntermediateRepresentation::change_ident_value(const bb_t& b, const ident_t
     basic_blocks[b].change_instruction(ident, instruct);
 }
 
+void IntermediateRepresentation::insert_live_in(const bb_t& b, const instruct_t& instruct) {
+    live_ins.at(b).insert(instruct);
+}
+
+void IntermediateRepresentation::erase_live_in(const bb_t& b, const instruct_t& instruct) {
+    live_ins.at(b).erase(instruct);
+}
+
+void IntermediateRepresentation::insert_death_point(const instruct_t& instruct, const instruct_t& death_point) {
+    death_points[instruct].insert(death_point);
+}
+
+bool IntermediateRepresentation::propagate_live_ins(const bb_t& b) {
+    // Ensure everything (the block's successors) before the block has been analyzed first.
+    for(const auto& successor : basic_blocks[b].successors) {
+        if(!is_analyzed(successor)) return false;
+    }
+
+    // Grab live SSA instructions from successors.
+    for(const auto& successor : basic_blocks[b].successors) {
+        live_ins[b].insert(live_ins[successor].begin(), live_ins[successor].end());
+    }
+    return true;
+}
+
+const std::vector<BasicBlock>& IntermediateRepresentation::get_basic_blocks() const {
+    return basic_blocks;
+}
+
+const bb_t& IntermediateRepresentation::get_idom(const bb_t& b) const {
+    return doms.at(b);
+}
+
+const std::vector<instruct_t>& IntermediateRepresentation::get_predecessors(const bb_t& b) const {
+    return basic_blocks.at(b).predecessors;
+}
+
+const std::vector<instruct_t>& IntermediateRepresentation::get_successors(const bb_t& b) const {
+    return basic_blocks.at(b).successors;
+}
+
+const std::vector<Instruction>& IntermediateRepresentation::get_instructions(const bb_t& b) const {
+    return basic_blocks.at(b).instructions;
+}
+
+const instruct_t& IntermediateRepresentation::get_loop_header(const bb_t& b) const {
+    if(basic_blocks.at(b).loop_header == -1) throw std::runtime_error("Given block does not have a loop header!");
+    return basic_blocks.at(b).loop_header;
+}
+
+const instruct_t& IntermediateRepresentation::get_branch_back(const bb_t& b) const {
+    if(basic_blocks.at(b).branch_block == -1) throw std::runtime_error("Given block does not have a branch block!");
+    return basic_blocks.at(b).branch_block;
+}
+
+const std::unordered_set<instruct_t>& IntermediateRepresentation::get_live_ins(const bb_t& b) const {
+    return live_ins.at(b);
+}
+
+const Register& IntermediateRepresentation::get_assigned_register(const instruct_t& instruct) const {
+    return assigned_registers.at(instruct);
+}
+
+const Blocktype& IntermediateRepresentation::get_type(const bb_t& b) const {
+    return basic_blocks.at(b).type;
+}
+
+const Instruction& IntermediateRepresentation::get_branch_instruction(const bb_t& b) const {
+    return basic_blocks.at(b).branch_instruction;
+}
+
+const int& IntermediateRepresentation::get_const_value(const instruct_t& instruct) const {
+    return const_instructions.at(instruct);
+}
+
+bool IntermediateRepresentation::is_live_instruction(const bb_t& b, const instruct_t& instruct) const {
+    return live_ins.at(b).find(instruct) != live_ins.at(b).end();
+}
+bool IntermediateRepresentation::is_const_instruction(const instruct_t& instruct) const {
+    return const_instructions.find(instruct) != const_instructions.end() || instruct == 0;
+}
+
+bool IntermediateRepresentation::is_valid_instruction(const instruct_t& instruct) const {
+    // If -1, the instruction doesn't exist.
+    return instruct != -1;
+}
+
+bool IntermediateRepresentation::is_undefined_instruction(const instruct_t& instruct) const {
+    // If 0, the instruction is an uninitialized const value (of 0) for a user identifier.
+    if(instruct == 0) {
+        std::cout << "Warning! Variable is used before it is defined; defaulting to 0." << std::endl; 
+        return true;
+    }
+    return false;
+}
+
+void IntermediateRepresentation::set_assigned_register(const instruct_t& instruct, const Register& reg) {
+    if(assigned_registers.find(instruct) != assigned_registers.end()) throw std::runtime_error("Instruction already has an assigned register!");
+    assigned_registers[instruct] = reg;
+}
+
+void IntermediateRepresentation::set_colored(const bb_t& b) {
+    basic_blocks.at(b).colored = true;
+}
+
+void IntermediateRepresentation::set_analyzed(const bb_t& b) {
+    basic_blocks.at(b).analyzed = true;   
+} 
+
+void IntermediateRepresentation::set_propagated(const bb_t& b) {
+    basic_blocks.at(b).propagated = true;   
+} 
+
+void IntermediateRepresentation::set_emitted(const bb_t& b) {
+    basic_blocks.at(b).emitted = true;   
+} 
+
+bool IntermediateRepresentation::has_death_point(const instruct_t& instruct, const instruct_t& death_point) const {
+    if(death_points.find(instruct) == death_points.end()) return false;
+    return death_points.at(instruct).find(death_point) != death_points.at(instruct).end();    
+}
+
+bool IntermediateRepresentation::has_branch_instruction(const bb_t& b) const {
+    return basic_blocks.at(b).branch_instruction.opcode != Opcode::EMPTY;
+}
+
+bool IntermediateRepresentation::has_zero_successors(const bb_t& b) const {
+    return basic_blocks.at(b).successors.size() == 0;
+}
+
+bool IntermediateRepresentation::has_one_successor(const bb_t& b) const {
+    return basic_blocks.at(b).successors.size() == 1;
+}
+
+bool IntermediateRepresentation::has_two_successors(const bb_t& b) const {
+    return basic_blocks.at(b).successors.size() == 2;
+}
+
+bool IntermediateRepresentation::has_zero_predecessors(const bb_t& b) const {
+    return basic_blocks.at(b).predecessors.size() == 0;
+}
+
+bool IntermediateRepresentation::has_one_predecessor(const bb_t& b) const {
+    return basic_blocks.at(b).predecessors.size() == 1;
+}
+
+bool IntermediateRepresentation::has_two_predecessors(const bb_t& b) const {
+    return basic_blocks.at(b).predecessors.size() == 2;
+}
+
+bool IntermediateRepresentation::is_loop_branch_back_related(const bb_t& loop_header, const bb_t& branch_back) const {    
+    return basic_blocks.at(loop_header).branch_block == basic_blocks.at(branch_back).index && 
+           basic_blocks.at(branch_back).loop_header  == basic_blocks.at(loop_header).index;  
+}
+
+bool IntermediateRepresentation::is_loop_header(const bb_t& b) const {
+    return basic_blocks.at(b).branch_block != -1;
+}
+
+bool IntermediateRepresentation::is_branch_back(const bb_t& b) const {
+    return basic_blocks.at(b).loop_header != -1;
+}
+
+bool IntermediateRepresentation::is_colored(const bb_t& b) const {
+    return basic_blocks.at(b).colored;
+}
+
+bool IntermediateRepresentation::is_analyzed(const bb_t& b) const {
+    return basic_blocks.at(b).analyzed;
+}
+
+bool IntermediateRepresentation::is_propagated(const bb_t& b) const {
+    return basic_blocks.at(b).propagated;
+}
+
+bool IntermediateRepresentation::is_emitted(const bb_t& b) const {
+    return basic_blocks.at(b).emitted;
+}
+
+bool IntermediateRepresentation::is_const_block(const bb_t& b) const {
+    return b == 0;
+}
+
 std::string IntermediateRepresentation::to_dotlang() const {
     std::string msg = "digraph G {\n";
     for(const BasicBlock& b : basic_blocks) 
@@ -347,4 +538,91 @@ std::string IntermediateRepresentation::to_dotlang() const {
     }
     msg += "}\n";
     return msg;
+}
+
+/* Debugging */
+void IntermediateRepresentation::debug() const {
+    print_const_instructions();
+    print_leaf_blocks();
+    print_live_ins();
+    print_colored_instructions();
+    print_death_points();
+    print_unanalyzed_blocks();
+    print_uncolored_blocks();
+    print_unemitted_blocks();
+
+    std::cout << "--- After Phi Propagation ---" << std::endl;
+    std::cout << to_dotlang();
+}
+
+void IntermediateRepresentation::print_const_instructions() const {
+    std::cout << "--- Constant Instructions ---" << std::endl;
+    for(const auto& instruction : const_instructions) {
+        std::cout << "Instruction: " << instruction.first << " Value: " << instruction.second << std::endl;
+    }
+}
+
+void IntermediateRepresentation::print_live_ins() const {
+    std::cout << "--- Live-Ins ---" << std::endl;
+    for(size_t block_index = 0; block_index < basic_blocks.size(); ++block_index) {
+        std::cout << std::format("Block {}: ", block_index);
+        for(const auto& live : live_ins[block_index]) {
+            std::cout << live << ", ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void IntermediateRepresentation::print_leaf_blocks() const {
+    std::cout << "--- Leaf Blocks ---" << std::endl;
+    for(const auto& block : basic_blocks) {
+        if(block.successors.size() == 0) {
+            std::cout << "Block: " << block.index << std::endl;
+        }
+    }
+}
+
+void IntermediateRepresentation::print_unanalyzed_blocks() const {
+    std::cout << "--- Unanalyzed Blocks ---" << std::endl;
+    for(const auto& block : basic_blocks) {
+        if(!block.analyzed) {
+            std::cout << "Block: " << block.index << std::endl;
+        }
+    }
+}
+
+void IntermediateRepresentation::print_uncolored_blocks() const {
+    std::cout << "--- Uncolored Blocks ---" << std::endl;
+    for(const auto& block : basic_blocks) {
+        if(!block.colored) {
+            std::cout << "Block: " << block.index << std::endl;
+        }
+    }
+}
+
+void IntermediateRepresentation::print_unemitted_blocks() const {
+    std::cout << "--- Unemitted Blocks ---" << std::endl;
+    for(const auto& block : basic_blocks) {
+        if(!block.emitted) {
+            std::cout << "Block: " << block.index << std::endl;
+        }
+    }
+}
+
+void IntermediateRepresentation::print_colored_instructions() const {
+    std::cout << "--- Colored Instructions ---" << std::endl;
+    for(const auto& colored_instruction : assigned_registers) {
+        std::cout << "Instruction: " << colored_instruction.first << " Register: " << colored_instruction.second << std::endl;
+    }
+}
+
+void IntermediateRepresentation::print_death_points() const {
+    std::cout << "--- Death Points ---" << std::endl;
+    for(const auto& instruction_death: death_points) {
+        std::cout << "Instruction: " << instruction_death.first << " Death: ";
+        for(const auto& death : instruction_death.second) {
+            std::cout << death << ", ";
+        }
+        std::cout << std::endl;
+    }
 }

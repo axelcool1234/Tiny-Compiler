@@ -3,11 +3,46 @@
 
 #include "basicblock.hpp"
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
+
+#define REGISTER_LIST \
+    REGISTER(RAX, rax) \
+    REGISTER(RBX, rbx) \
+    REGISTER(RCX, rcx) \
+    REGISTER(RDX, rdx) \
+    REGISTER(RSI, rsi) \
+    REGISTER(RDI, rdi) \
+    REGISTER(RDP, rdp) \
+    REGISTER(RSP, rsp) \
+    REGISTER(R8D, r8d) \
+    REGISTER(R9D, r9d) \
+    REGISTER(R10D, r10d) \
+    REGISTER(R11D, r11d) \
+    REGISTER(R12D, r12d) \
+    REGISTER(R13D, r13d) \
+    REGISTER(R14D, r14d) \
+    REGISTER(R15D, r15d)
+
+enum Register {
+#define REGISTER(name, str) name,
+    REGISTER_LIST
+#undef REGISTER
+    LAST,
+    UNASSIGNED
+};
+
+static const std::vector<std::string> reg_str_list {
+#define REGISTER(name, str) #str,
+    REGISTER_LIST
+#undef REGISTER
+};
+
 
 class IntermediateRepresentation {
 public:
     IntermediateRepresentation();
+    void debug() const;
     bool ignore = false;
     /*
      * Resets the doms vector and recomputes the dominators for every basic
@@ -339,6 +374,72 @@ public:
      */
     std::string to_dotlang() const;
 
+    void init_live_ins();
+
+    void insert_death_point(const instruct_t& instruct, const instruct_t& death_point);
+
+    void erase_live_in(const bb_t& b, const instruct_t& instruct);
+    void insert_live_in(const bb_t& b, const instruct_t& instruct);
+
+    /*
+     * Attempts to propagate the live SSA instructions from the given block's
+     * successors. If any of the successors have not been liveness analyzed,
+     * the live SSA instructions are not propagated.
+     *
+     * @param b The given block's index.
+     * @return Returns true if the live SSA instructions of the given block's successors
+     * have been successfully propagated to the given block. Returns false if one of
+     * the successors haven't been analyzed yet.
+     */
+    bool propagate_live_ins(const bb_t& b);
+
+    /*
+     * Returns the index of the immediate dominator of the given block.
+     *
+     * @param b The given block's index.
+     * @return The index of the given block's immediate dominator.
+     */ 
+    const bb_t& get_idom(const bb_t& b) const;
+    const std::vector<BasicBlock>& get_basic_blocks() const;
+    const std::unordered_set<instruct_t>& get_live_ins(const bb_t& b) const;
+    const Register& get_assigned_register(const instruct_t& instruct) const;
+    const std::vector<instruct_t>& get_predecessors(const bb_t& b) const;
+    const std::vector<instruct_t>& get_successors(const bb_t& b) const;
+    const std::vector<Instruction>& get_instructions(const bb_t& b) const;
+    const instruct_t& get_loop_header(const bb_t& b) const;
+    const instruct_t& get_branch_back(const bb_t& b) const;
+    const Blocktype& get_type(const bb_t& b) const;
+    const Instruction& get_branch_instruction(const bb_t& b) const;
+    const int& get_const_value(const instruct_t& instruct) const;
+
+    void set_colored(const bb_t& b);
+    void set_analyzed(const bb_t& b); 
+    void set_propagated(const bb_t& b); 
+    void set_emitted(const bb_t& b); 
+    void set_assigned_register(const instruct_t& instruct, const Register& reg);
+
+    bool has_death_point(const instruct_t& instruct, const instruct_t& death_point) const;
+    bool has_branch_instruction(const bb_t& b) const;
+    bool has_zero_successors(const bb_t& b) const;
+    bool has_one_successor(const bb_t& b) const;
+    bool has_two_successors(const bb_t& b) const;
+    bool has_zero_predecessors(const bb_t& b) const;
+    bool has_one_predecessor(const bb_t& b) const;
+    bool has_two_predecessors(const bb_t& b) const;
+
+    bool is_loop_branch_back_related(const bb_t& loop_header, const bb_t& branch_back) const;
+    bool is_live_instruction(const bb_t& b, const instruct_t& instruct) const;
+    bool is_const_instruction(const instruct_t& instruct) const;
+    bool is_valid_instruction(const instruct_t& instruct) const;
+    bool is_undefined_instruction(const instruct_t& instruct) const;
+    bool is_loop_header(const bb_t& b) const;
+    bool is_branch_back(const bb_t& b) const;
+    bool is_colored(const bb_t& b) const;
+    bool is_analyzed(const bb_t& b) const;
+    bool is_propagated(const bb_t& b) const;
+    bool is_emitted(const bb_t& b) const;
+    bool is_const_block(const bb_t& b) const;
+private:
 // Should be private:
     /*
      * This vector contains the basic blocks of the IR.
@@ -358,12 +459,25 @@ public:
      * in the basic_blocks vector. For example, the nth basic block's
      * immediate dominator would be doms[n].
      */
-    std::vector<int> doms;
-private:
-    // Helpers
+    std::vector<bb_t> doms;
+    std::vector<std::unordered_set<instruct_t>> live_ins;
+    std::unordered_map<instruct_t, int> const_instructions {};
+    std::unordered_map<instruct_t, Register> assigned_registers;
+    std::unordered_map<instruct_t, std::unordered_set<instruct_t>> death_points;
+    /* Helpers */
     bb_t new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t);
     instruct_t add_instruction_helper(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg, const bool& prepend);
     instruct_t add_instruction_helper(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg, const bool& prepend);
+
+    /* Debug */
+    void print_const_instructions() const;
+    void print_live_ins() const;
+    void print_leaf_blocks() const;
+    void print_unanalyzed_blocks() const;
+    void print_uncolored_blocks() const;
+    void print_unemitted_blocks() const;
+    void print_colored_instructions() const;
+    void print_death_points() const;
 };
 
 #endif // INTERMEDIATEREPRESENTATION_HPP
