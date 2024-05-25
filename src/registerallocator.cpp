@@ -2,6 +2,7 @@
 #include <ranges>
 #include <unordered_set>
 #include <stdexcept>
+#include <algorithm>
 
 RegisterAllocator::RegisterAllocator(IntermediateRepresentation&& ir) : ir(std::move(ir)) {}
 
@@ -54,35 +55,19 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
 
     // Get liveness from loop header (that you're re-entering as the branch_back block)
     if(ir.is_branch_back(block)) {
-        for(const auto& instruction : ir.get_instructions(ir.get_loop_header(block))) {
-            if(instruction.opcode != Opcode::PHI) break;
-            if(ir.is_const_instruction(instruction.rarg)) continue;
-            ir.insert_live_in(block, instruction.rarg);
-        }
+        get_phi_liveness(block, ir.get_instructions(ir.get_loop_header(block)), false);
     } 
     // Get liveness from loop header you're entering into for the first time
     else if(ir.has_one_successor(block) && ir.is_loop_header(ir.get_successors(block).at(0))) {
-        for(const auto& instruction : ir.get_instructions(ir.get_successors(block).at(0))) {
-            if(instruction.opcode != Opcode::PHI) break;
-            if(ir.is_const_instruction(instruction.larg)) continue;
-            ir.insert_live_in(block, instruction.larg);
-        }
+        get_phi_liveness(block, ir.get_instructions(ir.get_successors(block).at(0)), true);
     }
     // Get liveness from JOIN block (as block branching to it)
     else if(ir.has_one_successor(block) && ir.has_branch_instruction(block)) {
-        for(const auto& instruction : ir.get_instructions(ir.get_successors(block).at(0))) {
-            if(instruction.opcode != Opcode::PHI) break;
-            if(ir.is_const_instruction(instruction.larg)) continue;
-            ir.insert_live_in(block, instruction.larg);
-        }
+        get_phi_liveness(block, ir.get_instructions(ir.get_successors(block).at(0)), true);
     } 
     // Get liveness from JOIN block (as block falling through to it)
     else if(ir.has_one_successor(block)) {
-        for(const auto& instruction : ir.get_instructions(ir.get_successors(block).at(0))) {
-            if(instruction.opcode != Opcode::PHI) break;
-            if(ir.is_const_instruction(instruction.rarg)) continue;
-            ir.insert_live_in(block, instruction.rarg);
-        }
+        get_phi_liveness(block, ir.get_instructions(ir.get_successors(block).at(0)), false);
     } 
     
     // Determine points of death and liveness of SSA instructions at the beginning of the block.
@@ -92,15 +77,7 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
 
         // Ignore arguments of phi instructions since the move/swap calls will be in the predecessors.
         // Also ignore branch instructions as they don't require registers to work correctly in x86.
-        if(instruction.opcode == Opcode::PHI ||
-           instruction.opcode == Opcode::BRA ||
-           instruction.opcode == Opcode::BNE ||
-           instruction.opcode == Opcode::BEQ ||
-           instruction.opcode == Opcode::BLE ||
-           instruction.opcode == Opcode::BLT ||
-           instruction.opcode == Opcode::BGE ||
-           instruction.opcode == Opcode::BGT ||
-           instruction.opcode == Opcode::EMPTY) {
+        if(instruction.opcode == Opcode::PHI || non_reg_instruction(instruction)) {
              continue;
         }
 
@@ -109,14 +86,10 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
         // It is not invalid (ie doesn't exist or the special "0" instruction for undefined user identifiers)
         // It is not a constant
         // It is not alive at this point.
-        if(ir.is_valid_instruction(instruction.larg) && !ir.is_const_instruction(instruction.larg) && !ir.is_live_instruction(block, instruction.larg)) {
-            ir.insert_live_in(block, instruction.larg);
-            ir.insert_death_point(instruction.larg, instruction.instruction_number);
-        }
-        if(ir.is_valid_instruction(instruction.rarg) && !ir.is_const_instruction(instruction.rarg) && !ir.is_live_instruction(block, instruction.rarg)) {
-            ir.insert_live_in(block, instruction.rarg);
-            ir.insert_death_point(instruction.rarg, instruction.instruction_number);
-        }
+        check_argument_deaths(instruction, block);
+
+        // Apply constraints
+        apply_constraints(instruction, block);
     }
 
     // This block has now been analyzed.
@@ -125,6 +98,60 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
     // Analyze predecessor blocks.
     for(const auto& predecessor : ir.get_predecessors(block)) {
         analyze_block(predecessor);
+    }
+}
+
+void RegisterAllocator::get_phi_liveness(const bb_t& block, const std::vector<Instruction>& instructions, const bool& left) {
+    for(const auto& instruction : instructions) {
+        if(instruction.opcode != Opcode::PHI) break;
+        if(left) {
+            if(ir.is_const_instruction(instruction.larg)) continue;
+            ir.insert_live_in(block, instruction.larg);
+        } else {
+            if(ir.is_const_instruction(instruction.rarg)) continue;
+            ir.insert_live_in(block, instruction.rarg);
+        }
+    }
+}
+
+bool RegisterAllocator::non_reg_instruction(const Instruction& instruction) {
+    return instruction.opcode == Opcode::BRA ||
+           instruction.opcode == Opcode::BNE ||
+           instruction.opcode == Opcode::BEQ ||
+           instruction.opcode == Opcode::BLE ||
+           instruction.opcode == Opcode::BLT ||
+           instruction.opcode == Opcode::BGE ||
+           instruction.opcode == Opcode::BGT ||
+           instruction.opcode == Opcode::EMPTY; 
+}
+
+void RegisterAllocator::check_argument_deaths(const Instruction& instruction, const bb_t& block) {
+    if(ir.is_valid_instruction(instruction.larg) && !ir.is_const_instruction(instruction.larg) && !ir.is_live_instruction(block, instruction.larg)) {
+        ir.insert_live_in(block, instruction.larg);
+        ir.insert_death_point(instruction.larg, instruction.instruction_number);
+    }
+    if(ir.is_valid_instruction(instruction.rarg) && !ir.is_const_instruction(instruction.rarg) && !ir.is_live_instruction(block, instruction.rarg)) {
+        ir.insert_live_in(block, instruction.rarg);
+        ir.insert_death_point(instruction.rarg, instruction.instruction_number);
+    }
+}
+
+void RegisterAllocator::apply_constraints(const Instruction& instruction, const bb_t& block) {
+    switch(instruction.opcode) {
+        case Opcode::WRITE:
+            ir.constrain(instruction.larg, block, RAX, true);
+            break;
+        case Opcode::READ:
+            ir.constrain(instruction.instruction_number, block, RAX, true);
+            break;
+        case Opcode::RET:
+            ir.constrain(instruction.instruction_number, block, RAX, true);
+            break;
+        case Opcode::JSR:
+            ir.constrain(instruction.instruction_number, block, RAX, true);
+            break;
+        default:
+            break;
     }
 }
 
@@ -162,6 +189,7 @@ void RegisterAllocator::color_block(const bb_t& block) {
     for(const auto& instruction : ir.get_instructions(block)) {
         if(instruction.opcode != Opcode::PHI) break;
         ir.set_assigned_register(instruction.instruction_number, get_register(instruction, occupied));
+        ir.prefer(instruction.instruction_number, ir.get_assigned_register(instruction.instruction_number), true);
         occupied.insert(ir.get_assigned_register(instruction.instruction_number));
     }
 
@@ -241,44 +269,78 @@ void RegisterAllocator::implement_phi_copies(const bb_t& block, const bb_t& phi_
 
     // While loop header (phi_block) and branch-back block (block)
     if(ir.is_loop_branch_back_related(phi_block, block)) {
-        for(const auto& instruction : ir.get_instructions(phi_block)) {
-            if(instruction.opcode != Opcode::PHI) break; 
-            // Make instruction in block: MOV phi_block.instruction_number, phi_block.rarg 
-            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.rarg); 
-        }
+        insert_phi_copies(block, phi_block, false);
     } 
     // While loop header (phi_block) and block above it (block)
     else if(ir.is_loop_header(phi_block) && ir.has_one_successor(block) && ir.get_successors(block).at(0) == phi_block) {
-        for(const auto& instruction : ir.get_instructions(phi_block)) {
-            if(instruction.opcode != Opcode::PHI) break;
-            // Make instruction in block: MOV phi_block.instruction_number, phi_block.larg
-            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.larg);
-        }
+        insert_phi_copies(block, phi_block, true);
     }
     // Join block (phi_block) and block branching to it (block)
     else if(ir.has_branch_instruction(block)) {
-        for(const auto& instruction : ir.get_instructions(phi_block)) {
-            if(instruction.opcode != Opcode::PHI) break;
-            // Make instruction in block: MOV phi_block.instruction_number, phi_block.larg
-            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.larg);
-        }
+        insert_phi_copies(block, phi_block, true);
     }
     // Join block (phi_block) and block falling through to it (block)
     else {
-        for(const auto& instruction : ir.get_instructions(phi_block)) {
-            if(instruction.opcode != Opcode::PHI) break;
-            // Make instruction in block: MOV phi_block.instruction_number, phi_block.rarg
-            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.rarg);
-        }
+        insert_phi_copies(block, phi_block, false);
     }
 
     // Phis have been propagated to the block.
     // block.propagated = true;
 }
 
+void RegisterAllocator::insert_phi_copies(const bb_t& block, const bb_t& phi_block, const bool& left) {
+    //TODO: Instead of blindly inserting MOV calls, we should insert them in a proper order:
+    // 1. mix of mov and xchg calls
+    // 2. const movs
+    // We could probably represent this problem as a graph problem. Nodes are registers, edges,
+    // with either uni or bi directionality, resemble the need of moving the contents of one register to another.
+    // If the edge is bidirectional, this calls for an xchg call.
+    // A chain of mov/xchg calls requires finding a node in the graph with no outward edges. This means the register
+    // that node represents has unneeded data, and can be safely replaced.
+    // What if we have a cycle?
+    // For example:
+    // blue <- green <- red <- blue 
+    // 
+    // blue <- green
+    // green <- red
+    // red <- blue
+    //
+    // We could solve this given example with:
+    // xchg blue, green
+    // xchg green, red
+    //
+    // So it seems to solve a clean cycle, we just need continuous xchg calls. But what if two registers need the same data
+    // from another register? Then it gets complicated...
+
+    // std::unordered_map<Register, instruct_t> moved_into;
+    // std::vector<std::pair<instruct_t, instruct_t>> const_movs;
+    for(const auto& instruction : ir.get_instructions(phi_block)) {
+        if(instruction.opcode != Opcode::PHI) break;
+        if(left) {
+            // if(ir.get_assigned_register(instruction.instruction_number) == ir.get_assigned_register(instruction.larg)) continue;
+            // if(ir.is_const_instruction(instruction.larg)) { 
+            //     const_movs.emplace_back(instruction.instruction_number, instruction.larg);
+            // } else {
+            //     // moved_into[
+            // }
+            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.larg); 
+        } else { // right
+            // if(ir.get_assigned_register(instruction.instruction_number) == ir.get_assigned_register(instruction.rarg)) continue;
+            // if(ir.is_const_instruction(instruction.rarg)) { 
+            //     const_movs.emplace_back(instruction.instruction_number, instruction.rarg);
+            // } else {
+            //     // moved_into[
+            // }
+            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.rarg); 
+        }
+    }
+}
+
 Register RegisterAllocator::get_register(const Instruction& instruction, const std::unordered_set<Register>& occupied) {
-    for(int reg = RAX; reg < Register::LAST; ++reg) {
-        if(occupied.find(static_cast<Register>(reg)) == occupied.end()) return static_cast<Register>(reg);
+    auto preference = ir.get_instruction_preference(instruction.instruction_number);
+    sort(preference.begin(), preference.end(), Preference::sort_by_preference);
+    for(const auto& pair : preference) {
+        if(occupied.find(pair.first) == occupied.end()) return pair.first;
     }
     throw std::runtime_error{"Ran out of registers"};
 }

@@ -38,6 +38,15 @@ static const std::vector<std::string> reg_str_list {
 #undef REGISTER
 };
 
+struct Preference {
+    std::unordered_set<instruct_t> affinities;
+    std::vector<std::pair<Register, int>> preference;
+    Preference();
+    static bool sort_by_preference(const std::pair<Register, int> &a, const std::pair<Register, int> &b) {
+        return a.second > b.second;
+    }
+};
+
 
 class IntermediateRepresentation {
 public:
@@ -411,6 +420,11 @@ public:
     const Blocktype& get_type(const bb_t& b) const;
     const Instruction& get_branch_instruction(const bb_t& b) const;
     const int& get_const_value(const instruct_t& instruct) const;
+    const std::vector<std::pair<Register, int>>& get_instruction_preference(const instruct_t& instruct);
+
+    void constrain(const instruct_t& instruct, const bb_t& b, const Register& reg, const bool& propagate);
+    void dislike(const instruct_t& instruct, const bb_t& b, const Register& reg, const bool& propagate);
+    void prefer(const instruct_t& instruct, const Register& reg, const bool& propagate);
 
     void set_colored(const bb_t& b);
     void set_analyzed(const bb_t& b); 
@@ -418,6 +432,7 @@ public:
     void set_emitted(const bb_t& b); 
     void set_assigned_register(const instruct_t& instruct, const Register& reg);
 
+    bool has_preference(const instruct_t& instruct) const;
     bool has_death_point(const instruct_t& instruct, const instruct_t& death_point) const;
     bool has_branch_instruction(const bb_t& b) const;
     bool has_zero_successors(const bb_t& b) const;
@@ -461,13 +476,15 @@ private:
      */
     std::vector<bb_t> doms;
     std::vector<std::unordered_set<instruct_t>> live_ins;
+    std::unordered_map<instruct_t, Preference> preference_list{};
     std::unordered_map<instruct_t, int> const_instructions {};
     std::unordered_map<instruct_t, Register> assigned_registers;
     std::unordered_map<instruct_t, std::unordered_set<instruct_t>> death_points;
     /* Helpers */
     bb_t new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t);
-    instruct_t add_instruction_helper(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg, const bool& prepend);
     instruct_t add_instruction_helper(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg, const bool& prepend);
+    Preference& get_preference(const instruct_t& instruct);
+    void establish_affinity_group(const instruct_t& i1, const instruct_t& i2, const instruct_t& i3);
 
     /* Debug */
     void print_const_instructions() const;
@@ -478,6 +495,8 @@ private:
     void print_unemitted_blocks() const;
     void print_colored_instructions() const;
     void print_death_points() const;
+    void print_preferences() const;
+    void print_affinity_groups() const;
 };
 
 #endif // INTERMEDIATEREPRESENTATION_HPP

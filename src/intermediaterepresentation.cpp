@@ -62,11 +62,19 @@ bb_t IntermediateRepresentation::new_block_helper(const bb_t& p1, const bb_t& p2
         basic_blocks[p1].successors.emplace_back(index);
     }
     else if(p2 != -1) { // New block has 2 parents, and is guaranteed to have the JOIN Blocktype.
-      basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values,
-                                basic_blocks[p2].identifier_values, p1, p2,
-                                instruction_count);
-      basic_blocks[p1].successors.emplace_back(index);
-      basic_blocks[p2].successors.emplace_back(index);
+        basic_blocks.emplace_back(index, p1, p2, Blocktype::JOIN);
+        basic_blocks[p1].successors.emplace_back(index);
+        basic_blocks[p2].successors.emplace_back(index);
+        // Generate phi functions for conflicting identifier values.
+        for(size_t i = 0; i < basic_blocks[p1].identifier_values.size(); ++i) {
+            if(basic_blocks[p1].identifier_values[i] != basic_blocks[p2].identifier_values[i]) {
+                add_instruction(index, Opcode::PHI, basic_blocks[p1].identifier_values[i], basic_blocks[p2].identifier_values[i]);
+                basic_blocks[index].identifier_values.emplace_back(instruction_count);
+            } 
+            else {
+                basic_blocks[index].identifier_values.emplace_back(basic_blocks[p1].identifier_values[i]);
+            }
+        }
     }
     else { // New block has 1 parent and no specified Blocktype, so it'll be assigned the NONE Blocktype.
         basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values, p1);
@@ -125,26 +133,6 @@ instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, co
     return -1;
 }
 
-instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg, const bool& prepend) {
-    if(ignore) return -1;
-    // Common Subexpression Elimination
-    instruct_t instruct = search_cse(b, op, larg, rarg);
-    if(instruct != -1) return instruct;
-
-    // If the given block is empty, replace the EMPTY instruction with the given opcoode, larg, and rarg.
-    instruct = change_empty(b, op, larg, rarg);
-    if(instruct != -1) return instruct;
-
-    // Whether we want to append (to the end) or prepend (at the beginning) the new instruction.
-    if(prepend) {
-        basic_blocks[b].prepend_instruction(++instruction_count, op, larg, rarg);  
-    } else {
-        basic_blocks[b].add_instruction(++instruction_count, op, larg, rarg);  
-    }
-    if(op == Opcode::CONST) const_instructions[instruction_count] = larg;
-    return instruction_count;
-}
-
 instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg, const bool& prepend) {
     if(ignore) return -1;
     // Common Subexpression Elimination
@@ -162,12 +150,14 @@ instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opc
         basic_blocks[b].add_instruction(++instruction_count, op, larg.first, rarg.first, larg.second, rarg.second);  
     }
     if(op == Opcode::CONST) const_instructions[instruction_count] = larg.first;
+    // Not only place phis can be made. Check generate_phis function too!
+    if(op == Opcode::PHI) establish_affinity_group(instruction_count, larg.first, rarg.first);
     return instruction_count;
 }
 
 instruct_t IntermediateRepresentation::prepend_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     if(ignore) return -1;
-    return add_instruction_helper(b, op, larg, rarg, true);
+    return add_instruction_helper(b, op, { larg, -1 }, { rarg, -1 }, true);
 }
 instruct_t IntermediateRepresentation::prepend_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg, const std::pair<instruct_t, ident_t>& rarg) {
     if(ignore) return -1;
@@ -179,11 +169,11 @@ instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op,
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     if(ignore) return -1;
-    return add_instruction_helper(b, op, larg, rarg, false);
+    return add_instruction_helper(b, op, { larg, -1 }, { rarg, -1 }, false);
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const instruct_t& larg)  {
     if(ignore) return -1;
-    return add_instruction_helper(b, op, larg, -1, false);
+    return add_instruction_helper(b, op, { larg, -1 }, { -1, -1 }, false);
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op, const std::pair<instruct_t, ident_t>& larg)  {
     if(ignore) return -1;
@@ -191,7 +181,7 @@ instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op,
 } 
 instruct_t IntermediateRepresentation::add_instruction(const bb_t& b, Opcode op) {
     if(ignore) return -1;
-    return add_instruction_helper(b, op, -1, -1, false);
+    return add_instruction_helper(b, op, { -1, -1 }, { -1, -1 }, false);
 }
 
 void IntermediateRepresentation::set_return(const bb_t& b) {
@@ -326,6 +316,36 @@ void IntermediateRepresentation::insert_live_in(const bb_t& b, const instruct_t&
     live_ins.at(b).insert(instruct);
 }
 
+void IntermediateRepresentation::establish_affinity_group(const instruct_t& i1, const instruct_t& i2, const instruct_t& i3) {
+    if(preference_list.find(i1) == preference_list.end() && !is_const_instruction(i1)) preference_list[i1] = Preference(); 
+    if(preference_list.find(i2) == preference_list.end() && !is_const_instruction(i2)) preference_list[i2] = Preference(); 
+    if(preference_list.find(i3) == preference_list.end() && !is_const_instruction(i3)) preference_list[i3] = Preference(); 
+    if(!is_const_instruction(i1) && !is_const_instruction(i2)) {
+        preference_list[i1].affinities.insert(i2); 
+        preference_list[i2].affinities.insert(i1);
+    }
+    if(!is_const_instruction(i1) && !is_const_instruction(i3)) {
+        preference_list[i1].affinities.insert(i3);
+        preference_list[i3].affinities.insert(i1);    
+    }
+    if(!is_const_instruction(i2) && !is_const_instruction(i3)) {
+        preference_list[i2].affinities.insert(i3);
+        preference_list[i3].affinities.insert(i2);
+    }
+}
+
+const std::vector<std::pair<Register, int>>& IntermediateRepresentation::get_instruction_preference(const instruct_t& instruct) {
+    return preference_list.at(instruct).preference;
+}
+
+Preference& IntermediateRepresentation::get_preference(const instruct_t& instruct) {
+    if(preference_list.find(instruct) != preference_list.end()) {
+        return preference_list.at(instruct);
+    } else {
+        preference_list[instruct] = Preference();
+        return preference_list.at(instruct);
+    }
+}
 void IntermediateRepresentation::erase_live_in(const bb_t& b, const instruct_t& instruct) {
     live_ins.at(b).erase(instruct);
 }
@@ -439,6 +459,10 @@ void IntermediateRepresentation::set_emitted(const bb_t& b) {
     basic_blocks.at(b).emitted = true;   
 } 
 
+bool IntermediateRepresentation::has_preference(const instruct_t& instruct) const {
+    return preference_list.find(instruct) != preference_list.end();
+}
+
 bool IntermediateRepresentation::has_death_point(const instruct_t& instruct, const instruct_t& death_point) const {
     if(death_points.find(instruct) == death_points.end()) return false;
     return death_points.at(instruct).find(death_point) != death_points.at(instruct).end();    
@@ -550,6 +574,8 @@ void IntermediateRepresentation::debug() const {
     print_unanalyzed_blocks();
     print_uncolored_blocks();
     print_unemitted_blocks();
+    print_affinity_groups();
+    print_preferences();
 
     std::cout << "--- After Phi Propagation ---" << std::endl;
     std::cout << to_dotlang();
@@ -624,5 +650,77 @@ void IntermediateRepresentation::print_death_points() const {
             std::cout << death << ", ";
         }
         std::cout << std::endl;
+    }
+}
+
+void IntermediateRepresentation::print_affinity_groups() const {
+    std::cout << "--- Affinity Groups ---" << std::endl;
+    for(const auto& pref : preference_list) {
+        std::cout << "Instruction: " << pref.first << ", Affinities: ";
+        for(const auto& affinity : pref.second.affinities) {
+            std::cout << affinity << ", ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void IntermediateRepresentation::print_preferences() const {
+    std::cout << "--- Instruction Preferences ---" << std::endl;
+    for(const auto& pref : preference_list) {
+        std::cout << "Instruction: " << pref.first << ", Preferences: ";
+        auto copy = pref.second.preference;
+        sort(copy.begin(), copy.end(), Preference::sort_by_preference);
+        std::cout << "[";
+        for(const auto& pair : copy) {
+            std::cout << "(" << reg_str_list.at(pair.first) << ", " << pair.second << "), ";
+        }
+        std::cout << "]" << std::endl;
+    }
+}
+
+
+/* Preference Struct */
+Preference::Preference() : 
+    preference{ 
+    #define REGISTER(name, str) { name, 0 },
+        REGISTER_LIST
+    #undef REGISTER
+    }
+{}
+
+void IntermediateRepresentation::constrain(const instruct_t& instruct, const bb_t& b, const Register& reg, const bool& propagate) {
+    Preference& pref = get_preference(instruct);
+    for(auto& pair : pref.preference) {
+        if(pair.first == reg) continue;
+        --pair.second;
+    }
+    if(propagate) {
+        for(const auto& affinity : pref.affinities) {
+            constrain(affinity, b, reg, false);
+        }
+        for(const auto& conflict : live_ins.at(b)) {
+            if(conflict == instruct) continue;
+            dislike(conflict, b, reg, false);
+        }
+    }
+}
+
+void IntermediateRepresentation::prefer(const instruct_t& instruct, const Register& reg, const bool& propagate) {
+    Preference& pref = get_preference(instruct);
+    ++pref.preference.at(reg).second;
+    if(propagate) {
+        for(const auto& affinity : pref.affinities) {
+            prefer(affinity, reg, false);
+        }
+    }
+}
+
+void IntermediateRepresentation::dislike(const instruct_t& instruct, const bb_t& b, const Register& reg, const bool& propagate) {
+    Preference& pref = get_preference(instruct);
+    --pref.preference.at(reg).second; 
+    if(propagate) {
+        for(const auto& affinity : pref.affinities) {
+            dislike(affinity, b, reg, false);
+        }
     }
 }

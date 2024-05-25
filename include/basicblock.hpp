@@ -36,8 +36,7 @@ struct BasicBlock {
     BasicBlock(const bb_t& i, const ident_t& ident_count, const bb_t& p); 
     BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p);              
     BasicBlock(const bb_t& i, const std::vector<instruct_t>& dom_ident_vals, const bb_t& p, Blocktype t); 
-    BasicBlock(const bb_t& i, const std::vector<instruct_t>& p1_ident_vals, 
-                const std::vector<instruct_t>& p2_ident_vals, const bb_t& p1, const bb_t& p2, int& instruction_count);    
+    BasicBlock(const bb_t& i, const bb_t& p1, const bb_t& p2, Blocktype t);
     void add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2);
     void prepend_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2);
     void add_instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2, const ident_t& x1_owner, const ident_t& x2_owner);
