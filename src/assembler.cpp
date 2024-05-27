@@ -1,74 +1,65 @@
 #include <cstdint>
-#include <cstring>
 #include <vector>
 #include <fstream>
+#include <cstring>
 
-#include <elf.h>
+#include "assembler.hpp"
 
 constexpr size_t VADDR_START = 0x08048000;
 constexpr size_t NUM_SECTIONS = 2;
 
-
-Elf32_Ehdr init_elf32hdr() {
-    Elf32_Ehdr h;
-    std::memcpy(h.e_ident, "\x7f""ELF", 4);
-    h.e_ident[EI_CLASS] = ELFCLASS32;
-    h.e_ident[EI_DATA] = ELFDATA2LSB;
-    h.e_ident[EI_VERSION] = EV_CURRENT;
-    h.e_ident[EI_OSABI] = ELFOSABI_LINUX;
-    h.e_ident[EI_ABIVERSION] = 0;
-    std::memset(h.e_ident + EI_PAD, 0, EI_NIDENT - EI_PAD);
-
-    h.e_type = ET_EXEC;
-    h.e_machine = EM_386;
-    h.e_version = EV_CURRENT;
-    h.e_entry = VADDR_START + 0x1000;
-    h.e_phoff = sizeof(Elf32_Ehdr);
-    h.e_shoff = 0;
-    h.e_flags = 0;
-    h.e_ehsize = sizeof(Elf32_Ehdr);
-    h.e_phentsize = sizeof(Elf32_Phdr);
-    h.e_phnum = NUM_SECTIONS; // may change later for stack
-    h.e_shentsize = sizeof(Elf32_Shdr);
-    h.e_shnum = 0;
-    h.e_shstrndx = 0;
-
-    return h;
-}
-
-
 void write_elf()
 {
-    // size_t program_offset{sizeof(Elf32_Ehdr) + sizeof(Elf32_Phdr)*NUM_SECTIONS};
-    // size_t program_size{program_offset};
+    Elf64_Ehdr elf_hdr = {
+        .e_ident = {
+            '\x7f','E','L','F', // magic
+            ELFCLASS64,         // architecture class
+            ELFDATA2LSB,        // little-endian
+            EV_CURRENT,         // current-version
+            ELFOSABI_LINUX,     // OS/ABI
+            0,                  // ABI version
+            0,0,0,0,0,0,0,      // padding
+        },
+        .e_type         = ET_EXEC,
+        .e_machine      = EM_X86_64,
+        .e_version      = EV_CURRENT,
+        .e_entry        = VADDR_START + 0x1000,
+        .e_phoff        = sizeof(Elf64_Ehdr),
+        .e_shoff        = 0,
+        .e_flags        = 0,
+        .e_ehsize       = sizeof(Elf64_Ehdr),
+        .e_phentsize    = sizeof(Elf64_Phdr),
+        .e_phnum        = NUM_SECTIONS, // may change later for stack
+        .e_shentsize    = sizeof(Elf64_Shdr),
+        .e_shnum        = 0,
+        .e_shstrndx     = 0,
+    };
 
-    Elf32_Ehdr elf_hdr = init_elf32hdr();
-
-    Elf32_Phdr text_hdr;
-    text_hdr.p_type = PT_LOAD;
-    text_hdr.p_offset = 0x1000;
-    text_hdr.p_vaddr = VADDR_START + 0x1000;
-    text_hdr.p_paddr = 0;
-    text_hdr.p_filesz = 0;  // to be updated later
-    text_hdr.p_memsz = 0;   // to be updated later
-    text_hdr.p_flags = PF_X | PF_R;
-    text_hdr.p_align = 0x1000;
+    Elf64_Phdr text_hdr {
+        .p_type     = PT_LOAD,
+        .p_flags    = PF_X | PF_R,
+        .p_offset   = 0x1000,
+        .p_vaddr    = VADDR_START + 0x1000,
+        .p_filesz   = 0,   // to be updated later
+        .p_memsz    = 0,   // to be updated later
+        .p_align    = 0x1000,
+    };
 
     // Data section metadata depends on the size of the text section
-    Elf32_Phdr data_hdr;
-    data_hdr.p_type = PT_LOAD;
-    data_hdr.p_offset = 0;  // to be updated later
-    data_hdr.p_vaddr = 0;   // to be updated later
-    data_hdr.p_paddr = 0;
-    data_hdr.p_filesz = 0;  // to be updated later
-    data_hdr.p_memsz = 0;   // to be updated later
-    data_hdr.p_flags = PF_W | PF_R;
-    data_hdr.p_align = 0x1000;
+    Elf64_Phdr data_hdr {
+        .p_type     = PT_LOAD,
+        .p_flags    = PF_W | PF_R,
+        .p_offset   = 0,   // to be updated later
+        .p_vaddr    = 0,   // to be updated later
+        .p_filesz   = 0,   // to be updated later
+        .p_memsz    = 0,   // to be updated later
+        .p_align    = 0x1000,
+    };
 
     std::vector<uint8_t> text {
         0xb8, 0x04, 0x00, 0x00, 0x00, // mov $4, %eax
         0xbb, 0x01, 0x00, 0x00, 0x00, // mov $1, %ebx
-        0xb9, 0x00, 0xa0, 0x04, 0x08, // mov $0x08048000, %ecx (address of "Hello, world!\n")
+        0xb9, 0x00, 0xa0, 0x04, 0x08, // mov $0x0804a000, %ecx (address of "Hello, world!\n")
         0xba, 0x0e, 0x00, 0x00, 0x00, // mov $14, %edx
         0xcd, 0x80,                   // int $0x80 (syscall)
         0xb8, 0x01, 0x00, 0x00, 0x00, // mov $1, %eax
@@ -77,8 +68,7 @@ void write_elf()
     };
     text_hdr.p_filesz = text.size();
     text_hdr.p_memsz = text.size();
-    std::vector<uint8_t> text_padding(0x1000 - sizeof(Elf32_Ehdr) - NUM_SECTIONS * sizeof(Elf32_Phdr), 0);
-
+    std::vector<uint8_t> text_padding(0x1000 - sizeof(Elf64_Ehdr) - NUM_SECTIONS * sizeof(Elf64_Phdr), 0);
 
     const char* msg = "Hello World\n";
     size_t msg_len = std::strlen(msg);
@@ -112,5 +102,49 @@ void write_elf()
 }
 
 
+Assembler::Assembler() {
+    elf_hdr = {
+        .e_ident = {
+            '\x7f','E','L','F', // magic
+            ELFCLASS64,         // architecture class
+            ELFDATA2LSB,        // little-endian
+            EV_CURRENT,         // current-version
+            ELFOSABI_LINUX,     // OS/ABI
+            0,                  // ABI version
+            0,0,0,0,0,0,0,      // padding
+        },
+        .e_type         = ET_EXEC,
+        .e_machine      = EM_X86_64,
+        .e_version      = EV_CURRENT,
+        .e_entry        = VADDR_START + 0x1000,
+        .e_phoff        = sizeof(Elf64_Ehdr),
+        .e_shoff        = 0,
+        .e_flags        = 0,
+        .e_ehsize       = sizeof(Elf64_Ehdr),
+        .e_phentsize    = sizeof(Elf64_Phdr),
+        .e_phnum        = NUM_SECTIONS, // may change later for stack
+        .e_shentsize    = sizeof(Elf64_Shdr),
+        .e_shnum        = 0,
+        .e_shstrndx     = 0,
+    };
 
+    text_hdr = {
+        .p_type     = PT_LOAD,
+        .p_flags    = PF_X | PF_R,
+        .p_offset   = 0x1000,
+        .p_vaddr    = VADDR_START + 0x1000,
+        .p_filesz   = 0,   // to be updated later
+        .p_memsz    = 0,   // to be updated later
+        .p_align    = 0x1000,
+    };
+
+    // Data section's offset and addr are dependent on text
+    data_hdr = {
+        .p_type     = PT_LOAD,
+        .p_flags    = PF_W | PF_R,
+        .p_filesz   = 0,   // to be updated later
+        .p_memsz    = 0,   // to be updated later
+        .p_align    = 0x1000,
+    };
+}
 
