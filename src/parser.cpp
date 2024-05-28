@@ -368,6 +368,11 @@ Relation Parser::relation(const bb_t& curr_block, const bool& if_statement) {
         return terminal_cmp(rel_op, ir.get_const_value(x.first), ir.get_const_value(y.first)) ? Relation::TRUE : Relation::FALSE;
     } 
 
+    // Special case: false while statement
+    if(ir.is_const_instruction(x.first) && ir.is_const_instruction(y.first)) {
+        if(terminal_cmp(rel_op, ir.get_const_value(x.first), ir.get_const_value(y.first))) return Relation::TRUE;    
+    }
+
     // Set up CMP instruction and branch instruction.
     instruct_t cmp = ir.add_instruction(curr_block, Opcode::CMP, x, y);
     ir.set_branch_cond(curr_block, terminal_to_opcode(rel_op), cmp);
