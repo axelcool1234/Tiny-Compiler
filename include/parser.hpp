@@ -3,6 +3,12 @@
 #include "intermediaterepresentation.hpp"
 #include "lexer.hpp"
 
+enum class Relation {
+ TRUE,
+ FALSE,
+ NEITHER
+};
+
 class Parser {
 public:
     Parser();
@@ -95,6 +101,17 @@ private:
      */
     Opcode terminal_to_opcode(const Terminal& terminal);
 
+    /*
+     * Given a terminal (which is then translated to a comparison) and two constants, 
+     * returns the result of the comparison.
+     *
+     * @param terminal The given terminal.
+     * @param larg The given left argument.
+     * @param rarg The given right argument.
+     * @return The result of comparing larg and rarg.
+     */
+    bool terminal_cmp(const Terminal& terminal, const int& larg, const int& rarg);
+
     /* Computation */
     void computation();
 
@@ -134,14 +151,14 @@ private:
     void join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block);
 
     // "while" statement
-    void while_statement(bb_t& curr_block);
+    bool while_statement(bb_t& curr_block);
     void branch(bb_t& curr_block, const bb_t& while_block);
 
     // "return" statement
     void return_statement(bb_t& curr_block);
 
     // relations
-    void relation(const bb_t& curr_block);
+    Relation relation(const bb_t& curr_block, const bool& if_statement);
 
     // Base parsing
     std::pair<instruct_t, ident_t> expression(const bb_t& curr_block);

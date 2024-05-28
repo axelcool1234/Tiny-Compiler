@@ -68,7 +68,7 @@ bb_t IntermediateRepresentation::new_block_helper(const bb_t& p1, const bb_t& p2
         // Generate phi functions for conflicting identifier values.
         for(size_t i = 0; i < basic_blocks[p1].identifier_values.size(); ++i) {
             if(basic_blocks[p1].identifier_values[i] != basic_blocks[p2].identifier_values[i]) {
-                add_instruction(index, Opcode::PHI, basic_blocks[p1].identifier_values[i], basic_blocks[p2].identifier_values[i]);
+                add_instruction(index, Opcode::PHI, { basic_blocks[p1].identifier_values[i], i }, { basic_blocks[p2].identifier_values[i], i });
                 basic_blocks[index].identifier_values.emplace_back(instruction_count);
             } 
             else {
@@ -335,6 +335,7 @@ void IntermediateRepresentation::establish_affinity_group(const instruct_t& i1, 
 }
 
 const std::vector<std::pair<Register, int>>& IntermediateRepresentation::get_instruction_preference(const instruct_t& instruct) {
+    if(preference_list.find(instruct) == preference_list.end()) preference_list[instruct] = Preference(); 
     return preference_list.at(instruct).preference;
 }
 
