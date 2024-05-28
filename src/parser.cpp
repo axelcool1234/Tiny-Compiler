@@ -331,31 +331,47 @@ void Parser::relation(const bb_t& curr_block) {
 
 /* Base Parsing */
 std::pair<instruct_t, ident_t> Parser::expression(const bb_t& curr_block) {
-    std::pair<instruct_t, ident_t> result = term(curr_block);
+    std::pair<instruct_t, ident_t> larg = term(curr_block);
     while(token_is(lexer.token, Terminal::PLUS, Terminal::MINUS)) {
         if(token_is(lexer.token, Terminal::PLUS)) {
             lexer.next();
-            return { ir.add_instruction(curr_block, Opcode::ADD, result, term(curr_block)), -1 };
+            std::pair<instruct_t, ident_t> rarg = term(curr_block);
+            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first)) {
+                return { ir.add_instruction(const_block, Opcode::CONST, larg.first + rarg.first), -1 };
+            }
+            return { ir.add_instruction(curr_block, Opcode::ADD, larg, rarg), -1 };
         } else {
             lexer.next();
-            return { ir.add_instruction(curr_block, Opcode::SUB, result, term(curr_block)), -1 };
+            std::pair<instruct_t, ident_t> rarg = term(curr_block);
+            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first)) {
+                return { ir.add_instruction(const_block, Opcode::CONST, larg.first - rarg.first), -1 };
+            }
+            return { ir.add_instruction(curr_block, Opcode::SUB, larg, rarg), -1 };
         }
     }
-    return result;
+    return larg;
 }
 
 std::pair<instruct_t, ident_t> Parser::term(const bb_t& curr_block) {
-    std::pair<instruct_t, ident_t> result = factor(curr_block);
+    std::pair<instruct_t, ident_t> larg = factor(curr_block);
     while(token_is(lexer.token, Terminal::MUL, Terminal::DIV)) {
         if(token_is(lexer.token, Terminal::MUL)) {
             lexer.next();
-            return { ir.add_instruction(curr_block, Opcode::MUL, result, factor(curr_block)), -1 };
+            std::pair<instruct_t, ident_t> rarg = factor(curr_block);
+            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first)) {
+                return { ir.add_instruction(const_block, Opcode::CONST, larg.first * rarg.first), -1 };
+            }
+            return { ir.add_instruction(curr_block, Opcode::MUL, larg, rarg), -1 };
         } else {
             lexer.next();
-            return { ir.add_instruction(curr_block, Opcode::DIV, result, factor(curr_block)), -1 };
+            std::pair<instruct_t, ident_t> rarg = factor(curr_block);
+            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first)) {
+                return { ir.add_instruction(const_block, Opcode::CONST, larg.first / rarg.first), -1 };
+            }
+            return { ir.add_instruction(curr_block, Opcode::DIV, larg, rarg), -1 };
         }
     }
-    return result;
+    return larg;
 }
 
 std::pair<instruct_t, ident_t> Parser::factor(const bb_t& curr_block) {
@@ -363,7 +379,7 @@ std::pair<instruct_t, ident_t> Parser::factor(const bb_t& curr_block) {
     if(token_is<ident_t>(lexer.token)) {
         ident = match_return<ident_t>();
         return { ir.get_ident_value(curr_block, ident), ident };
-    } else if (token_is<int>(lexer.token)) { 
+    } else if (token_is<int>(lexer.token)) {
         return { ir.add_instruction(const_block, Opcode::CONST, match_return<int>()), -1 }; 
     } else if (token_is(lexer.token, Terminal::LPAREN)) {
         lexer.next();

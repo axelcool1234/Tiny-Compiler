@@ -162,8 +162,11 @@ std::string CodeEmitter::emit_block(const bb_t& b) {
 }
 
 std::string CodeEmitter::emit_basic(const Instruction& i, const std::string& opcode) {
+    if(ir.is_const_instruction(i.larg) || ir.is_const_instruction(i.rarg)) {  
+        return std::format("mov {}, {}\n{} {}, {}\n", reg_str(i.instruction_number), reg_str(i.larg), opcode, reg_str(i.instruction_number), reg_str(i.rarg));
+    }
     if(ir.get_assigned_register(i.instruction_number) == ir.get_assigned_register(i.larg)) {       
-         return std::format("{} {}, {}\n", opcode, reg_str(i.larg), reg_str(i.rarg));
+        return std::format("{} {}, {}\n", opcode, reg_str(i.larg), reg_str(i.rarg));
     }
     return std::format("mov {}, {}\n{} {}, {}\n", reg_str(i.instruction_number), reg_str(i.larg), opcode, reg_str(i.instruction_number), reg_str(i.rarg));
 }
