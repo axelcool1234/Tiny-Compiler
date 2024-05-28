@@ -10,7 +10,7 @@ void CodeEmitter::debug() const {
 
 void CodeEmitter::emit_code() {
     static const std::string data_section = 
-R"(section .data    
+R"(section .data
     newline db 10
     newline_len equ 1
     digitSpace resb 100
@@ -240,6 +240,8 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
         case(Opcode::MOV):
             return emit_mov(i);
             break;
+        case(Opcode::SWAP):
+            return std::format("xchg {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
         case(Opcode::GETPAR):
             throw std::runtime_error("Function GETPAR not implemented yet!");
             break;
@@ -251,7 +253,20 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
         case(Opcode::WRITE):
             return emit_write(i);
         case(Opcode::WRITENL):
-            return "push rax\npush rdi\npush rsi\npush rdx\nmov rax, 1\nmov rdi, 1\nmov rsi, newline\nmov rdx, newline_len\nsyscall\npop rdx\npop rsi\npop rdi\npop rax\n";
+            return 
+            R"(push rax\n
+            push rdi\n
+            push rsi\n
+            push rdx\n
+            mov rax, 1\n
+            mov rdi, 1\n
+            mov rsi, newline\n
+            mov rdx, newline_len\n
+            syscall\n
+            pop rdx\n
+            pop rsi\n
+            pop rdi\n
+            pop rax\n)";
         default:
             return "";
     }

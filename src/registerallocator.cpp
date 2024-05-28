@@ -1,4 +1,7 @@
 #include "registerallocator.hpp"
+#include <iostream>
+#include <map>
+#include <queue>
 #include <ranges>
 #include <unordered_set>
 #include <stdexcept>
@@ -312,27 +315,129 @@ void RegisterAllocator::insert_phi_copies(const bb_t& block, const bb_t& phi_blo
     // So it seems to solve a clean cycle, we just need continuous xchg calls. But what if two registers need the same data
     // from another register? Then it gets complicated...
 
-    // std::unordered_map<Register, instruct_t> moved_into;
-    // std::vector<std::pair<instruct_t, instruct_t>> const_movs;
+    // Step 1: mov to all registers that have unneeded edges (aka no outgoing edges)
+    // Step 2: xchg cycles
+    // Step 3: const movs
+    std::unordered_map<Register, int> to_out_degree;
+
+    // struct MovInstructComparator {
+    //     const std::unordered_map<Register, int>& to_out_degree_map;
+    //     const IntermediateRepresentation& ir;
+    //     MovInstructComparator(const std::unordered_map<Register, int>& map, const IntermediateRepresentation& ir) : to_out_degree_map(map), ir(ir) {}
+
+    //     bool operator()(const instruct_t& lhs, const instruct_t& rhs) const {
+    //         return to_out_degree_map.at(ir.get_assigned_register(lhs)) < to_out_degree_map.at(ir.get_assigned_register(rhs));
+    //     }
+    // };
+
+    // std::map<instruct_t, instruct_t, MovInstructComparator> mov_instructs((MovInstructComparator(to_out_degree, ir)));
+    std::map<instruct_t, instruct_t> mov_instructs;
+    std::vector<std::pair<instruct_t, instruct_t>> const_movs;
     for(const auto& instruction : ir.get_instructions(phi_block)) {
         if(instruction.opcode != Opcode::PHI) break;
         if(left) {
-            // if(ir.get_assigned_register(instruction.instruction_number) == ir.get_assigned_register(instruction.larg)) continue;
-            // if(ir.is_const_instruction(instruction.larg)) { 
-            //     const_movs.emplace_back(instruction.instruction_number, instruction.larg);
-            // } else {
-            //     // moved_into[
-            // }
-            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.larg); 
+            if(ir.is_const_instruction(instruction.larg)) { 
+                const_movs.emplace_back(instruction.instruction_number, instruction.larg);
+            } else if(ir.get_assigned_register(instruction.instruction_number) == ir.get_assigned_register(instruction.larg)) {
+                continue;
+            } else {
+                if(to_out_degree.find(ir.get_assigned_register(instruction.instruction_number)) == to_out_degree.end()) {
+                    to_out_degree[ir.get_assigned_register(instruction.instruction_number)] = 0;
+                }
+
+                // "from" instruction
+                ++to_out_degree[ir.get_assigned_register(instruction.larg)];
+
+                // "to" instruction
+                mov_instructs[instruction.instruction_number] = instruction.larg;
+            }
+            // ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.larg); 
         } else { // right
-            // if(ir.get_assigned_register(instruction.instruction_number) == ir.get_assigned_register(instruction.rarg)) continue;
-            // if(ir.is_const_instruction(instruction.rarg)) { 
-            //     const_movs.emplace_back(instruction.instruction_number, instruction.rarg);
-            // } else {
-            //     // moved_into[
-            // }
-            ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.rarg); 
+            if(ir.is_const_instruction(instruction.rarg)) { 
+                const_movs.emplace_back(instruction.instruction_number, instruction.rarg);
+            } else if(ir.get_assigned_register(instruction.instruction_number) == ir.get_assigned_register(instruction.rarg)) {
+                continue;
+            } else {
+                if(to_out_degree.find(ir.get_assigned_register(instruction.instruction_number)) == to_out_degree.end()) {
+                     to_out_degree[ir.get_assigned_register(instruction.instruction_number)] = 0;
+                }
+
+                // "from" instruction
+                ++to_out_degree[ir.get_assigned_register(instruction.rarg)];
+
+                // "to" instruction
+                mov_instructs[instruction.instruction_number] = instruction.rarg;
+            }
+            // ir.add_instruction(block, Opcode::MOV, instruction.instruction_number, instruction.rarg); 
         }
+    }
+
+    // Insert mov/xchg calls
+    std::map<Register, instruct_t> reg_map;
+    for(const auto& pair : mov_instructs) {
+        reg_map[ir.get_assigned_register(pair.first)] = pair.first;
+    }
+
+    // Step 1: mov to all registers that have unneeded data (aka no outgoing edges)
+    std::queue<instruct_t> zero_out_degree_instructions;
+    for(const auto& pair : mov_instructs) {
+        if(to_out_degree[ir.get_assigned_register(pair.first)] == 0) {
+            zero_out_degree_instructions.push(pair.first);
+        }
+    }
+    while(!zero_out_degree_instructions.empty()) {
+        instruct_t to_instruct = zero_out_degree_instructions.front();
+        zero_out_degree_instructions.pop();
+        if (mov_instructs.find(to_instruct) != mov_instructs.end()) {
+            instruct_t from_instruct = mov_instructs[to_instruct];
+            ir.add_instruction(block, Opcode::MOV, to_instruct, from_instruct);
+        
+            // Update out-degree of the from_instruct
+            --to_out_degree[ir.get_assigned_register(from_instruct)];
+
+            // Remove processed instruction from mov_instructs
+            mov_instructs.erase(to_instruct);
+
+            // If from_instruct now has zero out-degree, add to queue
+            if(to_out_degree[ir.get_assigned_register(from_instruct)] == 0) {
+                zero_out_degree_instructions.push(reg_map[ir.get_assigned_register(from_instruct)]);
+            }
+        }
+    }
+
+    // Step 2: xchg cycles
+    while(!mov_instructs.empty()) {
+        instruct_t to = mov_instructs.begin()->first;
+        instruct_t from = mov_instructs.begin()->second;
+        Register end = ir.get_assigned_register(to);
+        while(true) {
+            ir.add_instruction(block, Opcode::SWAP, to, from); 
+            mov_instructs.erase(mov_instructs.find(to));
+            to = reg_map[ir.get_assigned_register(from)];
+            from = mov_instructs.find(to)->second;
+            if(ir.get_assigned_register(from) == end) {
+                mov_instructs.erase(mov_instructs.find(to));
+                break;
+            }
+        }
+    }
+    // while (!mov_instructs.empty()) {
+    //     auto it = mov_instructs.begin();
+    //     instruct_t end = it->first;
+    //     instruct_t from = it->second;
+    //     do {
+    //         auto next_it = mov_instructs.find(from);
+    //         if (next_it == mov_instructs.end()) break; // No more left in this specific cycle.
+    //         ir.add_instruction(block, Opcode::SWAP, it->first, from);
+    //         mov_instructs.erase(it);
+    //         it = next_it;
+    //         from = it->second;
+    //     } while (end != it->second);
+    // }
+
+    // Step 3: insert const movs
+    for (const auto& pair : const_movs) {
+        ir.add_instruction(block, Opcode::MOV, pair.first, pair.second);
     }
 }
 

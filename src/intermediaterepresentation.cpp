@@ -459,6 +459,10 @@ void IntermediateRepresentation::set_emitted(const bb_t& b) {
     basic_blocks.at(b).emitted = true;   
 } 
 
+bool IntermediateRepresentation::has_assigned_register(const instruct_t& instruct) const {
+    return assigned_registers.find(instruct) != assigned_registers.end();
+}
+
 bool IntermediateRepresentation::has_preference(const instruct_t& instruct) const {
     return preference_list.find(instruct) != preference_list.end();
 }

@@ -432,6 +432,7 @@ public:
     void set_emitted(const bb_t& b); 
     void set_assigned_register(const instruct_t& instruct, const Register& reg);
 
+    bool has_assigned_register(const instruct_t& instruct) const;
     bool has_preference(const instruct_t& instruct) const;
     bool has_death_point(const instruct_t& instruct, const instruct_t& death_point) const;
     bool has_branch_instruction(const bb_t& b) const;
