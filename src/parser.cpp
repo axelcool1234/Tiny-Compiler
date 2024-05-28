@@ -142,16 +142,16 @@ void Parser::statement_sequence(bb_t& curr_block, Args... args) {
         }
 
         // Enforcing semicolons for all but the last statement.
-        if(!token_is(lexer.token, Terminal::SEMICOLON, Terminal::RBRACE) && 
-           !token_is(lexer.token,  Keyword::ELSE, Keyword::FI, Keyword::OD)) {
-            throw ParserException("Missing semicolon!");
-        } else if(token_is(lexer.token, Terminal::SEMICOLON)) {
-            lexer.next();
-        }
+        // if(!token_is(lexer.token, Terminal::SEMICOLON, Terminal::RBRACE) && 
+        //    !token_is(lexer.token,  Keyword::ELSE, Keyword::FI, Keyword::OD)) {
+        //     throw ParserException("Missing semicolon!");
+        // } else if(token_is(lexer.token, Terminal::SEMICOLON)) {
+        //     lexer.next();
+        // }
 
         // Could use this instead. Wont enforce semicolons for all but the last statement.
-        // if(token_is(lexer.token, Terminal::SEMICOLON))
-        //     lexer.next();
+        if(token_is(lexer.token, Terminal::SEMICOLON))
+            lexer.next();
     } 
     ir.ignore = prev_ignore;
 }
