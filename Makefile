@@ -1,5 +1,5 @@
 CC:=g++
-CFLAGS:=-std=c++23 -Iinclude -Wall -Werror -Wno-unused-variable
+CFLAGS:=-std=c++20 -Iinclude -Wall -Werror -Wno-unused-variable
 DFLAGS := -ggdb -DDEBUG -O1
 
 SRC_DIR:=src

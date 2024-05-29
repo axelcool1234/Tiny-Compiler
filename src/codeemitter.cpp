@@ -105,12 +105,17 @@ syscall
 )"; 
    std::string program_string;
 
+    // mov rsp rbp // TODO
+    // sub {spill_count * 8}, rsp // TODO
+
     // Emit main blocks
     for(const auto& block : ir.get_basic_blocks()) {
         if(!(block.index >= ir.get_successors(0).back())) continue;
         program_string += std::format("\n; BB{}\n", block.index);
         program_string += emit_block(block.index);
     }
+
+    // add, rsp, {spill_count * 8} // emit when we run into a return //TODO
 
     // Emit function blocks
     for(size_t index = 0; index < ir.get_successors(0).size() - 1; ++index) {
@@ -163,12 +168,12 @@ std::string CodeEmitter::emit_block(const bb_t& b) {
 
 std::string CodeEmitter::emit_basic(const Instruction& i, const std::string& opcode) {
     if(ir.is_const_instruction(i.larg) || ir.is_const_instruction(i.rarg)) {  
-        return std::format("mov {}, {}\n{} {}, {}\n", reg_str(i.instruction_number), reg_str(i.larg), opcode, reg_str(i.instruction_number), reg_str(i.rarg));
+        return std::format("movq ${}, {}\n{} ${}, {}\n", reg_str(i.larg), reg_str(i.instruction_number), opcode, reg_str(i.rarg), reg_str(i.instruction_number));
     }
-    if(ir.get_assigned_register(i.instruction_number) == ir.get_assigned_register(i.larg)) {       
+    if(ir.get_assigned_register(i.instruction_number) == ir.get_assigned_register(i.larg)) {    
         return std::format("{} {}, {}\n", opcode, reg_str(i.larg), reg_str(i.rarg));
     }
-    return std::format("mov {}, {}\n{} {}, {}\n", reg_str(i.instruction_number), reg_str(i.larg), opcode, reg_str(i.instruction_number), reg_str(i.rarg));
+    return std::format("mov {}, {}\n{} {}, {}\n", reg_str(i.instruction_number), reg_str(i.larg), opcode, reg_str(i.rarg), reg_str(i.instruction_number));
 }
 
 std::string CodeEmitter::emit_branch(const instruct_t& i, const std::string& opcode) {
@@ -205,17 +210,141 @@ std::string CodeEmitter::emit_mov(const Instruction& instruction) {
     return "";
 }
 
+std::string CodeEmitter::mov_instruction(const instruct_t& from, const instruct_t& to) {
+    if (!ir.is_const_instruction(from) && !ir.is_const_instruction(to))
+    {
+        if(reg_str(from) == reg_str(to))
+        {
+            return "";
+        }
+        else
+            return std::format("mov {}, {}\n", reg_str(from), reg_str(to));
+    }
+   
+    else if(ir.is_const_instruction(from) && !ir.is_const_instruction(to))
+    {
+        return std::format("mov ${}, {}\n", reg_str(from), reg_str(to));
+    }
+
+    std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
+    return "";
+}
+
+/*
+* Syntax - store in right register
+* add <reg2>, <reg1>
+* add <con>, <reg1>
+*/
+std::string CodeEmitter::add_instruction(const instruct_t& left, const instruct_t& right)
+{
+    if (!ir.is_const_instruction(left) && !ir.is_const_instruction(right))
+    {
+        return std::format("add {}, {}\n", reg_str(left), reg_str(right));
+    }
+   
+    if(ir.is_const_instruction(left) && !ir.is_const_instruction(right))
+    {
+        return std::format("add ${}, {}\n", reg_str(left), reg_str(right));
+    }
+
+    std::cout << "Error: Invalid input to add_instruction in codeemitter.cpp\n";
+    return "";
+}
+
+/*
+* Syntax - store in right register
+* sub <reg2>, <reg1>
+* sub <con>, <reg1>
+*/
+std::string CodeEmitter::sub_instruction(const instruct_t& left, const instruct_t& right)
+{
+    if (!ir.is_const_instruction(left) && !ir.is_const_instruction(right))
+    {
+        return std::format("sub {}, {}\n", reg_str(left), reg_str(right));
+    }
+   
+    if(ir.is_const_instruction(left) && !ir.is_const_instruction(right))
+    {
+        return std::format("sub ${}, {}\n", reg_str(left), reg_str(right));
+    }
+
+    std::cout << "Error: Invalid input to sub_instruction in codeemitter.cpp\n";
+    return "";
+}
+
+std::string CodeEmitter::div_instruction(const instruct_t& i)
+{
+    if(!ir.is_const_instruction(i)) {
+        return std::format("div {}\n", reg_str(i));
+    }
+    std::cout << "Error: Invalid input to div_instruction in codeemitter.cpp\n";
+    return "";
+}
+
+// push <reg64>
+std::string CodeEmitter::push_instruction(const instruct_t& i) {
+    if (!ir.is_const_instruction(i)) {
+        return std::format("push {}\n", reg_str(i));
+    }
+    std::cout << "Error: Invalid input to push_instruction in codeemitter.cpp\n";
+    return "";
+}
+
+// pop <reg64>
+std::string CodeEmitter::pop_instruction(const instruct_t& i) {
+    if (!ir.is_const_instruction(i)) {
+        return std::format("pop {}\n", reg_str(i));
+    }
+    std::cout << "Error: Invalid input to pop_instruction in codeemitter.cpp\n";
+    return "";
+}
+
+std::string CodeEmitter::add_emitter(const Instruction& i) {
+    if(reg_str(i.larg) == reg_str(i.instruction_number)) {
+        return add_instruction(i.rarg, i.instruction_number);
+    } else if(reg_str(i.rarg) == reg_str(i.instruction_number)){
+        return add_instruction(i.larg, i.instruction_number);
+    }
+    return mov_instruction(i.larg, i.instruction_number) +
+        add_instruction(i.rarg, i.instruction_number);
+}
+
+std::string CodeEmitter::sub_emitter(const Instruction& i) {
+    if(!ir.is_const_instruction(i.rarg)){
+        return std::format("neg {}", reg_str(i.rarg)) + add_emitter(i);
+    }
+    return mov_instruction(i.larg, i.instruction_number) + 
+        sub_instruction(i.rarg, i.instruction_number);
+}
+
+
+
 std::string CodeEmitter::emit_instruction(const Instruction& i) {
     switch(i.opcode) {
         case(Opcode::ADD):
-            return emit_basic(i, "add");
+            return add_emitter(i);
         case(Opcode::SUB):
-            return emit_basic(i, "sub");
+            return sub_emitter(i);
         case(Opcode::MUL):
-            throw std::runtime_error("mul not implemented yet.");
-            // return emit_basic(i, "mul");
+        // push rdx         // Store rdx
+
+        // mov i.larg rax   // one of the arguments into rax
+        // mul i.rarg      // multiply rax by i.rarg
+        // mov rax i.instruction_number     //move the result of the multiplication into i.instruction number.
+        
+        // pop rdx          // repopulate  rdx
+        return("");
         case(Opcode::DIV):
-            return emit_basic(i, "div");
+        // push rdx         // what if rdx or rax is the devisor or the devidend?
+        // push rax         // im assuming thats not the case below
+
+        // mov i.larg rax   // put the devidend into rax
+        // idiv i.rarg      // devide rax by i.rarg
+        // mov rax i.instruction_number     //move the result of the devision into i.instruction number.
+        
+        // pop rax          // repopulate rax and rdx
+        // pop rdx
+            return ("");
         case(Opcode::CMP):
             return std::format("cmp {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
         case(Opcode::PHI):
@@ -241,7 +370,7 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
             throw std::runtime_error("Function returns not implemented yet!");
             break;
         case(Opcode::MOV):
-            return emit_mov(i);
+            return mov_instruction(i.rarg, i.larg);
             break;
         case(Opcode::SWAP):
             return std::format("xchg {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
@@ -279,5 +408,15 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
 std::string CodeEmitter::reg_str(const instruct_t& instruct) {
     if(ir.is_undefined_instruction(instruct )) return "0";
     if(ir.is_const_instruction(instruct)) return std::format("{}", ir.get_const_value(instruct));
+    if(is_virtual_reg(instruct)) return std::format("{}[%rbp]", virtual_reg_offset(instruct));
     return reg_str_list.at(ir.get_assigned_register(instruct));
+}
+
+bool CodeEmitter::is_virtual_reg(const instruct_t& instruct) {
+  return ir.get_assigned_register(instruct) >= Register::UNASSIGNED;
+}
+
+int CodeEmitter::virtual_reg_offset(const instruct_t& instruct) {
+  if(!is_virtual_reg(instruct)) throw std::runtime_error("This is not a virtual register!");
+  return (ir.get_assigned_register(instruct) - Register::UNASSIGNED) * 8;
 }
