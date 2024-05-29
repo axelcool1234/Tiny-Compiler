@@ -230,6 +230,45 @@ std::string CodeEmitter::mov_instruction(const instruct_t& from, const instruct_
     return "";
 }
 
+// mov_register(i.larg, Register::RAX)
+
+std::string CodeEmitter::mov_register(const instruct_t& from, Register to)
+{
+    if(!ir.is_const_instruction(from))
+    {
+        if (reg_str(from) == reg_str_list[to])
+            return "";
+        else
+            return std::format("mov {}, {}\n", reg_str(from), reg_str_list[to]);
+    }
+
+    else if (ir.is_const_instruction(from))
+    {
+        return std::format("mov ${}, {}\n", reg_str(from), reg_str_list[to]);
+    }
+
+    std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
+    return "";
+}
+
+std::string CodeEmitter::mov_register(Register from, const instruct_t& to)
+{
+    if(!ir.is_const_instruction(to))
+    {
+        if (reg_str(to) == reg_str_list[from])
+            return "";
+        else
+            return std::format("mov {}, {}\n", reg_str_list[from], reg_str(to));
+    }
+    // else if (!ir.is_const_instruction(to))
+    // {
+    //     return std::format("mov ${}, {}\n", reg_str_list[from], reg_str(to));
+    // }
+
+    std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
+    return "";
+}
+
 /*
 * Syntax - store in right register
 * add <reg2>, <reg1>
@@ -281,6 +320,11 @@ std::string CodeEmitter::div_instruction(const instruct_t& i)
     return "";
 }
 
+std::string CodeEmitter::div_register(Register reg)
+{
+    return std::format("div {}\n", reg_str_list[reg]);
+}
+
 // push <reg64>
 std::string CodeEmitter::push_instruction(const instruct_t& i) {
     if (!ir.is_const_instruction(i)) {
@@ -290,6 +334,12 @@ std::string CodeEmitter::push_instruction(const instruct_t& i) {
     return "";
 }
 
+//override push for enum
+std::string CodeEmitter::push_register(Register reg)
+{
+    return std::format("push {}\n", reg_str_list[reg]);
+}
+
 // pop <reg64>
 std::string CodeEmitter::pop_instruction(const instruct_t& i) {
     if (!ir.is_const_instruction(i)) {
@@ -297,6 +347,12 @@ std::string CodeEmitter::pop_instruction(const instruct_t& i) {
     }
     std::cout << "Error: Invalid input to pop_instruction in codeemitter.cpp\n";
     return "";
+}
+
+//override pop for enum
+std::string CodeEmitter::pop_register(Register reg)
+{
+    return std::format("pop {}\n", reg_str_list[reg]);
 }
 
 std::string CodeEmitter::add_emitter(const Instruction& i) {
@@ -317,6 +373,37 @@ std::string CodeEmitter::sub_emitter(const Instruction& i) {
         sub_instruction(i.rarg, i.instruction_number);
 }
 
+// push rdx
+// push rax
+
+// mov i.larg rax
+// idiv i.rarg
+// mov rax i.instruction_number
+
+// pop rax
+// pop rdx
+std::string CodeEmitter::div_emitter(const Instruction& i) {
+    std::string emit_string;
+    if (reg_str(i.instruction_number) != reg_str_list[Register::RDX])
+        emit_string += push_register(Register::RDX);
+    if (reg_str(i.instruction_number) != reg_str_list[Register::RAX])
+        emit_string += push_register(Register::RAX);
+    
+    emit_string += mov_register(i.larg, Register::RAX);
+    if (ir.is_const_instruction(i.rarg)) {
+        emit_string += mov_register(i.rarg, Register::RDX);
+        emit_string += div_instruction(Register::RDX); // TODO Ilya
+    } else {
+        emit_string += div_instruction(i.rarg);
+    }
+    emit_string += mov_register(Register::RAX, i.instruction_number);
+
+    if (reg_str(i.instruction_number) != reg_str_list[Register::RAX])
+        emit_string += pop_instruction(Register::RAX);
+    if (reg_str(i.instruction_number) != reg_str_list[Register::RDX])
+        emit_string += pop_instruction(Register::RDX);
+    return emit_string;
+}
 
 
 std::string CodeEmitter::emit_instruction(const Instruction& i) {
@@ -335,20 +422,9 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
         // pop rdx          // repopulate  rdx
         return("");
         case(Opcode::DIV):
-        // push rdx         // what if rdx or rax is the devisor or the devidend?
-        // push rax         // im assuming thats not the case below
-
-        // mov i.larg rax   // put the devidend into rax
-        // idiv i.rarg      // devide rax by i.rarg
-        // mov rax i.instruction_number     //move the result of the devision into i.instruction number.
-        
-        // pop rax          // repopulate rax and rdx
-        // pop rdx
-            return ("");
+            return div_emitter(i);
         case(Opcode::CMP):
             return std::format("cmp {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
-        case(Opcode::PHI):
-            return "";
         case(Opcode::BRA):
             return emit_branch(i.larg, "jmp");
         case(Opcode::BNE):
@@ -408,7 +484,7 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
 std::string CodeEmitter::reg_str(const instruct_t& instruct) {
     if(ir.is_undefined_instruction(instruct )) return "0";
     if(ir.is_const_instruction(instruct)) return std::format("{}", ir.get_const_value(instruct));
-    if(is_virtual_reg(instruct)) return std::format("{}[%rbp]", virtual_reg_offset(instruct));
+    if(is_virtual_reg(instruct)) return std::format("-{}(%rbp)", virtual_reg_offset(instruct));
     return reg_str_list.at(ir.get_assigned_register(instruct));
 }
 

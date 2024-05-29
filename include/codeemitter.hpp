@@ -27,9 +27,16 @@ private:
     * mov <con>, <reg>
     **/
     std::string mov_instruction(const instruct_t& from, const instruct_t& to);
+    std::string mov_register(const instruct_t& from, Register to);
+    std::string mov_register(Register from, const instruct_t& to);
 
     std::string push_instruction(const instruct_t& i);
+    //override push for enum
+    std::string push_register(Register reg);
+
     std::string pop_instruction(const instruct_t& i);
+    //override pop for enum
+    std::string pop_register(Register reg);
 
     std::string div_instruction(const instruct_t& i);
 
@@ -42,6 +49,8 @@ private:
     */
     std::string add_instruction(const instruct_t& left, const instruct_t& right);
     std::string add_emitter(const Instruction& i);
+    std::string div_emitter(const Instruction& i);
+    std::string div_register(Register reg);
     
     /*
     * Syntax - store in right register
