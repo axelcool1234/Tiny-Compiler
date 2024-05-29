@@ -53,6 +53,7 @@ public:
     IntermediateRepresentation();
     void debug() const;
     bool ignore = false;
+    bool while_loop = false;
     /*
      * Resets the doms vector and recomputes the dominators for every basic
      * block in the basic_blocks vector

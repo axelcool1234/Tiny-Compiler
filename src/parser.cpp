@@ -167,8 +167,7 @@ bool Parser::statement(bb_t& curr_block) {
         case Keyword::IF:
             return if_statement(curr_block);
         case Keyword::WHILE:
-            while_statement(curr_block);
-            return false;
+            return while_statement(curr_block);
         case Keyword::RETURN:
             return_statement(curr_block);
             return true;
@@ -234,22 +233,42 @@ std::pair<instruct_t, ident_t> Parser::function_statement(const bb_t& curr_block
 
 bool Parser::if_statement(bb_t& curr_block) {
     /* relation "then" statement_sequence [ "else" statement_sequence ] "fi" */
-    relation(curr_block);
+    Relation result = relation(curr_block, true);
+
+    // "then"
     match(Keyword::THEN);
-    bb_t then_block = ir.new_block(curr_block, IF_FALLTHROUGH);
-    statement_sequence(then_block, Keyword::ELSE, Keyword::FI);
+    bb_t then_block = result != Relation::NEITHER ? curr_block : ir.new_block(curr_block, IF_FALLTHROUGH);
+    if(result == Relation::TRUE) {
+        bool prev_ignore = ir.ignore;
+        ir.ignore = true;
+        bb_t dummy = -1;
+        statement_sequence(dummy, Keyword::ELSE, Keyword::FI);
+        ir.ignore = prev_ignore;
+    } else {
+        statement_sequence(then_block, Keyword::ELSE, Keyword::FI);
+    }
 
     // "else"
-    bb_t else_block = ir.new_block(curr_block, IF_BRANCH);
+    bb_t else_block = result != Relation::NEITHER ? curr_block : ir.new_block(curr_block, IF_BRANCH);
     const bb_t og_else_block = else_block;
     if(token_is(lexer.token, Keyword::ELSE)) {
-        lexer.next();        
-        statement_sequence(else_block, Keyword::FI);
+        lexer.next();   
+        if(result == Relation::FALSE) {
+            bool prev_ignore = ir.ignore;
+            ir.ignore = true;
+            bb_t dummy = -1;
+            statement_sequence(dummy, Keyword::FI);
+            ir.ignore = prev_ignore;
+        } else {
+            statement_sequence(else_block, Keyword::FI);
+        }
     }
     match(Keyword::FI);
 
-    // Set branch location for dominator block
-    ir.set_branch_location(curr_block, ir.first_instruction(og_else_block));
+    if(result == Relation::NEITHER) {
+        // Set branch location for dominator block
+        ir.set_branch_location(curr_block, ir.first_instruction(og_else_block));
+    }
 
     // If both blocks return, no need to continue.
     if(ir.will_return(then_block) && ir.will_return(else_block)) {
@@ -258,10 +277,10 @@ bool Parser::if_statement(bb_t& curr_block) {
     }
 
     // If one of the blocks returns, no need to join.
-    if(ir.will_return(then_block)) {
+    if(ir.will_return(then_block) || result == Relation::TRUE) {
          curr_block = else_block;
          return false;
-    } else if (ir.will_return(else_block)) {
+    } else if (ir.will_return(else_block) || result == Relation::FALSE) {
         curr_block = then_block;
         return false;
     }
@@ -276,23 +295,42 @@ void Parser::join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_blo
     ir.set_branch_cond(then_block, Opcode::BRA, ir.first_instruction(curr_block));
 }
 
-void Parser::while_statement(bb_t& curr_block) {
+bool Parser::while_statement(bb_t& curr_block) {
     /* "while" relation "do" statement_sequence "od" */
-    curr_block = ir.new_block(curr_block);
+    curr_block = ir.new_block(curr_block); // Loop header
 
     // Relation
-    relation(curr_block);
+    Relation result = relation(curr_block, false);
 
-    bb_t while_block = ir.new_block(curr_block, WHILE_FALLTHROUGH);
-    const bb_t og_while_block = while_block;
-
+    bb_t while_block = result == Relation::TRUE ? -1 : ir.new_block(curr_block, WHILE_FALLTHROUGH);
     // "do" statement_sequence "od"
     match(Keyword::DO);
-    statement_sequence(while_block, Keyword::OD);
+    bool prev_while_loop = ir.while_loop;
+    ir.while_loop = true;
+    if(result == Relation::TRUE) {
+        bool prev_ignore = ir.ignore;
+        ir.ignore = true;
+        bb_t dummy = -1;
+        statement_sequence(dummy, Keyword::OD);
+        ir.ignore = prev_ignore;
+    } else {
+        statement_sequence(while_block, Keyword::OD);
+    }
     match(Keyword::OD);
+    ir.while_loop = prev_while_loop;
+
+    if(result == Relation::FALSE) {
+        ir.generate_phi(curr_block, while_block);
+        ir.set_branch_cond(while_block, Opcode::BRA, ir.first_instruction(curr_block));
+        curr_block = while_block;
+        return true;
+    } else if(result == Relation::TRUE) {
+        return false;
+    }
 
     // Create BRANCH block
     branch(curr_block, while_block);
+    return false;
 }
 
 void Parser::branch(bb_t& curr_block, const bb_t& while_block) {
@@ -318,15 +356,27 @@ void Parser::return_statement(bb_t& curr_block) {
 }
 
 /* Relations */
-void Parser::relation(const bb_t& curr_block) {
+Relation Parser::relation(const bb_t& curr_block, const bool& if_statement) {
     /* expression1 rel_op expression2 */
     std::pair<instruct_t, ident_t> x = expression(curr_block);
     Terminal rel_op = match_return<Terminal>();
     std::pair<instruct_t, ident_t> y = expression(curr_block);
 
+    // If folding is allowed:
+    if(ir.is_const_instruction(x.first) && ir.is_const_instruction(y.first) && 
+       ((if_statement && !ir.while_loop) || (!if_statement && x.second == -1 && y.second == -1))) {
+        return terminal_cmp(rel_op, ir.get_const_value(x.first), ir.get_const_value(y.first)) ? Relation::TRUE : Relation::FALSE;
+    } 
+
+    // Special case: false while statement
+    if(ir.is_const_instruction(x.first) && ir.is_const_instruction(y.first)) {
+        if(terminal_cmp(rel_op, ir.get_const_value(x.first), ir.get_const_value(y.first))) return Relation::TRUE;    
+    }
+
     // Set up CMP instruction and branch instruction.
     instruct_t cmp = ir.add_instruction(curr_block, Opcode::CMP, x, y);
-    ir.set_branch_cond(curr_block, terminal_to_opcode(rel_op), cmp);    
+    ir.set_branch_cond(curr_block, terminal_to_opcode(rel_op), cmp);
+    return Relation::NEITHER;
 }
 
 /* Base Parsing */
@@ -357,7 +407,8 @@ void Parser::operate(const bb_t& curr_block, std::pair<instruct_t, ident_t>& lar
     std::pair<instruct_t, ident_t> rarg = (this->*func)(curr_block);
 
     // Operation (either const folding or non-const)
-    if (ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first)) {
+    if (ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) &&
+         (!ir.while_loop || (ir.while_loop && larg.second == -1 && rarg.second == -1))) {
         larg = { ir.add_instruction(const_block, Opcode::CONST, operation->second.second(ir.get_const_value(larg.first), ir.get_const_value(rarg.first))), -1 };
     } else {
         larg = { ir.add_instruction(curr_block, operation->second.first, larg, rarg), -1 };
@@ -421,6 +472,25 @@ T Parser::match_return() {
     T obj = std::get<T>(lexer.token);
     lexer.next();
     return obj;
+}
+
+bool Parser::terminal_cmp(const Terminal& terminal, const int& larg, const int& rarg) {
+    switch(terminal) {
+        case Terminal::EQ:
+            return larg != rarg;
+        case Terminal::NEQ:
+            return larg == rarg;
+        case Terminal::LT:
+            return larg >= rarg;
+        case Terminal::LE:
+            return larg > rarg;
+        case Terminal::GT:
+            return larg <= rarg;
+        case Terminal::GE:
+            return larg < rarg;
+        default:
+            throw ParserException("Invalid terminal to opcode conversion!");
+    }
 }
 
 Opcode Parser::terminal_to_opcode(const Terminal& terminal) {
