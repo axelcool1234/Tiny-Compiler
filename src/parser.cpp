@@ -383,26 +383,7 @@ Relation Parser::relation(const bb_t& curr_block, const bool& if_statement) {
 std::pair<instruct_t, ident_t> Parser::expression(const bb_t& curr_block) {
     std::pair<instruct_t, ident_t> larg = term(curr_block);
     while(token_is(lexer.token, Terminal::PLUS, Terminal::MINUS)) {
-        if(token_is(lexer.token, Terminal::PLUS)) {
-            lexer.next();
-            std::pair<instruct_t, ident_t> rarg = term(curr_block);
-            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) &&
-               (!ir.while_loop || (ir.while_loop && larg.second == -1 && rarg.second == -1))) {
-                larg = { ir.add_instruction(const_block, Opcode::CONST, ir.get_const_value(larg.first) + ir.get_const_value(rarg.first)), -1 };
-            } else {
-                larg = { ir.add_instruction(curr_block, Opcode::ADD, larg, rarg), -1 };
-            }
-        } else {
-            lexer.next();
-            std::pair<instruct_t, ident_t> rarg = term(curr_block);
-            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) &&
-               (!ir.while_loop || (ir.while_loop && larg.second == -1 && rarg.second == -1))) {
-                larg = { ir.add_instruction(const_block, Opcode::CONST, ir.get_const_value(larg.first) - ir.get_const_value(rarg.first)), -1 };
-            }
-            else {
-                larg = { ir.add_instruction(curr_block, Opcode::SUB, larg, rarg), -1 };
-            }
-        }
+        operate(curr_block, larg, &Parser::term); 
     }
     return larg;
 }
@@ -410,27 +391,28 @@ std::pair<instruct_t, ident_t> Parser::expression(const bb_t& curr_block) {
 std::pair<instruct_t, ident_t> Parser::term(const bb_t& curr_block) {
     std::pair<instruct_t, ident_t> larg = factor(curr_block);
     while(token_is(lexer.token, Terminal::MUL, Terminal::DIV)) {
-        if(token_is(lexer.token, Terminal::MUL)) {
-            lexer.next();
-            std::pair<instruct_t, ident_t> rarg = factor(curr_block);
-            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) && 
-               (!ir.while_loop || (ir.while_loop && larg.second == -1 && rarg.second == -1))) {
-                larg = { ir.add_instruction(const_block, Opcode::CONST, ir.get_const_value(larg.first) * ir.get_const_value(rarg.first)), -1 };
-            } else {
-                larg = { ir.add_instruction(curr_block, Opcode::MUL, larg, rarg), -1 };
-            }
-        } else {
-            lexer.next();
-            std::pair<instruct_t, ident_t> rarg = factor(curr_block);
-            if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) &&
-               (!ir.while_loop || (ir.while_loop && larg.second == -1 && rarg.second == -1))) {
-                larg = { ir.add_instruction(const_block, Opcode::CONST, ir.get_const_value(larg.first) / ir.get_const_value(rarg.first)), -1 };
-            } else {
-                larg = { ir.add_instruction(curr_block, Opcode::DIV, larg, rarg), -1 };
-            }
-        }
+        operate(curr_block, larg, &Parser::factor);
     }
     return larg;
+}
+
+void Parser::operate(const bb_t& curr_block, std::pair<instruct_t, ident_t>& larg, std::pair<instruct_t, ident_t>(Parser::*func)(const bb_t&)) {
+    // Grab terminal
+    auto operation = operations_map.find(match_return<Terminal>());
+    if(operation == operations_map.end()) {
+        throw ParserException("Invalid terminal operation call!");
+    }
+
+    // Get rarg
+    std::pair<instruct_t, ident_t> rarg = (this->*func)(curr_block);
+
+    // Operation (either const folding or non-const)
+    if (ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) &&
+         (!ir.while_loop || (ir.while_loop && larg.second == -1 && rarg.second == -1))) {
+        larg = { ir.add_instruction(const_block, Opcode::CONST, operation->second.second(ir.get_const_value(larg.first), ir.get_const_value(rarg.first))), -1 };
+    } else {
+        larg = { ir.add_instruction(curr_block, operation->second.first, larg, rarg), -1 };
+    }
 }
 
 std::pair<instruct_t, ident_t> Parser::factor(const bb_t& curr_block) {
