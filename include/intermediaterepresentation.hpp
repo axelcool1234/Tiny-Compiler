@@ -13,8 +13,6 @@
     REGISTER(RDX, rdx) \
     REGISTER(RSI, rsi) \
     REGISTER(RDI, rdi) \
-    REGISTER(RDP, rdp) \
-    REGISTER(RSP, rsp) \
     REGISTER(R8D, r8d) \
     REGISTER(R9D, r9d) \
     REGISTER(R10D, r10d) \
@@ -54,6 +52,7 @@ public:
     void debug() const;
     bool ignore = false;
     bool while_loop = false;
+    int spill_count = 0;
     /*
      * Resets the doms vector and recomputes the dominators for every basic
      * block in the basic_blocks vector

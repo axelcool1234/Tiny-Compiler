@@ -319,18 +319,6 @@ void RegisterAllocator::insert_phi_copies(const bb_t& block, const bb_t& phi_blo
     // Step 2: xchg cycles
     // Step 3: const movs
     std::unordered_map<Register, int> to_out_degree;
-
-    // struct MovInstructComparator {
-    //     const std::unordered_map<Register, int>& to_out_degree_map;
-    //     const IntermediateRepresentation& ir;
-    //     MovInstructComparator(const std::unordered_map<Register, int>& map, const IntermediateRepresentation& ir) : to_out_degree_map(map), ir(ir) {}
-
-    //     bool operator()(const instruct_t& lhs, const instruct_t& rhs) const {
-    //         return to_out_degree_map.at(ir.get_assigned_register(lhs)) < to_out_degree_map.at(ir.get_assigned_register(rhs));
-    //     }
-    // };
-
-    // std::map<instruct_t, instruct_t, MovInstructComparator> mov_instructs((MovInstructComparator(to_out_degree, ir)));
     std::map<instruct_t, instruct_t> mov_instructs;
     std::vector<std::pair<instruct_t, instruct_t>> const_movs;
     for(const auto& instruction : ir.get_instructions(phi_block)) {
@@ -421,19 +409,6 @@ void RegisterAllocator::insert_phi_copies(const bb_t& block, const bb_t& phi_blo
             }
         }
     }
-    // while (!mov_instructs.empty()) {
-    //     auto it = mov_instructs.begin();
-    //     instruct_t end = it->first;
-    //     instruct_t from = it->second;
-    //     do {
-    //         auto next_it = mov_instructs.find(from);
-    //         if (next_it == mov_instructs.end()) break; // No more left in this specific cycle.
-    //         ir.add_instruction(block, Opcode::SWAP, it->first, from);
-    //         mov_instructs.erase(it);
-    //         it = next_it;
-    //         from = it->second;
-    //     } while (end != it->second);
-    // }
 
     // Step 3: insert const movs
     for (const auto& pair : const_movs) {
@@ -447,5 +422,7 @@ Register RegisterAllocator::get_register(const Instruction& instruction, const s
     for(const auto& pair : preference) {
         if(occupied.find(pair.first) == occupied.end()) return pair.first;
     }
-    throw std::runtime_error{"Ran out of registers"};
+    ++ir.spill_count;
+    return static_cast<Register>(Register::UNASSIGNED + ir.spill_count);
+    // throw std::runtime_error{"Ran out of registers"};
 }
