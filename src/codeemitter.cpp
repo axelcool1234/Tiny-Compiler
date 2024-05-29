@@ -392,7 +392,7 @@ std::string CodeEmitter::div_emitter(const Instruction& i) {
     emit_string += mov_register(i.larg, Register::RAX);
     if (ir.is_const_instruction(i.rarg)) {
         emit_string += mov_register(i.rarg, Register::RDX);
-        emit_string += div_instruction(Register::RDX); // TODO Ilya
+        emit_string += div_register(Register::RDX); // TODO Ilya
     } else {
         emit_string += div_instruction(i.rarg);
     }

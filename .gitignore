@@ -4,3 +4,6 @@ build/
 bin/
 temp.txt
 compile_commands.json
+a.out
+temp1.txt
+test.o
