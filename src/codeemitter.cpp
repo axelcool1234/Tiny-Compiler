@@ -10,87 +10,86 @@ void CodeEmitter::debug() const {
 
 void CodeEmitter::emit_code() {
     static const std::string data_section = 
-R"(section .data
-    newline db 10
-    newline_len equ 1
-    digitSpace resb 100
-    digitSpacePos resb 8
-    buff resb 11
+R"(.section .data
+    newline: .byte 10
+    newline_len: .equ 1
+    digitSpace: .skip 100
+    digitSpacePos: .skip 8
+    buff: .skip 11
 
 )";
 
     static const std::string default_text_section = 
-R"(section .text
-global _start
+R"(.section .text
+.global _start
 write:
-    mov rcx, digitSpace
-    mov rbx, 10
-    mov [rcx], rbx
-    ; inc rcx
-    mov [digitSpacePos], rcx
+    leaq digitSpace(%rip), %rcx   # Load address of digitSpace into RCX
+    movq $10, %rbx                # Load constant 10 into RBX
+    movq %rbx, (%rcx)             # Store RBX at the address pointed by RCX
+    leaq digitSpacePos(%rip), %rcx  # Load address of digitSpacePos into RCX
+    movq %rcx, digitSpacePos(%rip)  # Update digitSpacePos with new value of RCX
 
 _write_loop:
-    mov rdx, 0
-    mov rbx, 10
-    div rbx
-    push rax
-    add rdx, 48
- 
-    mov rcx, [digitSpacePos]
-    mov [rcx], dl
-    inc rcx
-    mov [digitSpacePos], rcx
-    
-    pop rax
-    cmp rax, 0
-    jne _write_loop
+    xorq %rdx, %rdx               # Zero out RDX
+    movq $10, %rbx                # Load constant 10 into RBX
+    divq %rbx                     # Divide RAX by RBX; quotient in RAX, remainder in RDX
+    pushq %rax                    # Push RAX onto stack for later
+    addq $48, %rdx                # Convert remainder to ASCII
+
+    movq digitSpacePos(%rip), %rcx  # Load current digitSpacePos into RCX
+    movb %dl, (%rcx)              # Store low byte of RDX at [RCX]
+    incq %rcx                     # Increment RCX
+    movq %rcx, digitSpacePos(%rip) # Store updated RCX back to digitSpacePos
+
+    popq %rax                     # Restore original RAX
+    testq %rax, %rax              # Test RAX for zero
+    jne _write_loop               # If not zero, loop
 
 _write_loop2:
-    mov rcx, [digitSpacePos]
- 
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, rcx
-    mov rdx, 1
-    syscall
- 
-    mov rcx, [digitSpacePos]
-    dec rcx
-    mov [digitSpacePos], rcx
+    movq digitSpacePos(%rip), %rcx  # Get current digitSpacePos
 
-    cmp rcx, digitSpace
-    jge _write_loop2
+    movq $1, %rax                # syscall: write
+    movq $1, %rdi                # fd: stdout
+    movq %rcx, %rsi              # buf: current position in digitSpace
+    movq $1, %rdx                # count: 1
+    syscall                      # make syscall
 
-    cld                   ; Clear direction flag (to increment destination pointer)
-    mov rcx, 100          ; Set the count to 100 bytes
-    mov rdi, digitSpace   ; Set the destination pointer to digitSpace
+    movq digitSpacePos(%rip), %rcx  # Load current digitSpacePos
+    decq %rcx                     # Decrement RCX
+    movq %rcx, digitSpacePos(%rip) # Update digitSpacePos
 
-    mov al, 0             ; Set the value to be stored (0 in this case)
-    rep stosb             ; Store AL (0) in memory, incrementing destination pointer (EDI), repeat ECX times
+    cmpq %rcx, digitSpace(%rip)  # Compare with start of digitSpace
+    jge _write_loop2             # If RCX >= digitSpace, repeat
+
+    cld                          # Clear direction flag
+    movq $100, %rcx              # Set count to 100 bytes
+    leaq digitSpace(%rip), %rdi  # Set destination pointer to digitSpace
+    movb $0, %al                 # Set value to be stored
+    rep stosb                    # Store AL in memory, incrementing EDI, repeat ECX times
 
     ret
-read:
-    ; Syscall to read input
-    mov rax, 0            ; sys_read
-    mov rdi, 0            ; file descriptor 0 (stdin)
-    mov rsi, buff         ; buffer to store input
-    mov rdx, 11           ; maximum number of bytes to read
-    syscall               ; interrupt to call kernel
 
-    ; Convert input string to integer
-    mov rsi, buff         ; RSI points to the input buffer
-    xor rax, rax          ; Clear RAX (result)
-    xor rdi, rdi          ; Clear RDI (multiplier)
+# Entry point for read routine
+read:
+    movq $0, %rax                # syscall: read
+    movq $0, %rdi                # fd: stdin
+    leaq buff(%rip), %rsi        # buffer to store input
+    movq $11, %rdx               # max number of bytes to read
+    syscall                      # make syscall
+
+    leaq buff(%rip), %rsi        # RSI points to the input buffer
+    xorq %rax, %rax              # Clear RAX (result)
+    xorq %rdi, %rdi              # Clear RDI (multiplier)
 
 _read_loop:
-    movzx rcx, byte [rsi]  ; Load current byte into RCX
-    cmp rcx, 0x0A          ; Check for newline character
-    je _read_done          ; If newline, we're done
-    sub rcx, '0'           ; Convert ASCII to integer
-    imul rax, rax, 10      ; Multiply current result by 10
-    add rax, rcx           ; Add the current digit to the result
-    inc rsi                ; Move to the next character
-    jmp _read_loop         ; Repeat for next character
+    movzxb (%rsi), %rcx          # Load current byte into RCX
+    cmpb $0x0A, %cl              # Check for newline character
+    je _read_done                # If newline, we're done
+    subq $'0', %rcx              # Convert ASCII to integer
+    imulq %rax, %rax, $10        # Multiply current result by 10
+    addq %rcx, %rax              # Add current digit to result
+    incq %rsi                    # Move to next character
+    jmp _read_loop               # Repeat for next character
 
 _read_done:
     ret
@@ -99,8 +98,8 @@ _start:
 
 )";
     static const std::string exit = 
-R"(mov rax, 60
-mov rdi, 0
+R"(movq $60, %rax    # System call number for exit
+movq $0, %rdi     # Exit code 0
 syscall
 )"; 
    std::string program_string;
