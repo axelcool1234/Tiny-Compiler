@@ -233,7 +233,7 @@ std::pair<instruct_t, ident_t> Parser::function_statement(const bb_t& curr_block
 
 bool Parser::if_statement(bb_t& curr_block) {
     /* relation "then" statement_sequence [ "else" statement_sequence ] "fi" */
-    Relation result = relation(curr_block);
+    Relation result = relation(curr_block, false);
 
     // "then"
     match(Keyword::THEN);
@@ -300,7 +300,7 @@ bool Parser::while_statement(bb_t& curr_block) {
     curr_block = ir.new_block(curr_block); // Loop header
 
     // Relation
-    Relation result = relation(curr_block);
+    Relation result = relation(curr_block, true);
 
     bb_t while_block = result == Relation::TRUE ? -1 : ir.new_block(curr_block, WHILE_FALLTHROUGH);
     // "do" statement_sequence "od"
