@@ -167,7 +167,7 @@ private:
     void return_statement(bb_t& curr_block);
 
     // relations
-    Relation relation(const bb_t& curr_block, const bool& if_statement);
+    Relation relation(const bb_t& curr_block, const bool& while_statement);
 
     // Base parsing
     std::pair<instruct_t, ident_t> expression(const bb_t& curr_block);

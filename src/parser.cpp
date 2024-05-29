@@ -233,7 +233,7 @@ std::pair<instruct_t, ident_t> Parser::function_statement(const bb_t& curr_block
 
 bool Parser::if_statement(bb_t& curr_block) {
     /* relation "then" statement_sequence [ "else" statement_sequence ] "fi" */
-    Relation result = relation(curr_block, true);
+    Relation result = relation(curr_block);
 
     // "then"
     match(Keyword::THEN);
@@ -300,7 +300,7 @@ bool Parser::while_statement(bb_t& curr_block) {
     curr_block = ir.new_block(curr_block); // Loop header
 
     // Relation
-    Relation result = relation(curr_block, false);
+    Relation result = relation(curr_block);
 
     bb_t while_block = result == Relation::TRUE ? -1 : ir.new_block(curr_block, WHILE_FALLTHROUGH);
     // "do" statement_sequence "od"
@@ -356,25 +356,30 @@ void Parser::return_statement(bb_t& curr_block) {
 }
 
 /* Relations */
-Relation Parser::relation(const bb_t& curr_block, const bool& if_statement) {
+Relation Parser::relation(const bb_t& curr_block, const bool& while_statement) {
     /* expression1 rel_op expression2 */
-    std::pair<instruct_t, ident_t> x = expression(curr_block);
+    std::pair<instruct_t, ident_t> larg = expression(curr_block);
     Terminal rel_op = match_return<Terminal>();
-    std::pair<instruct_t, ident_t> y = expression(curr_block);
+    std::pair<instruct_t, ident_t> rarg = expression(curr_block);
 
-    // If folding is allowed:
-    if(ir.is_const_instruction(x.first) && ir.is_const_instruction(y.first) && 
-       ((if_statement && !ir.while_loop) || (!if_statement && x.second == -1 && y.second == -1))) {
-        return terminal_cmp(rel_op, ir.get_const_value(x.first), ir.get_const_value(y.first)) ? Relation::TRUE : Relation::FALSE;
-    } 
-
-    // Special case: false while statement
-    if(ir.is_const_instruction(x.first) && ir.is_const_instruction(y.first)) {
-        if(terminal_cmp(rel_op, ir.get_const_value(x.first), ir.get_const_value(y.first))) return Relation::TRUE;    
+    // Constant folding (literals)
+    if(ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) && larg.second == -1 && rarg.second == -1) {
+        return terminal_cmp(rel_op, ir.get_const_value(larg.first), ir.get_const_value(rarg.first)) ? Relation::TRUE : Relation::FALSE;
     }
 
+    // Non-nested if statement constant folding (non-literals, skip on true and false)
+    if(!while_statement && !ir.while_loop && ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first)) {
+        return terminal_cmp(rel_op, ir.get_const_value(larg.first), ir.get_const_value(rarg.first)) ? Relation::TRUE : Relation::FALSE;
+    }
+
+    // Non-nested while statement constant folding (non-literals, skip only if false)
+    if(while_statement && !ir.while_loop && ir.is_const_instruction(larg.first) && ir.is_const_instruction(rarg.first) &&
+       terminal_cmp(rel_op, ir.get_const_value(larg.first), ir.get_const_value(rarg.first)) == true) {
+        return Relation::TRUE;
+    }
+    
     // Set up CMP instruction and branch instruction.
-    instruct_t cmp = ir.add_instruction(curr_block, Opcode::CMP, x, y);
+    instruct_t cmp = ir.add_instruction(curr_block, Opcode::CMP, larg, rarg);
     ir.set_branch_cond(curr_block, terminal_to_opcode(rel_op), cmp);
     return Relation::NEITHER;
 }
