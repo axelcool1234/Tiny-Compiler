@@ -478,7 +478,7 @@ private:
     std::vector<bb_t> doms;
     std::vector<std::unordered_set<instruct_t>> live_ins;
     std::unordered_map<instruct_t, Preference> preference_list{};
-    std::unordered_map<instruct_t, int> const_instructions {};
+    std::unordered_map<instruct_t, int> const_instructions {0};
     std::unordered_map<instruct_t, Register> assigned_registers;
     std::unordered_map<instruct_t, std::unordered_set<instruct_t>> death_points;
     /* Helpers */

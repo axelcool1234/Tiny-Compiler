@@ -76,6 +76,10 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
     // Determine points of death and liveness of SSA instructions at the beginning of the block.
     for(const auto& instruction : ir.get_instructions(block) | std::views::reverse) {
         // When something is born, everything beyond this point will not have it as a living SSA instruction. 
+        // Also check to see if it was alive before this - if it wasn't, it is considered dead code.
+        if(!ir.is_live_instruction(block, instruction.instruction_number)) {
+            ir.insert_death_point(instruction.instruction_number, instruction.instruction_number);
+        }
         ir.erase_live_in(block, instruction.instruction_number);
 
         // Ignore arguments of phi instructions since the move/swap calls will be in the predecessors.
@@ -228,7 +232,10 @@ void RegisterAllocator::color_block(const bb_t& block) {
 
         // Assign oneself a register
         ir.set_assigned_register(instruction.instruction_number, get_register(instruction, occupied));
-        occupied.insert(ir.get_assigned_register(instruction.instruction_number));
+        if(!ir.has_death_point(instruction.instruction_number, instruction.instruction_number)) {
+            // If an instruction lives and dies in the same spot, the register is used and then is unoccupied again
+            occupied.insert(ir.get_assigned_register(instruction.instruction_number));
+        }
     }
 
     // This block has now been colored
