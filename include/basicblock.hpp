@@ -18,7 +18,9 @@ using ident_t = ssize_t;
 using bb_t = ssize_t;
 struct BasicBlock {
     std::vector<Instruction> instructions;
-    std::vector<std::vector<instruct_t>> partitioned_instructions;
+    std::vector<std::vector<int>> partitioned_instructions;
+    int empty_index = -1; // When an EMPTY instruction is added, this is changed to its index in the instructions vector.
+                         // That way, when it's updated, its index can be added to partitioned_instructions if its CSE-able.
     Blocktype type;
     bool will_return = false; // If the block is guaranteed to return, this'll be true.
     bb_t index;

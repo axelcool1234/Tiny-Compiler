@@ -41,8 +41,7 @@ public:
      * @param ident_strings A vector of strings of identifiers.
      */ 
     void insert_ident(const std::vector<std::string>& ident_strings);
-    
-private:
+
     /*
      * Stores an integer to identify keywords, functions, and variables.
      * Stores KEYWORDS as non-positive enum values. Stores user functions and variables as positive values.
@@ -52,6 +51,8 @@ private:
         KEYWORD_LIST
 #undef KEYWORD
     };
+    
+private:
 
     std::istreambuf_iterator<char> istream;
 

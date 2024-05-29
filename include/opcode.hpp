@@ -39,6 +39,7 @@
     OPCODE(WRITE, write) \
     OPCODE(WRITENL, writenl) \
     OPCODE(EMPTY, \\<empty\\>) \
+    OPCODE(DELETED, \\<deleted\\>) \
 
 enum Opcode {
 #define OPCODE(name, str) name,

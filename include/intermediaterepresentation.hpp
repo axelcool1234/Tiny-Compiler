@@ -2,6 +2,7 @@
 #define INTERMEDIATEREPRESENTATION_HPP
 
 #include "basicblock.hpp"
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -455,6 +456,9 @@ public:
     bool is_propagated(const bb_t& b) const;
     bool is_emitted(const bb_t& b) const;
     bool is_const_block(const bb_t& b) const;
+
+    void while_cse(const bb_t& curr_block, const bb_t& loop_header, const bb_t& branch_back, std::map<std::string, ident_t>& identifier_table);
+    void cse_replace(const bb_t& curr_block, const bb_t& branch_back, const instruct_t& replacer, const instruct_t& to_delete);
 private:
 // Should be private:
     /*
@@ -478,7 +482,7 @@ private:
     std::vector<bb_t> doms;
     std::vector<std::unordered_set<instruct_t>> live_ins;
     std::unordered_map<instruct_t, Preference> preference_list{};
-    std::unordered_map<instruct_t, int> const_instructions {0};
+    std::unordered_map<instruct_t, int> const_instructions {{0, 0}};
     std::unordered_map<instruct_t, Register> assigned_registers;
     std::unordered_map<instruct_t, std::unordered_set<instruct_t>> death_points;
     /* Helpers */

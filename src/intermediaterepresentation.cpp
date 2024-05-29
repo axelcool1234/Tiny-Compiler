@@ -1,5 +1,6 @@
 #include "intermediaterepresentation.hpp"
 #include <algorithm>
+#include <map>
 #include <ranges>
 #include <format>
 #include <iostream>
@@ -114,6 +115,10 @@ instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, co
         instruction.opcode = op;
         instruction.larg = larg;
         instruction.rarg = rarg;
+        if(op < CSE_COUNT) {
+            basic_blocks[b].partitioned_instructions[op].emplace_back(basic_blocks[b].empty_index);
+            basic_blocks[b].empty_index = -1;
+        }
         return instruction.instruction_number;
     }
     return -1;
@@ -128,6 +133,10 @@ instruct_t IntermediateRepresentation::change_empty(const bb_t& b, Opcode op, co
         instruction.rarg = rarg.first;
         instruction.larg_owner = larg.second;
         instruction.rarg_owner = rarg.second;
+        if(op < CSE_COUNT) {
+            basic_blocks[b].partitioned_instructions[op].emplace_back(basic_blocks[b].empty_index);
+            basic_blocks[b].empty_index = -1;
+        }
         return instruction.instruction_number;
     }
     return -1;
@@ -223,17 +232,65 @@ void IntermediateRepresentation::set_branch_location(const bb_t& b, const instru
 
 instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, const instruct_t& larg, const instruct_t& rarg) {
     if(ignore) return -1;
+    if(while_loop && op != Opcode::CONST) return -1;
     if(op > CSE_COUNT) return -1;
     bb_t curr_block = b;
     while(true) {
-        for(const instruct_t& instruct : basic_blocks[b].partitioned_instructions[op]) {
-            if(op == basic_blocks[b].instructions[instruct].opcode &&
-               larg == basic_blocks[b].instructions[instruct].larg &&
-               rarg == basic_blocks[b].instructions[instruct].rarg)
-            return basic_blocks[b].instructions[instruct].instruction_number;
+        for(const int& instruct : basic_blocks[curr_block].partitioned_instructions[op]) {
+            if(op == basic_blocks[curr_block].instructions[instruct].opcode &&
+               larg == basic_blocks[curr_block].instructions[instruct].larg &&
+               rarg == basic_blocks[curr_block].instructions[instruct].rarg)
+            return basic_blocks[curr_block].instructions[instruct].instruction_number;
         }
         if(curr_block == 0) return -1;
         curr_block = doms[curr_block];
+    }
+}
+
+     
+void IntermediateRepresentation::while_cse(const bb_t& curr_block, const bb_t& loop_header, const bb_t& branch_back, std::map<std::string, ident_t>& identifier_table) {
+    if(ignore) return;
+    for(int op = 0; op < Opcode::CSE_COUNT; op += 1) {
+        for(const int& instruct : basic_blocks[curr_block].partitioned_instructions[op] | std::views::reverse) {
+            instruct_t copy = search_cse(curr_block, basic_blocks[curr_block].instructions[instruct].opcode, 
+                                      basic_blocks[curr_block].instructions[instruct].larg,
+                                      basic_blocks[curr_block].instructions[instruct].rarg);
+            if(copy != -1 && copy != basic_blocks[curr_block].instructions[instruct].instruction_number) {
+                basic_blocks[curr_block].instructions[instruct].opcode = Opcode::DELETED;
+                // Replace identifier table values
+                for(auto& pair : identifier_table) {
+                    if(pair.second == basic_blocks[curr_block].instructions[instruct].instruction_number) pair.second = copy;
+                }
+                cse_replace(loop_header, branch_back, copy, basic_blocks[curr_block].instructions[instruct].instruction_number);
+            }
+            copy = search_cse(doms[curr_block], basic_blocks[curr_block].instructions[instruct].opcode, 
+                                      basic_blocks[curr_block].instructions[instruct].larg,
+                                      basic_blocks[curr_block].instructions[instruct].rarg);
+            if(copy != -1 && copy != basic_blocks[curr_block].instructions[instruct].instruction_number) {
+                basic_blocks[curr_block].instructions[instruct].opcode = Opcode::DELETED;
+                // Replace identifier table values
+                for(auto& pair : identifier_table) {
+                    if(pair.second == basic_blocks[curr_block].instructions[instruct].instruction_number) pair.second = copy;
+                }
+                cse_replace(loop_header, branch_back, copy, basic_blocks[curr_block].instructions[instruct].instruction_number);
+            }
+        }
+    }
+    if(curr_block == branch_back) return;
+    for(const auto& successor : basic_blocks[curr_block].successors) {
+        while_cse(successor, loop_header, branch_back, identifier_table);
+    }
+}
+
+void IntermediateRepresentation::cse_replace(const bb_t& curr_block, const bb_t& branch_back, const instruct_t& replacer, const instruct_t& to_delete) {
+    // Search CFG
+    for(auto& instruct : basic_blocks[curr_block].instructions) {
+        if(instruct.larg == to_delete) instruct.larg = replacer;
+        if(instruct.rarg == to_delete) instruct.rarg = replacer;
+    }
+    if(curr_block == branch_back) return;
+    for(const auto& successor : basic_blocks[curr_block].successors) {
+        cse_replace(successor, branch_back, replacer, to_delete);
     }
 }
 

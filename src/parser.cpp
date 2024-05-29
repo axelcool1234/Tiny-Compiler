@@ -322,6 +322,7 @@ bool Parser::while_statement(bb_t& curr_block) {
     if(result == Relation::FALSE) {
         ir.generate_phi(curr_block, while_block);
         ir.set_branch_cond(while_block, Opcode::BRA, ir.first_instruction(curr_block));
+        if(!ir.while_loop) ir.while_cse(curr_block, curr_block, while_block, lexer.identifier_table); 
         curr_block = while_block;
         return true;
     } else if(result == Relation::TRUE) {
@@ -337,6 +338,7 @@ void Parser::branch(bb_t& curr_block, const bb_t& while_block) {
     bb_t og_curr_block = curr_block;
     ir.generate_phi(og_curr_block, while_block);
     ir.set_branch_cond(while_block, Opcode::BRA, ir.first_instruction(og_curr_block));
+    if(!ir.while_loop) ir.while_cse(curr_block, curr_block, while_block, lexer.identifier_table);
     curr_block = ir.new_block(curr_block, WHILE_BRANCH);
     ir.set_branch_location(og_curr_block, ir.first_instruction(curr_block));
 }
