@@ -2,6 +2,7 @@
 #define PARSER_HPP
 #include "intermediaterepresentation.hpp"
 #include "lexer.hpp"
+#include <functional>
 
 class Parser {
 public:
@@ -28,10 +29,10 @@ private:
     
     // const map is used to determine the operation to perform when given a specific Terminal Symbol
     const std::unordered_map<Terminal, std::pair<Opcode, std::function<instruct_t(instruct_t, instruct_t)>>> operations_map = {
-        {Terminal::PLUS, {Opcode::ADD, [](instruct_t a, instruct_t b) { return a + b; }}},
-        {Terminal::MINUS, {Opcode::SUB, [](instruct_t a, instruct_t b) { return a - b; }}},
-        {Terminal::DIV, {Opcode::DIV, [](instruct_t a, instruct_t b) { return a / b; }}},
-        {Terminal::MUL, {Opcode::MUL, [](instruct_t a, instruct_t b) { return a * b; }}}
+        {Terminal::PLUS, {Opcode::ADD, [](const int& a, const int& b) { return a + b; }}},
+        {Terminal::MINUS, {Opcode::SUB, [](const int& a, const int& b) { return a - b; }}},
+        {Terminal::DIV, {Opcode::DIV, [](const int& a, const int& b) { return a / b; }}},
+        {Terminal::MUL, {Opcode::MUL, [](const int& a, const int& b) { return a * b; }}}
     };
 
     /* Helpers */
@@ -155,6 +156,7 @@ private:
     std::pair<instruct_t, ident_t> expression(const bb_t& curr_block);
     std::pair<instruct_t, ident_t> term(const bb_t& curr_block);
     std::pair<instruct_t, ident_t> factor(const bb_t& curr_block);
+    void operate(const bb_t& curr_block, std::pair<instruct_t, ident_t>& larg, std::pair<instruct_t, ident_t>(Parser::*func)(const bb_t&));
 };
 
 class ParserException : public std::exception {
