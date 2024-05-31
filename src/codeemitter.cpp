@@ -12,7 +12,7 @@ void CodeEmitter::emit_code() {
     static const std::string data_section = 
 R"(.section .data
     newline: .byte 10
-    newline_len: .equ 1
+    .equ newline_len, 1
     digitSpace: .skip 100
     digitSpacePos: .skip 8
     buff: .skip 11
@@ -110,7 +110,7 @@ syscall
     // Emit main blocks
     for(const auto& block : ir.get_basic_blocks()) {
         if(!(block.index >= ir.get_successors(0).back())) continue;
-        program_string += std::format("\n; BB{}\n", block.index);
+        program_string += std::format("\n# BB{}\n", block.index);
         program_string += emit_block(block.index);
     }
 
@@ -120,7 +120,7 @@ syscall
     for(size_t index = 0; index < ir.get_successors(0).size() - 1; ++index) {
         program_string += std::format("function{}:\n", ir.get_instructions(ir.get_successors(0).at(index)).at(0).instruction_number);
         for(bb_t func_index = ir.get_successors(0).at(index); func_index < ir.get_successors(0).at(index+1); ++func_index) {
-            program_string += std::format("\n; BB{}\n", func_index);
+            program_string += std::format("\n# BB{}\n", func_index);
             program_string += emit_block(func_index);
         }
     }
