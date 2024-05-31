@@ -86,7 +86,7 @@ _read_loop:
     cmpb $0x0A, %cl              # Check for newline character
     je _read_done                # If newline, we're done
     subq $'0', %rcx              # Convert ASCII to integer
-    imulq %rax, %rax, $10        # Multiply current result by 10
+    imulq $10, %rax              # Multiply current result by 10
     addq %rcx, %rax              # Add current digit to result
     incq %rsi                    # Move to next character
     jmp _read_loop               # Repeat for next character
