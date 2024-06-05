@@ -13,7 +13,8 @@ void CodeEmitter::emit_code() {
 R"(.section .data
     strResult: .space 16, 0
     buff: .skip 11
-
+    newline: .byte 10
+    .equ newline_len, 1
 )";
 
     static const std::string default_text_section = 
@@ -449,19 +450,20 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
             return emit_write(i);
         case(Opcode::WRITENL):
             return 
-            R"(push %rax\n
-            push %rdi\n
-            push %rsi\n
-            push %rdx\n
-            mov rax, $1\n
-            mov rdi, $1\n
-            mov rsi, newline\n
-            mov rdx, newline_len\n
-            syscall\n
-            pop %rdx\n
-            pop %rsi\n
-            pop %rdi\n
-            pop %rax\n)";
+R"(push %rax
+push %rdi
+push %rsi
+push %rdx
+mov $1, %rax
+mov $1, %rdi
+mov $newline, %rsi
+mov $newline_len, %rdx 
+syscall
+pop %rdx
+pop %rsi
+pop %rdi
+pop %rax
+)";
         default:
             return "";
     }
