@@ -174,6 +174,8 @@ std::string CodeEmitter::emit_write(const Instruction& instruction) {
         result += "call write\n";
     } else if (!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX) {
         result += "push %rax\ncall write\npop %rax\n";
+    } else if (!ir.is_const_instruction(instruction.larg)) {
+        result += std::format("push %rax\nmov {}, %rax\ncall write\npop %rax\n", reg_str(instruction.larg));
     } else {
         result += std::format("push %rax\nmov ${}, %rax\ncall write\npop %rax\n", reg_str(instruction.larg));
     }
