@@ -442,6 +442,36 @@ mov -40(%rsp), {}
     // return emit_string;
 }
 
+std::string CodeEmitter::cmp_emitter(const Instruction& i) {
+    std::string emit_string = "";
+
+    std::string larg = reg_str(i.larg);
+
+    std::string rarg = reg_str(i.rarg);
+
+    if(ir.is_const_instruction(i.larg)){
+        larg = ir.get_assigned_register(i.rarg) != Register::RAX ? "%rax" : "%rdx";
+        emit_string += std::format("push {}\nmov {}, {}\n", larg, reg_str(i.larg), larg);
+        
+    }
+
+    if(ir.is_const_instruction(i.rarg)){
+        rarg = ir.get_assigned_register(i.larg) != Register::RDX ? "%rdx" : "%rax";
+        emit_string += std::format("push {}\nmov {}, {}\n", rarg, reg_str(i.rarg), rarg);
+        
+    }
+
+    emit_string += "cmp " + larg + ", " + rarg + "\n";
+
+    if(ir.is_const_instruction(i.rarg))
+        emit_string += "pop " + rarg + "\n";
+
+    if(ir.is_const_instruction(i.larg))
+        emit_string += "pop " + larg + "\n";
+
+    return emit_string;
+}
+
 std::string CodeEmitter::emit_prologue() {
     if(getting_pars) {
         getting_pars = false;
@@ -462,7 +492,7 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
         case(Opcode::DIV):
             return emit_prologue() + scale_emitter(i, "div");
         case(Opcode::CMP):
-            return emit_prologue() + std::format("cmp {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
+            return emit_prologue() + cmp_emitter(i);
         case(Opcode::BRA):
             return emit_prologue() + emit_branch(i.larg, "jmp");
         case(Opcode::BNE):
