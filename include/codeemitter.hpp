@@ -11,7 +11,11 @@ public:
     void emit_code();
     void debug() const;
 private:
+    std::string set_par_str = "";
+    std::string get_par_str = "";
+    bool getting_pars = false;
     /* Code Emitting */
+    std::string emit_prologue();
     std::string emit_block(const bb_t& b);
     std::string emit_instruction(const Instruction& i);
     std::string emit_basic(const Instruction& i, const std::string& opcode);

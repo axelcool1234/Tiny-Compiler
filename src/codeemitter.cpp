@@ -97,23 +97,28 @@ syscall                 # Invoke system call
     // sub {spill_count * 8}, rsp // TODO
 
     // Emit main blocks
+    program_string += std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
     for(const auto& block : ir.get_basic_blocks()) {
         if(!(block.index >= ir.get_successors(0).back())) continue;
         program_string += std::format("\n# BB{}\n", block.index);
         program_string += emit_block(block.index);
     }
 
+    program_string += exit;
+
     // add, rsp, {spill_count * 8} // emit when we run into a return //TODO
 
     // Emit function blocks
     for(size_t index = 0; index < ir.get_successors(0).size() - 1; ++index) {
         program_string += std::format("function{}:\n", ir.get_instructions(ir.get_successors(0).at(index)).at(0).instruction_number);
+        // program_string += std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
         for(bb_t func_index = ir.get_successors(0).at(index); func_index < ir.get_successors(0).at(index+1); ++func_index) {
             program_string += std::format("\n# BB{}\n", func_index);
+            getting_pars = true;
             program_string += emit_block(func_index);
         }
     }
-    ofile << default_text_section << program_string << exit << data_section; 
+    ofile << default_text_section << program_string << data_section; 
 }
 
 std::string CodeEmitter::emit_block(const bb_t& b) {
@@ -320,7 +325,7 @@ std::string CodeEmitter::add_emitter(const Instruction& i) {
 
 std::string CodeEmitter::sub_emitter(const Instruction& i) {
     if(!ir.is_const_instruction(i.rarg)){
-        return std::format("neg {}", reg_str(i.rarg)) + add_emitter(i);
+        return std::format("neg {}\n", reg_str(i.rarg)) + add_emitter(i);
     }
     return mov_instruction(i.larg, i.instruction_number) + 
         sub_instruction(i.rarg, i.instruction_number);
@@ -437,56 +442,92 @@ mov -40(%rsp), {}
     // return emit_string;
 }
 
+std::string CodeEmitter::emit_prologue() {
+    if(getting_pars) {
+        getting_pars = false;
+        return std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp\n", -8 * ir.spill_count);
+    }
+    return "";
+}
 
 std::string CodeEmitter::emit_instruction(const Instruction& i) {
+    std::string additional_instructions = "";
     switch(i.opcode) {
         case(Opcode::ADD):
-            return add_emitter(i);
+            return emit_prologue() + add_emitter(i);
         case(Opcode::SUB):
-            return sub_emitter(i);
+            return emit_prologue() + sub_emitter(i);
         case(Opcode::MUL):
-            return scale_emitter(i, "mul");
+            return emit_prologue() + scale_emitter(i, "mul");
         case(Opcode::DIV):
-            return scale_emitter(i, "div");
+            return emit_prologue() + scale_emitter(i, "div");
         case(Opcode::CMP):
-            return std::format("cmp {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
+            return emit_prologue() + std::format("cmp {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
         case(Opcode::BRA):
-            return emit_branch(i.larg, "jmp");
+            return emit_prologue() + emit_branch(i.larg, "jmp");
         case(Opcode::BNE):
-            return emit_branch(i.rarg, "jne");
+            return emit_prologue() + emit_branch(i.rarg, "jne");
         case(Opcode::BEQ):
-            return emit_branch(i.rarg, "je");
+            return emit_prologue() + emit_branch(i.rarg, "je");
         case(Opcode::BLE):
-            return emit_branch(i.rarg, "jle");
+            return emit_prologue() + emit_branch(i.rarg, "jle");
         case(Opcode::BLT):
-            return emit_branch(i.rarg, "jl");
+            return emit_prologue() + emit_branch(i.rarg, "jl");
         case(Opcode::BGE):
-            return emit_branch(i.rarg, "jge");
+            return emit_prologue() + emit_branch(i.rarg, "jge");
         case(Opcode::BGT):
-            return emit_branch(i.rarg, "jg");
+            return emit_prologue() + emit_branch(i.rarg, "jg");
         case(Opcode::JSR):
-            throw std::runtime_error("Functions not implemented yet!");
-            break;
+            additional_instructions = set_par_str;
+            set_par_str = "";
+            return emit_prologue() + std::format(R"(pushq %rax
+pushq %rbx
+pushq %rcx
+pushq %rdx
+pushq %rsi
+pushq %rdi
+pushq %r8
+pushq %r9
+pushq %r10
+pushq %r11
+pushq %r12
+pushq %r13
+pushq %r14
+pushq %r15
+{}
+call function{}
+popq %r15
+popq %r14
+popq %r13
+popq %r12
+popq %r11
+popq %r10
+popq %r9
+popq %r8
+popq %rdi
+popq %rsi
+popq %rdx
+popq %rcx
+popq %rbx
+popq %rax
+)", additional_instructions, i.larg);
         case(Opcode::RET):
-            throw std::runtime_error("Function returns not implemented yet!");
-            break;
+            return emit_prologue() + "movq %rbp, %rsp\npopq %rbp\nret\n"; 
         case(Opcode::MOV):
-            return mov_instruction(i.rarg, i.larg);
-            break;
+            return emit_prologue() + mov_instruction(i.rarg, i.larg);
         case(Opcode::SWAP):
-            return std::format("xchg {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
+            return emit_prologue() + std::format("xchg {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
         case(Opcode::GETPAR):
-            throw std::runtime_error("Function GETPAR not implemented yet!");
-            break;
+            return std::format("pop {}\n", reg_str(i.instruction_number));
         case(Opcode::SETPAR):
-            throw std::runtime_error("Function SETPAR not implemented yet!");
-            break;
+            set_par_str += std::format("push {}\n", reg_str(i.larg));
+            return emit_prologue() + "";
         case(Opcode::READ):
-            return emit_read(i);
+            return emit_prologue() + emit_read(i);
         case(Opcode::WRITE):
-            return emit_write(i);
+            return emit_prologue() + emit_write(i);
         case(Opcode::WRITENL):
-            return 
+            return emit_prologue() + 
 R"(push %rax
 push %rdi
 push %rsi
@@ -508,7 +549,7 @@ pop %rax
 }
 
 std::string CodeEmitter::reg_str(const instruct_t& instruct) {
-    if(ir.is_undefined_instruction(instruct )) return "0";
+    if(ir.is_undefined_instruction(instruct )) return "$0";
     if(ir.is_const_instruction(instruct)) return std::format("${}", ir.get_const_value(instruct));
     if(is_virtual_reg(instruct)) return std::format("-{}(%rbp)", virtual_reg_offset(instruct));
     return reg_str_list.at(ir.get_assigned_register(instruct));
