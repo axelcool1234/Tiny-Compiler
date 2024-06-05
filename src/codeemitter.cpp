@@ -371,10 +371,10 @@ std::string CodeEmitter::sub_emitter(const Instruction& i) {
 // pop rax
 // pop rdx
 std::string CodeEmitter::div_emitter(const Instruction& i) {
-    std::string emit_string;
-    if (reg_str(i.instruction_number) != reg_str_list[Register::RDX])
+    std::string emit_string = "# div\n";
+    if (ir.get_assigned_register(i.instruction_number) != Register::RDX)
         emit_string += push_register(Register::RDX);
-    if (reg_str(i.instruction_number) != reg_str_list[Register::RAX])
+    if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
         emit_string += push_register(Register::RAX);
     
     emit_string += mov_register(i.larg, Register::RAX);
@@ -386,10 +386,10 @@ std::string CodeEmitter::div_emitter(const Instruction& i) {
     }
     emit_string += mov_register(Register::RAX, i.instruction_number);
 
-    if (reg_str(i.instruction_number) != reg_str_list[Register::RAX])
-        emit_string += pop_instruction(Register::RAX);
-    if (reg_str(i.instruction_number) != reg_str_list[Register::RDX])
-        emit_string += pop_instruction(Register::RDX);
+    if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
+        emit_string += pop_register(Register::RAX);
+    if (ir.get_assigned_register(i.instruction_number) != Register::RDX)
+        emit_string += pop_register(Register::RDX);
     return emit_string;
 }
 
