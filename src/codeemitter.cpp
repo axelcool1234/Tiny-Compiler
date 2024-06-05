@@ -156,7 +156,7 @@ std::string CodeEmitter::emit_block(const bb_t& b) {
 
 std::string CodeEmitter::emit_basic(const Instruction& i, const std::string& opcode) {
     if(ir.is_const_instruction(i.larg) || ir.is_const_instruction(i.rarg)) {  
-        return std::format("movq ${}, {}\n{} ${}, {}\n", reg_str(i.larg), reg_str(i.instruction_number), opcode, reg_str(i.rarg), reg_str(i.instruction_number));
+        return std::format("movq {}, {}\n{} {}, {}\n", reg_str(i.larg), reg_str(i.instruction_number), opcode, reg_str(i.rarg), reg_str(i.instruction_number));
     }
     if(ir.get_assigned_register(i.instruction_number) == ir.get_assigned_register(i.larg)) {    
         return std::format("{} {}, {}\n", opcode, reg_str(i.larg), reg_str(i.rarg));
@@ -174,10 +174,8 @@ std::string CodeEmitter::emit_write(const Instruction& instruction) {
         result += "call write\n";
     } else if (!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX) {
         result += "push %rax\ncall write\npop %rax\n";
-    } else if (!ir.is_const_instruction(instruction.larg)) {
-        result += std::format("push %rax\nmov {}, %rax\ncall write\npop %rax\n", reg_str(instruction.larg));
     } else {
-        result += std::format("push %rax\nmov ${}, %rax\ncall write\npop %rax\n", reg_str(instruction.larg));
+        result += std::format("push %rax\nmov {}, %rax\ncall write\npop %rax\n", reg_str(instruction.larg));
     }
     return result + "pop %rsi\npop %rdi\npop %rdx\npop %rcx\npop %rbx\n";
 }
@@ -213,7 +211,7 @@ std::string CodeEmitter::mov_instruction(const instruct_t& from, const instruct_
    
     else if(ir.is_const_instruction(from) && !ir.is_const_instruction(to))
     {
-        return std::format("mov ${}, {}\n", reg_str(from), reg_str(to));
+        return std::format("mov {}, {}\n", reg_str(from), reg_str(to));
     }
 
     std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
@@ -234,7 +232,7 @@ std::string CodeEmitter::mov_register(const instruct_t& from, Register to)
 
     else if (ir.is_const_instruction(from))
     {
-        return std::format("mov ${}, {}\n", reg_str(from), reg_str_list[to]);
+        return std::format("mov {}, {}\n", reg_str(from), reg_str_list[to]);
     }
 
     std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
@@ -252,7 +250,7 @@ std::string CodeEmitter::mov_register(Register from, const instruct_t& to)
     }
     // else if (!ir.is_const_instruction(to))
     // {
-    //     return std::format("mov ${}, {}\n", reg_str_list[from], reg_str(to));
+    //     return std::format("mov {}, {}\n", reg_str_list[from], reg_str(to));
     // }
 
     std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
@@ -273,7 +271,7 @@ std::string CodeEmitter::add_instruction(const instruct_t& left, const instruct_
    
     if(ir.is_const_instruction(left) && !ir.is_const_instruction(right))
     {
-        return std::format("add ${}, {}\n", reg_str(left), reg_str(right));
+        return std::format("add {}, {}\n", reg_str(left), reg_str(right));
     }
 
     std::cout << "Error: Invalid input to add_instruction in codeemitter.cpp\n";
@@ -294,7 +292,7 @@ std::string CodeEmitter::sub_instruction(const instruct_t& left, const instruct_
    
     if(ir.is_const_instruction(left) && !ir.is_const_instruction(right))
     {
-        return std::format("sub ${}, {}\n", reg_str(left), reg_str(right));
+        return std::format("sub {}, {}\n", reg_str(left), reg_str(right));
     }
 
     std::cout << "Error: Invalid input to sub_instruction in codeemitter.cpp\n";
@@ -474,7 +472,7 @@ pop %rax
 
 std::string CodeEmitter::reg_str(const instruct_t& instruct) {
     if(ir.is_undefined_instruction(instruct )) return "0";
-    if(ir.is_const_instruction(instruct)) return std::format("{}", ir.get_const_value(instruct));
+    if(ir.is_const_instruction(instruct)) return std::format("${}", ir.get_const_value(instruct));
     if(is_virtual_reg(instruct)) return std::format("-{}(%rbp)", virtual_reg_offset(instruct));
     return reg_str_list.at(ir.get_assigned_register(instruct));
 }
