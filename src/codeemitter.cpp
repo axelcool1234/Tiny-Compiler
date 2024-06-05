@@ -454,6 +454,11 @@ std::string CodeEmitter::cmp_emitter(const Instruction& i) {
         larg = ir.get_assigned_register(i.rarg) != Register::RAX ? "%rax" : "%rdx";
         emit_string += std::format("push {}\nmov {}, {}\n", larg, reg_str(i.larg), larg);
     }
+    if (is_verual_ref(i.larg))
+    {
+        larg = "%r11"
+        emit_string += std::format("mov {}, {}\n", reg_str(i.larg), larg);
+    }
 
     if(ir.is_const_instruction(i.rarg)){
         rarg = ir.get_assigned_register(i.larg) != Register::RDX ? "%rdx" : "%rax";
