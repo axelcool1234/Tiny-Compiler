@@ -14,14 +14,14 @@
     REGISTER(RDX, %rdx) \
     REGISTER(RSI, %rsi) \
     REGISTER(RDI, %rdi) \
-    REGISTER(R8D, %r8d) \
-    REGISTER(R9D, %r9d) \
-    REGISTER(R10D, %r10d) \
-    REGISTER(R11D, %r11d) \
-    REGISTER(R12D, %r12d) \
-    REGISTER(R13D, %r13d) \
-    REGISTER(R14D, %r14d) \
-    REGISTER(R15D, %r15d)
+    REGISTER(R8D, %r8) \
+    REGISTER(R9D, %r9) \
+    REGISTER(R10D, %r10) \
+    REGISTER(R11D, %r11) \
+    REGISTER(R12D, %r12) \
+    REGISTER(R13D, %r13) \
+    REGISTER(R14D, %r14) \
+    REGISTER(R15D, %r15)
 
 enum Register {
 #define REGISTER(name, str) name,
