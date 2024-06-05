@@ -264,18 +264,7 @@ std::string CodeEmitter::mov_register(Register from, const instruct_t& to)
 */
 std::string CodeEmitter::add_instruction(const instruct_t& left, const instruct_t& right)
 {
-    if (!ir.is_const_instruction(left) && !ir.is_const_instruction(right))
-    {
-        return std::format("add {}, {}\n", reg_str(left), reg_str(right));
-    }
-   
-    if(ir.is_const_instruction(left) && !ir.is_const_instruction(right))
-    {
-        return std::format("add {}, {}\n", reg_str(left), reg_str(right));
-    }
-
-    std::cout << "Error: Invalid input to add_instruction in codeemitter.cpp\n";
-    return "";
+    return std::format("add {}, {}\n", reg_str(left), reg_str(right));
 }
 
 /*
@@ -285,32 +274,8 @@ std::string CodeEmitter::add_instruction(const instruct_t& left, const instruct_
 */
 std::string CodeEmitter::sub_instruction(const instruct_t& left, const instruct_t& right)
 {
-    if (!ir.is_const_instruction(left) && !ir.is_const_instruction(right))
-    {
-        return std::format("sub {}, {}\n", reg_str(left), reg_str(right));
-    }
-   
-    if(ir.is_const_instruction(left) && !ir.is_const_instruction(right))
-    {
-        return std::format("sub {}, {}\n", reg_str(left), reg_str(right));
-    }
+    return std::format("sub {}, {}\n", reg_str(left), reg_str(right));
 
-    std::cout << "Error: Invalid input to sub_instruction in codeemitter.cpp\n";
-    return "";
-}
-
-std::string CodeEmitter::div_instruction(const instruct_t& i)
-{
-    if(!ir.is_const_instruction(i)) {
-        return std::format("div {}\n", reg_str(i));
-    }
-    std::cout << "Error: Invalid input to div_instruction in codeemitter.cpp\n";
-    return "";
-}
-
-std::string CodeEmitter::div_register(Register reg)
-{
-    return std::format("div {}\n", reg_str_list[reg]);
 }
 
 // push <reg64>
@@ -374,20 +339,19 @@ std::string CodeEmitter::sub_emitter(const Instruction& i) {
 
 // pop rax
 // pop rdx
-std::string CodeEmitter::div_emitter(const Instruction& i) {
+std::string CodeEmitter::scale_emitter(const Instruction& i, const std::string& operator_str) {
     std::string emit_string = "";
-    emit_string += std::format(R"(# div
-push %rdx 
+    emit_string += std::format(R"(push %rdx 
 push %rax
 push {}
 push {}
 mov $0, %rdx
 mov 8(%rsp), %rax
-div (%rsp)
+{} (%rsp)
 push %rax
 add $8, %rsp
 )", 
-    reg_str(i.larg), reg_str(i.rarg));
+    reg_str(i.larg), reg_str(i.rarg), operator_str);
 
     if(!ir.is_const_instruction(i.rarg)) {
         emit_string += std::format("pop {}\n", reg_str(i.rarg));
@@ -481,16 +445,9 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
         case(Opcode::SUB):
             return sub_emitter(i);
         case(Opcode::MUL):
-        // push rdx         // Store rdx
-
-        // mov i.larg rax   // one of the arguments into rax
-        // mul i.rarg      // multiply rax by i.rarg
-        // mov rax i.instruction_number     //move the result of the multiplication into i.instruction number.
-        
-        // pop rdx          // repopulate  rdx
-        return("");
+            return scale_emitter(i, "mul");
         case(Opcode::DIV):
-            return div_emitter(i);
+            return scale_emitter(i, "div");
         case(Opcode::CMP):
             return std::format("cmp {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
         case(Opcode::BRA):

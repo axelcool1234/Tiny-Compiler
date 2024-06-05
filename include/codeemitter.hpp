@@ -38,10 +38,6 @@ private:
     //override pop for enum
     std::string pop_register(Register reg);
 
-    std::string div_instruction(const instruct_t& i);
-
-
-    
     /*
     * Syntax - store in right register
     * add <reg2>, <reg1>
@@ -49,8 +45,7 @@ private:
     */
     std::string add_instruction(const instruct_t& left, const instruct_t& right);
     std::string add_emitter(const Instruction& i);
-    std::string div_emitter(const Instruction& i);
-    std::string div_register(Register reg);
+    std::string scale_emitter(const Instruction& i, const std::string& operator_str);
     
     /*
     * Syntax - store in right register
