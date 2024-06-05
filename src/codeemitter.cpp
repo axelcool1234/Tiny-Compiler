@@ -452,16 +452,14 @@ std::string CodeEmitter::cmp_emitter(const Instruction& i) {
     if(ir.is_const_instruction(i.larg)){
         larg = ir.get_assigned_register(i.rarg) != Register::RAX ? "%rax" : "%rdx";
         emit_string += std::format("push {}\nmov {}, {}\n", larg, reg_str(i.larg), larg);
-        
     }
 
     if(ir.is_const_instruction(i.rarg)){
         rarg = ir.get_assigned_register(i.larg) != Register::RDX ? "%rdx" : "%rax";
         emit_string += std::format("push {}\nmov {}, {}\n", rarg, reg_str(i.rarg), rarg);
-        
     }
 
-    emit_string += "cmp " + larg + ", " + rarg + "\n";
+    emit_string += "cmp " + rarg + ", " + larg + "\n";
 
     if(ir.is_const_instruction(i.rarg))
         emit_string += "pop " + rarg + "\n";
