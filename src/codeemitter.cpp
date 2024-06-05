@@ -111,7 +111,7 @@ syscall
             program_string += emit_block(func_index);
         }
     }
-    ofile << default_text_section << program_string << data_section << exit; 
+    ofile << default_text_section << program_string << exit << data_section; 
 }
 
 std::string CodeEmitter::emit_block(const bb_t& b) {
