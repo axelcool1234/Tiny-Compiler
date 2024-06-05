@@ -8,20 +8,20 @@
 #include <vector>
 
 #define REGISTER_LIST \
-    REGISTER(RAX, rax) \
-    REGISTER(RBX, rbx) \
-    REGISTER(RCX, rcx) \
-    REGISTER(RDX, rdx) \
-    REGISTER(RSI, rsi) \
-    REGISTER(RDI, rdi) \
-    REGISTER(R8D, r8d) \
-    REGISTER(R9D, r9d) \
-    REGISTER(R10D, r10d) \
-    REGISTER(R11D, r11d) \
-    REGISTER(R12D, r12d) \
-    REGISTER(R13D, r13d) \
-    REGISTER(R14D, r14d) \
-    REGISTER(R15D, r15d)
+    REGISTER(RAX, %rax) \
+    REGISTER(RBX, %rbx) \
+    REGISTER(RCX, %rcx) \
+    REGISTER(RDX, %rdx) \
+    REGISTER(RSI, %rsi) \
+    REGISTER(RDI, %rdi) \
+    REGISTER(R8D, %r8d) \
+    REGISTER(R9D, %r9d) \
+    REGISTER(R10D, %r10d) \
+    REGISTER(R11D, %r11d) \
+    REGISTER(R12D, %r12d) \
+    REGISTER(R13D, %r13d) \
+    REGISTER(R14D, %r14d) \
+    REGISTER(R15D, %r15d)
 
 enum Register {
 #define REGISTER(name, str) name,

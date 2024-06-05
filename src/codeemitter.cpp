@@ -11,10 +11,7 @@ void CodeEmitter::debug() const {
 void CodeEmitter::emit_code() {
     static const std::string data_section = 
 R"(.section .data
-    newline: .byte 10
-    .equ newline_len, 1
-    digitSpace: .skip 100
-    digitSpacePos: .skip 8
+    strResult: .space 16, 0
     buff: .skip 11
 
 )";
@@ -23,50 +20,40 @@ R"(.section .data
 R"(.section .text
 .global _start
 write:
-    leaq digitSpace(%rip), %rcx   # Load address of digitSpace into RCX
-    movq $10, %rbx                # Load constant 10 into RBX
-    movq %rbx, (%rcx)             # Store RBX at the address pointed by RCX
-    leaq digitSpacePos(%rip), %rcx  # Load address of digitSpacePos into RCX
-    movq %rcx, digitSpacePos(%rip)  # Update digitSpacePos with new value of RCX
+    movabsq $10, %rcx       # divisor
+    xorl %ebx, %ebx         # count digits
 
-_write_loop:
-    xorq %rdx, %rdx               # Zero out RDX
-    movq $10, %rbx                # Load constant 10 into RBX
-    divq %rbx                     # Divide RAX by RBX; quotient in RAX, remainder in RDX
-    pushq %rax                    # Push RAX onto stack for later
-    addq $48, %rdx                # Convert remainder to ASCII
+_divide:
+    xorq %rdx, %rdx         # High part = 0
+    divq %rcx               # RAX = RDX:RAX / RCX, RDX = remainder
+    pushq %rdx              # DL is a digit in range [0..9]
+    incq %rbx               # Count digits
+    testq %rax, %rax        # RAX is 0?
+    jnz _divide             # No, continue
 
-    movq digitSpacePos(%rip), %rcx  # Load current digitSpacePos into RCX
-    movb %dl, (%rcx)              # Store low byte of RDX at [RCX]
-    incq %rcx                     # Increment RCX
-    movq %rcx, digitSpacePos(%rip) # Store updated RCX back to digitSpacePos
+    # POP digits from stack in reverse order
+    movq %rbx, %rcx         # Number of digits
+    leaq strResult, %rsi    # RSI points to string buffer
 
-    popq %rax                     # Restore original RAX
-    testq %rax, %rax              # Test RAX for zero
-    jne _write_loop               # If not zero, loop
+_next_digit:
+    popq %rax
+    addb $'0', %al          # Convert to ASCII
+    movb %al, (%rsi)        # Write it to the buffer
+    incq %rsi
+    decq %rcx
+    jnz _next_digit          # Repeat until all digits are processed
 
-_write_loop2:
-    movq digitSpacePos(%rip), %rcx  # Get current digitSpacePos
+    # Null-terminate the string
+    movb $0, (%rsi)         # Null terminator
 
-    movq $1, %rax                # syscall: write
-    movq $1, %rdi                # fd: stdout
-    movq %rcx, %rsi              # buf: current position in digitSpace
-    movq $1, %rdx                # count: 1
-    syscall                      # make syscall
+    # Prepare for sys_write
+    movq $1, %rax           # sys_write system call number
+    movq $1, %rdi           # File descriptor (stdout)
+    leaq strResult, %rsi    # Buffer (string to print)
+    movq %rbx, %rdx         # Length
+    syscall                 # Invoke system call
 
-    movq digitSpacePos(%rip), %rcx  # Load current digitSpacePos
-    decq %rcx                     # Decrement RCX
-    movq %rcx, digitSpacePos(%rip) # Update digitSpacePos
-
-    cmpq %rcx, digitSpace(%rip)  # Compare with start of digitSpace
-    jge _write_loop2             # If RCX >= digitSpace, repeat
-
-    cld                          # Clear direction flag
-    movq $100, %rcx              # Set count to 100 bytes
-    leaq digitSpace(%rip), %rdi  # Set destination pointer to digitSpace
-    movb $0, %al                 # Set value to be stored
-    rep stosb                    # Store AL in memory, incrementing EDI, repeat ECX times
-
+    # Return
     ret
 
 # Entry point for read routine
@@ -124,7 +111,7 @@ syscall
             program_string += emit_block(func_index);
         }
     }
-    ofile << data_section << default_text_section << program_string << exit; 
+    ofile << default_text_section << program_string << data_section << exit; 
 }
 
 std::string CodeEmitter::emit_block(const bb_t& b) {
@@ -180,25 +167,25 @@ std::string CodeEmitter::emit_branch(const instruct_t& i, const std::string& opc
 }
 
 std::string CodeEmitter::emit_write(const Instruction& instruction) {
-    std::string result = "push rbx\npush rcx\npush rdx\npush rdi\npush rsi\n";
+    std::string result = "push %rbx\npush %rcx\npush %rdx\npush %rdi\npush %rsi\n";
     if(!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX && ir.has_death_point(instruction.larg, instruction.instruction_number)) {
         result += "call write\n";
     } else if (!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX) {
-        result += "push rax\ncall write\npop rax\n";
+        result += "push %rax\ncall write\npop %rax\n";
     } else {
-        result += std::format("push rax\nmov rax, {}\ncall write\npop rax\n", reg_str(instruction.larg));
+        result += std::format("push %rax\nmov %rax, {}\ncall write\npop %rax\n", reg_str(instruction.larg));
     }
-    return result + "pop rsi\npop rdi\npop rdx\npop rcx\npop rbx\n";
+    return result + "pop %rsi\npop %rdi\npop %rdx\npop %rcx\npop %rbx\n";
 }
 
 std::string CodeEmitter::emit_read(const Instruction& instruction) {
-    std::string result = "push rdi\npush rsi\npush rdx\npush rcx\n";
+    std::string result = "push %rdi\npush %rsi\npush %rdx\npush %rcx\n";
     if(ir.get_assigned_register(instruction.instruction_number) == Register::RAX) {
         result += "call read\n";
     } else {
-        result += std::format("push rax\ncall read\nmov {}, rax\npop rax\n", reg_str(instruction.instruction_number));
+        result += std::format("push %rax\ncall read\nmov {}, %rax\npop %rax\n", reg_str(instruction.instruction_number));
     }
-    return result + "pop rcx\npop rdx\npop rsi\npop rdi\n";
+    return result + "pop %rcx\npop %rdx\npop %rsi\npop %rdi\n";
 
 }
 
@@ -461,19 +448,19 @@ std::string CodeEmitter::emit_instruction(const Instruction& i) {
             return emit_write(i);
         case(Opcode::WRITENL):
             return 
-            R"(push rax\n
-            push rdi\n
-            push rsi\n
-            push rdx\n
-            mov rax, 1\n
-            mov rdi, 1\n
+            R"(push %rax\n
+            push %rdi\n
+            push %rsi\n
+            push %rdx\n
+            mov rax, $1\n
+            mov rdi, $1\n
             mov rsi, newline\n
             mov rdx, newline_len\n
             syscall\n
-            pop rdx\n
-            pop rsi\n
-            pop rdi\n
-            pop rax\n)";
+            pop %rdx\n
+            pop %rsi\n
+            pop %rdi\n
+            pop %rax\n)";
         default:
             return "";
     }
