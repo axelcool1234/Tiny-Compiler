@@ -367,7 +367,7 @@ std::string CodeEmitter::sub_emitter(const Instruction& i) {
 
 // mov i.larg rax
 // if i.rarg == rdx:
-//  div [%rsi - 16]
+//  div (%rsp)
 // else:
 //   div i.rarg
 // mov rax i.instruction_number
@@ -376,14 +376,22 @@ std::string CodeEmitter::sub_emitter(const Instruction& i) {
 // pop rdx
 std::string CodeEmitter::div_emitter(const Instruction& i) {
     std::string emit_string = "# div\n";
+    
     if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
         emit_string += push_register(Register::RAX);
     emit_string += push_register(Register::RDX);
     
+    if (ir.get_assigned_register(i.rarg) == Register::RAX) {
+
+    }
     emit_string += mov_register(i.larg, Register::RAX);
+    
     if (ir.is_const_instruction(i.rarg)) {
-        emit_string += mov_register(i.rarg, Register::RDX);
-        emit_string += div_register(Register::RDX); // TODO Ilya
+        emit_string += std::format("push {}", reg_str(i.rarg));
+        emit_string += "div (%rsp)\nadd $8, %rsp\n";
+    } 
+    else if (ir.get_assigned_register(i.rarg) == Register::RDX){
+        emit_string += "div (%rsp)\n";
     } else {
         emit_string += div_instruction(i.rarg);
     }
