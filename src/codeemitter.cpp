@@ -175,7 +175,7 @@ std::string CodeEmitter::emit_branch(const instruct_t& i, const std::string& opc
 
 std::string CodeEmitter::emit_write(const Instruction& instruction) {
     // rax, rbx, rcx, rdx, rsi, rdi
-    std::string result = "push %r11\npush %rbx\npush %rcx\npush %rdx\npush %rdi\npush %rsi\n";
+    std::string result = "push %rbx\npush %rcx\npush %rdx\npush %rdi\npush %rsi\n";
     if(!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX && ir.has_death_point(instruction.larg, instruction.instruction_number)) {
         result += "call write\n";
     } else if (!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX) {
@@ -183,17 +183,17 @@ std::string CodeEmitter::emit_write(const Instruction& instruction) {
     } else {
         result += std::format("push %rax\nmov {}, %rax\ncall write\npop %rax\n", reg_str(instruction.larg));
     }
-    return result + "pop %rsi\npop %rdi\npop %rdx\npop %rcx\npop %rbx\npop %r11\n";
+    return result + "pop %rsi\npop %rdi\npop %rdx\npop %rcx\npop %rbx\n";
 }
 
 std::string CodeEmitter::emit_read(const Instruction& instruction) {
-    std::string result = "push %r11\npush %rdi\npush %rsi\npush %rdx\npush %rcx\n";
+    std::string result = "push %rdi\npush %rsi\npush %rdx\npush %rcx\n";
     if(ir.get_assigned_register(instruction.instruction_number) == Register::RAX) {
         result += "call read\n";
     } else {
         result += std::format("push %rax\ncall read\nmov {}, %rax\npop %rax\n", reg_str(instruction.instruction_number));
     }
-    return result + "pop %rcx\npop %rdx\npop %rsi\npop %rdi\npop %r11\n";
+    return result + "pop %rcx\npop %rdx\npop %rsi\npop %rdi\n";
 
 }
 
@@ -518,7 +518,6 @@ pushq %rdi
 pushq %r8
 pushq %r9
 pushq %r10
-pushq %r11
 pushq %r12
 pushq %r13
 pushq %r14
@@ -529,7 +528,6 @@ popq %r15
 popq %r14
 popq %r13
 popq %r12
-popq %r11
 popq %r10
 popq %r9
 popq %r8
@@ -562,13 +560,11 @@ push %rdi
 push %rsi
 push %rdx
 push %rcx
-push %r11
 mov $1, %rax
 mov $1, %rdi
 mov $newline, %rsi
 mov $newline_len, %rdx 
 syscall
-pop %r11
 pop %rcx
 pop %rdx
 pop %rsi

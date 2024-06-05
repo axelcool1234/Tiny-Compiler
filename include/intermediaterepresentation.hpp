@@ -17,7 +17,6 @@
     REGISTER(R8D, %r8) \
     REGISTER(R9D, %r9) \
     REGISTER(R10D, %r10) \
-    REGISTER(R11D, %r11) \
     REGISTER(R12D, %r12) \
     REGISTER(R13D, %r13) \
     REGISTER(R14D, %r14) \
