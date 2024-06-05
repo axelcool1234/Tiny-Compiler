@@ -21,7 +21,7 @@ R"(.section .text
 .global _start
 write:
     movabsq $10, %rcx       # divisor
-    xorl %ebx, %ebx         # count digits
+    xorq %rbx, %rbx         # count digits
 
 _divide:
     xorq %rdx, %rdx         # High part = 0
@@ -85,9 +85,10 @@ _start:
 
 )";
     static const std::string exit = 
-R"(movq $60, %rax    # System call number for exit
-movq $0, %rdi     # Exit code 0
-syscall
+R"(movq $60, %rax          # sys_exit system call number
+xorq %rdi, %rdi         # Status: 0
+syscall                 # Invoke system call
+
 )"; 
    std::string program_string;
 
@@ -173,7 +174,7 @@ std::string CodeEmitter::emit_write(const Instruction& instruction) {
     } else if (!ir.is_const_instruction(instruction.larg) && ir.get_assigned_register(instruction.larg) == Register::RAX) {
         result += "push %rax\ncall write\npop %rax\n";
     } else {
-        result += std::format("push %rax\nmov %rax, {}\ncall write\npop %rax\n", reg_str(instruction.larg));
+        result += std::format("push %rax\nmov ${}, %rax\ncall write\npop %rax\n", reg_str(instruction.larg));
     }
     return result + "pop %rsi\npop %rdi\npop %rdx\npop %rcx\npop %rbx\n";
 }
