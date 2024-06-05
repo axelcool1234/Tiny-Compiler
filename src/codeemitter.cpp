@@ -375,32 +375,101 @@ std::string CodeEmitter::sub_emitter(const Instruction& i) {
 // pop rax
 // pop rdx
 std::string CodeEmitter::div_emitter(const Instruction& i) {
-    std::string emit_string = "# div\n";
-    
-    if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
-        emit_string += push_register(Register::RAX);
-    emit_string += push_register(Register::RDX);
-    
-    if (ir.get_assigned_register(i.rarg) == Register::RAX) {
+    std::string emit_string = "";
+    emit_string += std::format(R"(# div
+push %rdx 
+push %rax
+push {}
+push {}
+mov 8(%rsp), %rax
+div (%rsp)
+push %rax
+add $8, %rsp
+)", 
+    reg_str(i.larg), reg_str(i.rarg));
 
-    }
-    emit_string += mov_register(i.larg, Register::RAX);
-    
-    if (ir.is_const_instruction(i.rarg)) {
-        emit_string += std::format("push {}", reg_str(i.rarg));
-        emit_string += "div (%rsp)\nadd $8, %rsp\n";
-    } 
-    else if (ir.get_assigned_register(i.rarg) == Register::RDX){
-        emit_string += "div (%rsp)\n";
+    if(!ir.is_const_instruction(i.rarg)) {
+        emit_string += std::format("pop {}\n", reg_str(i.rarg));
     } else {
-        emit_string += div_instruction(i.rarg);
+        emit_string += "add $8, %rsp\n";
     }
-    emit_string += mov_register(Register::RAX, i.instruction_number);
+    if(!ir.is_const_instruction(i.larg)) {
+        emit_string += std::format("pop {}\n", reg_str(i.larg));
+    } else {
+        emit_string += "add $8, %rsp\n";
+    }
+    emit_string += std::format(R"(pop %rax
+pop %rdx
+mov -40(%rsp), {}
+)",
+    reg_str(i.instruction_number));
 
-    emit_string += pop_register(Register::RDX);
-    if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
-        emit_string += pop_register(Register::RAX);
     return emit_string;
+
+
+
+    // if(!ir.is_const_instruction(i.larg) && (ir.get_assigned_register(i.larg) != Register::RAX && ir.get_assigned_register(i.rarg) != Register::RAX)) {
+    //     emit_string += "push %rax\n";
+    // }
+    // if(!ir.is_const_instruction(i.rarg) && (ir.get_assigned_register(i.larg) != Register::RDX && ir.get_assigned_register(i.rarg) != Register::RDX)) {
+    //     emit_string += "push %rdx\n";
+    // }
+    // emit_string += std::format("push {}\npush {}\n", reg_str(i.larg), reg_str(i.rarg));
+    // emit_string += "mov 8(%rsp), %rax\ndiv (%rsp)\n";
+    // emit_string += mov_register(Register::RAX, i.instruction_number);
+    // if(ir.get_assigned_register(i.instruction_number) != ir.get_assigned_register(i.rarg)) {
+    //     emit_string += std::format("pop {}\n", reg_str(i.rarg));
+    // } else {
+    //     emit_string += "add %rsp, 8\n";
+    // }
+
+    // if(ir.get_assigned_register(i.instruction_number) != ir.get_assigned_register(i.larg)) {
+    //     emit_string += std::format("pop {}\n", reg_str(i.larg));
+    // } else {
+    //     emit_string += "add %rsp, 8\n";
+    // }
+
+    // if(!ir.is_const_instruction(i.rarg) && (ir.get_assigned_register(i.larg) != Register::RDX && ir.get_assigned_register(i.rarg) != Register::RDX)) {
+    //     if(ir.get_assigned_register(i.instruction_number) == Register::RDX) {
+    //         emit_string += "add %rsp, 8\n";
+    //     } else {
+    //         emit_string += "pop %rdx\n";
+    //     }
+    // }
+    // if(!ir.is_const_instruction(i.larg) && (ir.get_assigned_register(i.larg) != Register::RAX && ir.get_assigned_register(i.rarg) != Register::RAX)) {
+    //     if(ir.get_assigned_register(i.instruction_number) == Register::RAX) {
+    //         emit_string += "add %rsp, 8\n";
+    //     } else {
+    //         emit_string += "pop %rax\n";
+    //     }
+    //     emit_string += "pop %rax\n";
+    // }
+    // return emit_string;
+    
+    // if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
+    //     emit_string += push_register(Register::RAX);
+    // emit_string += push_register(Register::RDX);
+    
+    // if (ir.get_assigned_register(i.rarg) == Register::RAX) {
+
+    // }
+    // emit_string += mov_register(i.larg, Register::RAX);
+    
+    // if (ir.is_const_instruction(i.rarg)) {
+    //     emit_string += std::format("push {}", reg_str(i.rarg));
+    //     emit_string += "div (%rsp)\nadd $8, %rsp\n";
+    // } 
+    // else if (ir.get_assigned_register(i.rarg) == Register::RDX){
+    //     emit_string += "div (%rsp)\n";
+    // } else {
+    //     emit_string += div_instruction(i.rarg);
+    // }
+    // emit_string += mov_register(Register::RAX, i.instruction_number);
+
+    // emit_string += pop_register(Register::RDX);
+    // if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
+        // emit_string += pop_register(Register::RAX);
+    // return emit_string;
 }
 
 
