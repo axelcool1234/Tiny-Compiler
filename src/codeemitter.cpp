@@ -381,6 +381,7 @@ push %rdx
 push %rax
 push {}
 push {}
+mov $0, %rdx
 mov 8(%rsp), %rax
 div (%rsp)
 push %rax
