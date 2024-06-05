@@ -24,7 +24,7 @@ private:
     std::string emit_write(const Instruction& instruction);
     std::string emit_read(const Instruction& instruction);
     std::string emit_mov(const Instruction& instruction);
-
+    
     /** 
     * Syntax
     * mov <reg1>, <reg2> - if reg1 == reg2 no empty string added
@@ -58,6 +58,8 @@ private:
     */
     std::string sub_instruction(const instruct_t& left, const instruct_t& right);
     std::string sub_emitter(const Instruction& i);
+
+    std::string cmp_emitter(const Instruction& i);
 
     std::string reg_str(const instruct_t& instruct);
 
