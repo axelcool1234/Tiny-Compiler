@@ -159,16 +159,6 @@ std::string CodeEmitter::emit_block(const bb_t& b) {
     return block_string;
 }
 
-std::string CodeEmitter::emit_basic(const Instruction& i, const std::string& opcode) {
-    if(ir.is_const_instruction(i.larg) || ir.is_const_instruction(i.rarg)) {  
-        return std::format("movq {}, {}\n{} {}, {}\n", reg_str(i.larg), reg_str(i.instruction_number), opcode, reg_str(i.rarg), reg_str(i.instruction_number));
-    }
-    if(ir.get_assigned_register(i.instruction_number) == ir.get_assigned_register(i.larg)) {    
-        return std::format("{} {}, {}\n", opcode, reg_str(i.larg), reg_str(i.rarg));
-    }
-    return std::format("mov {}, {}\n{} {}, {}\n", reg_str(i.instruction_number), reg_str(i.larg), opcode, reg_str(i.rarg), reg_str(i.instruction_number));
-}
-
 std::string CodeEmitter::emit_branch(const instruct_t& i, const std::string& opcode) {
     return std::format("{} branch{}\n", opcode, i);
 }
@@ -193,69 +183,26 @@ std::string CodeEmitter::emit_read(const Instruction& instruction) {
     return result + std::format("mov %r11, {}\n", reg_str(instruction.instruction_number));
 }
 
-std::string CodeEmitter::emit_mov(const Instruction& instruction) {
-    if(ir.is_const_instruction(instruction.rarg) || ir.get_assigned_register(instruction.larg) != ir.get_assigned_register(instruction.rarg)) {
-        return std::format("mov {}, {}\n", reg_str(instruction.larg), reg_str(instruction.rarg));
-    }
-    return "";
-}
+std::string CodeEmitter::mov_instruction(const instruct_t& src, const instruct_t& dest) {
+    std::string result = "";
+    std::string src_str = reg_str(src);
 
-std::string CodeEmitter::mov_instruction(const instruct_t& from, const instruct_t& to) {
-    if (!ir.is_const_instruction(from) && !ir.is_const_instruction(to))
+    if(ir.get_assigned_register(src) == ir.get_assigned_register(dest))
     {
-        if(reg_str(from) == reg_str(to))
-        {
-            return "";
-        }
-        else
-            return std::format("mov {}, {}\n", reg_str(from), reg_str(to));
+        return "";
     }
-   
-    else if(ir.is_const_instruction(from) && !ir.is_const_instruction(to))
+    
+    if(is_virtual_reg(src) && is_virtual_reg(dest)) {
+        result += std::format("mov {}, %r11\n", reg_str(src));
+        src_str = "%r11";
+    }
+    
+    if (!ir.is_const_instruction(dest))
     {
-        return std::format("mov {}, {}\n", reg_str(from), reg_str(to));
+        return result + std::format("mov {}, {}\n", src_str, reg_str(dest));
     }
 
-    std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
-    return "";
-}
-
-// mov_register(i.larg, Register::RAX)
-
-std::string CodeEmitter::mov_register(const instruct_t& from, Register to)
-{
-    if(!ir.is_const_instruction(from))
-    {
-        if (reg_str(from) == reg_str_list[to])
-            return "";
-        else
-            return std::format("mov {}, {}\n", reg_str(from), reg_str_list[to]);
-    }
-
-    else if (ir.is_const_instruction(from))
-    {
-        return std::format("mov {}, {}\n", reg_str(from), reg_str_list[to]);
-    }
-
-    std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
-    return "";
-}
-
-std::string CodeEmitter::mov_register(Register from, const instruct_t& to)
-{
-    if(!ir.is_const_instruction(to))
-    {
-        if (reg_str(to) == reg_str_list[from])
-            return "";
-        else
-            return std::format("mov {}, {}\n", reg_str_list[from], reg_str(to));
-    }
-    // else if (!ir.is_const_instruction(to))
-    // {
-    //     return std::format("mov {}, {}\n", reg_str_list[from], reg_str(to));
-    // }
-
-    std::cout << "Error: Invalid input to mov_instruction in codeemitter.cpp\n";
+    std::cout << "error: invalid input to mov_instruction in codeemitter.cpp\n";
     return "";
 }
 
@@ -266,6 +213,9 @@ std::string CodeEmitter::mov_register(Register from, const instruct_t& to)
 */
 std::string CodeEmitter::add_instruction(const instruct_t& left, const instruct_t& right)
 {
+    if(is_virtual_reg(left) && is_virtual_reg(right)) {
+        return std::format("mov {}, %r11\nadd %r11, {}\n", reg_str(left), reg_str(right)); 
+    }
     return std::format("add {}, {}\n", reg_str(left), reg_str(right));
 }
 
@@ -276,39 +226,13 @@ std::string CodeEmitter::add_instruction(const instruct_t& left, const instruct_
 */
 std::string CodeEmitter::sub_instruction(const instruct_t& left, const instruct_t& right)
 {
+    if(is_virtual_reg(left) && is_virtual_reg(right)) {
+        return std::format("mov {}, %r11\nsub %r11, {}\n", reg_str(left), reg_str(right)); 
+    }
     return std::format("sub {}, {}\n", reg_str(left), reg_str(right));
 
 }
 
-// push <reg64>
-std::string CodeEmitter::push_instruction(const instruct_t& i) {
-    if (!ir.is_const_instruction(i)) {
-        return std::format("push {}\n", reg_str(i));
-    }
-    std::cout << "Error: Invalid input to push_instruction in codeemitter.cpp\n";
-    return "";
-}
-
-//override push for enum
-std::string CodeEmitter::push_register(Register reg)
-{
-    return std::format("push {}\n", reg_str_list[reg]);
-}
-
-// pop <reg64>
-std::string CodeEmitter::pop_instruction(const instruct_t& i) {
-    if (!ir.is_const_instruction(i)) {
-        return std::format("pop {}\n", reg_str(i));
-    }
-    std::cout << "Error: Invalid input to pop_instruction in codeemitter.cpp\n";
-    return "";
-}
-
-//override pop for enum
-std::string CodeEmitter::pop_register(Register reg)
-{
-    return std::format("pop {}\n", reg_str_list[reg]);
-}
 
 std::string CodeEmitter::add_emitter(const Instruction& i) {
     if(reg_str(i.larg) == reg_str(i.instruction_number)) {
@@ -321,26 +245,15 @@ std::string CodeEmitter::add_emitter(const Instruction& i) {
 }
 
 std::string CodeEmitter::sub_emitter(const Instruction& i) {
-    if(!ir.is_const_instruction(i.rarg)){
-        return std::format("neg {}\n", reg_str(i.rarg)) + add_emitter(i);
+    if(reg_str(i.larg) == reg_str(i.instruction_number)) {
+        return sub_instruction(i.rarg, i.instruction_number);
+    } else if(reg_str(i.rarg) == reg_str(i.instruction_number)){
+        return sub_instruction(i.larg, i.instruction_number);
     }
     return mov_instruction(i.larg, i.instruction_number) + 
         sub_instruction(i.rarg, i.instruction_number);
 }
 
-// push rdx
-// push rax
-// mov $0, rdx
-
-// mov i.larg rax
-// if i.rarg == rdx:
-//  div (%rsp)
-// else:
-//   div i.rarg
-// mov rax i.instruction_number
-
-// pop rax
-// pop rdx
 std::string CodeEmitter::scale_emitter(const Instruction& i, const std::string& operator_str) {
     std::string emit_string = "";
     emit_string += std::format(R"(push %rdx 
@@ -367,76 +280,12 @@ add $8, %rsp
     }
     emit_string += std::format(R"(pop %rax
 pop %rdx
-mov -40(%rsp), {}
+mov -40(%rsp), %r11
+mov %r11, {}
 )",
     reg_str(i.instruction_number));
 
     return emit_string;
-
-
-
-    // if(!ir.is_const_instruction(i.larg) && (ir.get_assigned_register(i.larg) != Register::RAX && ir.get_assigned_register(i.rarg) != Register::RAX)) {
-    //     emit_string += "push %rax\n";
-    // }
-    // if(!ir.is_const_instruction(i.rarg) && (ir.get_assigned_register(i.larg) != Register::RDX && ir.get_assigned_register(i.rarg) != Register::RDX)) {
-    //     emit_string += "push %rdx\n";
-    // }
-    // emit_string += std::format("push {}\npush {}\n", reg_str(i.larg), reg_str(i.rarg));
-    // emit_string += "mov 8(%rsp), %rax\ndiv (%rsp)\n";
-    // emit_string += mov_register(Register::RAX, i.instruction_number);
-    // if(ir.get_assigned_register(i.instruction_number) != ir.get_assigned_register(i.rarg)) {
-    //     emit_string += std::format("pop {}\n", reg_str(i.rarg));
-    // } else {
-    //     emit_string += "add %rsp, 8\n";
-    // }
-
-    // if(ir.get_assigned_register(i.instruction_number) != ir.get_assigned_register(i.larg)) {
-    //     emit_string += std::format("pop {}\n", reg_str(i.larg));
-    // } else {
-    //     emit_string += "add %rsp, 8\n";
-    // }
-
-    // if(!ir.is_const_instruction(i.rarg) && (ir.get_assigned_register(i.larg) != Register::RDX && ir.get_assigned_register(i.rarg) != Register::RDX)) {
-    //     if(ir.get_assigned_register(i.instruction_number) == Register::RDX) {
-    //         emit_string += "add %rsp, 8\n";
-    //     } else {
-    //         emit_string += "pop %rdx\n";
-    //     }
-    // }
-    // if(!ir.is_const_instruction(i.larg) && (ir.get_assigned_register(i.larg) != Register::RAX && ir.get_assigned_register(i.rarg) != Register::RAX)) {
-    //     if(ir.get_assigned_register(i.instruction_number) == Register::RAX) {
-    //         emit_string += "add %rsp, 8\n";
-    //     } else {
-    //         emit_string += "pop %rax\n";
-    //     }
-    //     emit_string += "pop %rax\n";
-    // }
-    // return emit_string;
-    
-    // if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
-    //     emit_string += push_register(Register::RAX);
-    // emit_string += push_register(Register::RDX);
-    
-    // if (ir.get_assigned_register(i.rarg) == Register::RAX) {
-
-    // }
-    // emit_string += mov_register(i.larg, Register::RAX);
-    
-    // if (ir.is_const_instruction(i.rarg)) {
-    //     emit_string += std::format("push {}", reg_str(i.rarg));
-    //     emit_string += "div (%rsp)\nadd $8, %rsp\n";
-    // } 
-    // else if (ir.get_assigned_register(i.rarg) == Register::RDX){
-    //     emit_string += "div (%rsp)\n";
-    // } else {
-    //     emit_string += div_instruction(i.rarg);
-    // }
-    // emit_string += mov_register(Register::RAX, i.instruction_number);
-
-    // emit_string += pop_register(Register::RDX);
-    // if (ir.get_assigned_register(i.instruction_number) != Register::RAX) 
-        // emit_string += pop_register(Register::RAX);
-    // return emit_string;
 }
 
 std::string CodeEmitter::cmp_emitter(const Instruction& i) {
@@ -578,7 +427,7 @@ std::string CodeEmitter::reg_str(const instruct_t& instruct) {
 }
 
 bool CodeEmitter::is_virtual_reg(const instruct_t& instruct) {
-  return ir.get_assigned_register(instruct) >= Register::UNASSIGNED;
+    return !ir.is_const_instruction(instruct) && ir.get_assigned_register(instruct) >= Register::UNASSIGNED;
 }
 
 int CodeEmitter::virtual_reg_offset(const instruct_t& instruct) {
