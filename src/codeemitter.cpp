@@ -187,14 +187,10 @@ std::string CodeEmitter::emit_write(const Instruction& instruction) {
 }
 
 std::string CodeEmitter::emit_read(const Instruction& instruction) {
-    std::string result = "push %rdi\npush %rsi\npush %rdx\npush %rcx\n";
-    if(ir.get_assigned_register(instruction.instruction_number) == Register::RAX) {
-        result += "call read\n";
-    } else {
-        result += std::format("push %rax\ncall read\nmov {}, %rax\npop %rax\n", reg_str(instruction.instruction_number));
-    }
-    return result + "pop %rcx\npop %rdx\npop %rsi\npop %rdi\n";
-
+    std::string result = "push %rax\npush %rdi\npush %rsi\npush %rdx\npush %rcx\n";
+    result += "call read\nmov %rax, %r11\n";
+    result += "pop %rcx\npop %rdx\npop %rsi\npop %rdi\npop %rax\n";
+    return result + std::format("mov %r11, {}\n", reg_str(instruction.instruction_number));
 }
 
 std::string CodeEmitter::emit_mov(const Instruction& instruction) {
