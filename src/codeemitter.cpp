@@ -129,9 +129,9 @@ pushq %r15
 mov %rsp, %r11
 add $120, %rsp
 )";
+        getting_pars = true;
         for(bb_t func_index = ir.get_successors(0).at(index); func_index < ir.get_successors(0).at(index+1); ++func_index) {
             program_string += std::format("\n# BB{}\n", func_index);
-            getting_pars = true;
             program_string += block(func_index);
         }
     }
@@ -377,8 +377,9 @@ mov %r11, %rsp
             return prologue() + std::format(R"(add ${}, %rsp
 pop %rbp
 add $112, %rsp
+{}
 ret
-)", 8 * ir.spill_count); 
+)", 8 * ir.spill_count, i.larg != -1 ? std::format("mov {}, %rax", reg_str(i.larg)) : ""); 
         case(Opcode::MOV):
             return prologue() + mov_instruction(i.rarg, i.larg);
         case(Opcode::SWAP):
