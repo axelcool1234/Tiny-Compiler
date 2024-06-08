@@ -187,7 +187,8 @@ std::string CodeEmitter::mov_instruction(const instruct_t& src, const instruct_t
     std::string result = "";
     std::string src_str = reg_str(src);
 
-    if(ir.get_assigned_register(src) == ir.get_assigned_register(dest))
+    if(!ir.is_const_instruction(src) && !ir.is_const_instruction(dest) &&
+       ir.get_assigned_register(src) == ir.get_assigned_register(dest))
     {
         return "";
     }
@@ -232,7 +233,6 @@ std::string CodeEmitter::sub_instruction(const instruct_t& left, const instruct_
     return std::format("sub {}, {}\n", reg_str(left), reg_str(right));
 
 }
-
 
 std::string CodeEmitter::add_emitter(const Instruction& i) {
     if(reg_str(i.larg) == reg_str(i.instruction_number)) {
