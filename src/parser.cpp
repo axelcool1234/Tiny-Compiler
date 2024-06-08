@@ -126,6 +126,9 @@ instruct_t Parser::function_body(const std::vector<ident_t>& formal_params, cons
     match(Terminal::LBRACE);
     statement_sequence(func_block, Terminal::RBRACE);
     match(Terminal::RBRACE);
+    if(!ir.has_branch_instruction(func_block)) {
+        ir.set_branch_cond(func_block, Opcode::RET, -1);
+    }
     return ir.first_instruction(og_func_block);
 }
 
