@@ -362,7 +362,7 @@ popq %rax
         case(Opcode::MOV):
             return prologue() + mov_instruction(i.rarg, i.larg);
         case(Opcode::SWAP):
-            return prologue() + std::format("xchg {}, {}\n", reg_str(i.larg), reg_str(i.rarg));
+            return prologue() + result += std::format("mov {}, %r11\nmov {}, {}\nmov %r11, {}\n", reg_str(i.larg), reg_str(i.rarg), reg_str(i.larg), reg_str(i.rarg));
         case(Opcode::GETPAR):
             return std::format("pop {}\n", reg_str(i.instruction_number));
         case(Opcode::SETPAR):
