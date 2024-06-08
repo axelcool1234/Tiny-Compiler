@@ -3,8 +3,6 @@
 #include <vector>
 #include <fstream>
 #include <cstring>
-#include <unordered_set>
-#include <ranges>
 
 #include <iostream>
 
@@ -14,65 +12,65 @@
 constexpr size_t VADDR_START = 0x08048000;
 constexpr size_t NUM_SECTIONS = 2;
 
-// instruction -> bytecode size
-static const std::unordered_set<std::string, size_t> instructions_list {
-    {"leaq"     , 16},
-    {"movq"     , 16},
-    {"movb"     , 16},
-    {"movzxb"   , 16},
-    {"movabsq"  , 16},
-
-    {"xorq"     , 16},
-
-    {"addq"     , 16},
-    {"subq"     , 16},
-    {"divq"     , 16},
-    {"imulq"    , 16},
-    {"incq"     , 16},
-    {"decq"     , 16},
-
-    {"cmpq"     , 16},
-    {"cmpb"     , 16},
-
-    {"jmp"      , 16},
-    {"jne"      , 16},
-    {"jge"      , 16},
-    {"je"       , 16},
-
-    {"pushq"    , 16},
-    {"push"     , 16},
-    {"pop"      , 16},
-
-    {"call"     , 16},
-    {"ret"      , 16},
-    {"rep"      , 16},
-    {"cld"      , 16},
-    {"testq"    , 16},
-    {"syscall"  , 16},
-};
-
-static const std::unordered_set<std::string> directives {
-    ".section",
-    ".global",
-};
 
 
+// TODO
+// x86 instructions will fill out IntelInstruction struct in
+// assemble_instruction based mainly on its operands, find out what types the
+// operands are and fill in the fields accordingly
+//
+// AS FAR AS I KNOW the only multibyte opcode we're using is syscall, so that's
+// why it's a variant. displacement and sib are often unused.
+//
+// thinking about doing one pass, maintain a map of (unkown used labels) to
+// (vector of the addresses they're used). When we find a label/data
+// definition, then go through and find all places that thing was used in this
+// map, then remove it from the map. the map MUST be empty by the end
+//
+// hardcode everything to be 64-bit if possible
+//
+// putting notes in discord about how the bytecode looks
 void Assembler::read_symbols()
 {
-    // TODO kept in memory for now, maybe write to disk
-    // std::istream_iterator<std::string> it{infile}, end{};
-    Elf64_Addr curr_addr{};
+    // kept in memory for now, maybe write to disk later
+    [[maybe_unused]] Elf64_Addr curr_addr{};
+    std::istream_iterator<std::string> is{infile}, end{};
 
-    // Anytime a label is used, store it's address in the table.  If we're
-    // looking at the data section then store all variable names.
-    for (std::string s: std::views::istream<std::string>(infile)) {
-        if (s == ".section .data") {
-            // read_data_symbols();
-        } else if (s.ends_with(':')) {
-            sym_table[s] = curr_addr;
+    while (is != end) {
+        if (directives.contains(*is)) {
+            ++is; ++is;
+
+        } else if (instructions.contains(*is)) { // parse instruction into vector to analyze
+            std::vector<std::string> curr_instr;
+            curr_instr.push_back(*is);
+
+            int num_ops = instructions.at(*is++)[0];
+            for (int i = 0; i < num_ops; ++i) {
+                curr_instr.push_back(*is);
+                if (curr_instr.back().ends_with(',')) {
+                    curr_instr.back().pop_back();
+                }
+                ++is;
+            }
+
+            // [[maybe_unused]] IntelInstruction ii = assemble_instruction(curr_instr);
+
+            std::ranges::copy(curr_instr, std::ostream_iterator<std::string>{std::cout, "\t"});
+            std::cout << std::endl;
+
+        } else {
+            // std::cout << "something else: " << *is << std::endl;
+            ++is;
+
         }
     }
 
+}
+
+IntelInstruction assemble_instruction(const std::vector<std::string>& instr) {
+
+
+    return {};
 }
 
 

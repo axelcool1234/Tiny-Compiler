@@ -1,73 +1,64 @@
 .section .text
 .global _start
-    # movq $0xbeefcafedeadfeeb, %r8
-    # movq $0xbeefcafedeadfeeb, %r9
-    # movq $0xbeefcafedeadfeeb, %r10
-    # movq $0xbeefcafedeadfeeb, %r11
-    # movq $0xbeefcafedeadfeeb, %r12
-    # movq $0xbeefcafedeadfeeb, %r13
-    # movq $0xbeefcafedeadfeeb, %r14
-    # movq $0xbeefcafedeadfeeb, %r15
 write:
-    movabsq $10, %rcx       # divisor
-    xorq %rbx, %rbx         # count digits
+    mov $0xbeefcafebeefcafe, %r8
+    movabs $10, %rcx
+    xor %rbx, %rbx
 
 _divide:
-    xorq %rdx, %rdx         # High part = 0
-    divq %rcx               # RAX = RDX:RAX / RCX, RDX = remainder
-    pushq %rdx              # DL is a digit in range [0..9]
-    incq %rbx               # Count digits
-    testq %rax, %rax        # RAX is 0?
-    jnz _divide             # No, continue
+    xor %rdx, %rdx
+    div %rcx
+    push %rdx
+    inc %rbx
+    cmp $0, %rax
+    jne _divide
 
-    # POP digits from stack in reverse order
-    movq %rbx, %rcx         # Number of digits
-    leaq strResult, %rsi    # RSI points to string buffer
+
+    mov %rbx, %rcx
+    lea strResult, %rsi
 
 _next_digit:
-    popq %rax
-    addb $'0', %al          # Convert to ASCII
-    movq $0xbeefcafedeadfeeb, %r13
-    movb %dl, (%rsi)        # Write it to the buffer
-    movq $0xbeefcafedeadfeeb, %r13
-    incq %rsi
-    decq %rcx
-    jnz _next_digit          # Repeat until all digits are processed
+    pop %rax
+    add $'0', %al
+    mov %al, (%rsi)
+    inc %rsi
+    dec %rcx
+    jnz _next_digit
 
-    # Null-terminate the string
-    movb $0, (%rsi)         # Null terminator
 
-    # Prepare for sys_write
-    movq $1, %rax           # sys_write system call number
-    movq $1, %rdi           # File descriptor (stdout)
-    leaq strResult, %rsi    # Buffer (string to print)
-    movq %rbx, %rdx         # Length
-    syscall                 # Invoke system call
+    mov $0, (%rsi)
 
-    # Return
+
+    mov $1, %rax
+    mov $1, %rdi
+    lea strResult, %rsi
+    mov %rbx, %rdx
+    syscall
+
+
     ret
 
-# Entry point for read routine
-read:
-    movq $0, %rax                # syscall: read
-    movq $0, %rdi                # fd: stdin
-    leaq buff(%rip), %rsi        # buffer to store input
-    movq $11, %rdx               # max number of bytes to read
-    syscall                      # make syscall
 
-    leaq buff(%rip), %rsi        # RSI points to the input buffer
-    xorq %rax, %rax              # Clear RAX (result)
-    xorq %rdi, %rdi              # Clear RDI (multiplier)
+read:
+    mov $0, %rax
+    mov $0, %rdi
+    lea buff(%rip), %rsi
+    mov $11, %rdx
+    syscall
+
+    lea buff(%rip), %rsi
+    xor %rax, %rax
+    xor %rdi, %rdi
 
 _read_loop:
-    movzxb (%rsi), %rcx          # Load current byte into RCX
-    cmpb $0x0A, %cl              # Check for newline character
-    je _read_done                # If newline, we're done
-    subq $'0', %rcx              # Convert ASCII to integer
-    imulq $10, %rax              # Multiply current result by 10
-    addq %rcx, %rax              # Add current digit to result
-    incq %rsi                    # Move to next character
-    jmp _read_loop               # Repeat for next character
+    movzx (%rsi), %rcx
+    cmp $0x0A, %cl
+    je _read_done
+    sub $'0', %rcx
+    imul $10, %rax
+    add %rcx, %rax
+    inc %rsi
+    jmp _read_loop
 
 _read_done:
     ret
@@ -75,7 +66,7 @@ _read_done:
 _start:
 
 
-# BB1
+
 push %rdi
 push %rsi
 push %rdx
@@ -96,12 +87,11 @@ pop %rdi
 pop %rdx
 pop %rcx
 pop %rbx
-movq $60, %rax    # System call number for exit
-movq $0, %rdi     # Exit code 0
+mov $60, %rax
+mov $0, %rdi
 syscall
 
 
 .section .data
     strResult: .space 16, 0
     buff: .skip 11
-
