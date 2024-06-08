@@ -129,6 +129,7 @@ bool RegisterAllocator::non_reg_instruction(const Instruction& instruction) {
            instruction.opcode == Opcode::BLT ||
            instruction.opcode == Opcode::BGE ||
            instruction.opcode == Opcode::BGT ||
+           instruction.opcode == Opcode::JSR ||
            instruction.opcode == Opcode::EMPTY; 
 }
 
