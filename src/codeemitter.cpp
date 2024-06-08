@@ -112,6 +112,23 @@ syscall                 # Invoke system call
     for(size_t index = 0; index < ir.get_successors(0).size() - 1; ++index) {
         program_string += std::format("function{}:\n", ir.get_instructions(ir.get_successors(0).at(index)).at(0).instruction_number);
         // program_string += std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
+        program_string += R"(push %rbp
+pushq %rax
+pushq %rbx
+pushq %rcx
+pushq %rdx
+pushq %rsi
+pushq %rdi
+pushq %r8
+pushq %r9
+pushq %r10
+pushq %r12
+pushq %r13
+pushq %r14
+pushq %r15
+mov %rsp, %r11
+add $120, %rsp
+)";
         for(bb_t func_index = ir.get_successors(0).at(index); func_index < ir.get_successors(0).at(index+1); ++func_index) {
             program_string += std::format("\n# BB{}\n", func_index);
             getting_pars = true;
@@ -293,7 +310,15 @@ std::string CodeEmitter::cmp(const Instruction& i) {
 std::string CodeEmitter::prologue() {
     if(getting_pars) {
         getting_pars = false;
-        return std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp\n", -8 * ir.spill_count);
+        return std::format(R"(mov %rsp, %rbp
+mov %r11, %rsp
+mov %rbp, %r11
+mov 104(%rsp), %rbp
+mov %r11, 104(%rsp)
+push %rbp
+mov %rsp, %rbp
+add ${}, %rsp 
+)", -8 * ir.spill_count);
     }
     return "";
 }
@@ -328,21 +353,9 @@ std::string CodeEmitter::instruction(const Instruction& i) {
         case(Opcode::JSR):
             additional_instructions = set_par_str;
             set_par_str = "";
-            return prologue() + std::format(R"(pushq %rax
-pushq %rbx
-pushq %rcx
-pushq %rdx
-pushq %rsi
-pushq %rdi
-pushq %r8
-pushq %r9
-pushq %r10
-pushq %r12
-pushq %r13
-pushq %r14
-pushq %r15
-{}
+            return prologue() + std::format(R"({}
 call function{}
+add $-120, %rsp
 popq %r15
 popq %r14
 popq %r13
@@ -355,10 +368,17 @@ popq %rsi
 popq %rdx
 popq %rcx
 popq %rbx
-popq %rax
-)", additional_instructions, i.larg);
+mov %rax, {}
+{}
+pop %r11
+mov %r11, %rsp
+)", additional_instructions, i.larg, reg_str(i.instruction_number), ir.get_assigned_register(i.instruction_number) == Register::RAX ? "add $8, %rsp" : "popq %rax");
         case(Opcode::RET):
-            return prologue() + "movq %rbp, %rsp\npopq %rbp\nret\n"; 
+            return prologue() + std::format(R"(add ${}, %rsp
+pop %rbp
+add $112, %rsp
+ret
+)", 8 * ir.spill_count); 
         case(Opcode::MOV):
             return prologue() + mov_instruction(i.rarg, i.larg);
         case(Opcode::SWAP):
