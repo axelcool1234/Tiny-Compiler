@@ -1,0 +1,50 @@
+main
+var m, a, b, c, maxCheck, exists;
+
+function square(x);
+{
+    return x * x;
+};
+
+function isPythagoreanTriplet(a, b, c);
+{
+    if call square(a) + call square(b) == call square(c) then
+        return 1;
+    else
+        return 0;
+    fi;
+};
+
+function checkTriplet(m);
+{
+    let exists <- 0;
+    let a <- 1;
+    while a <= m do
+        let b <- a;
+        while b <= m do
+            let c <- b;
+            while c <= m do
+                if call isPythagoreanTriplet(a, b, c) == 1 then
+                    if a == m then let exists <- 1; fi;
+                    if b == m then let exists <- 1; fi;
+                    if c == m then let exists <- 1; fi;
+                fi;
+                let c <- c + 1;
+            od;
+            let b <- b + 1;
+        od;
+        let a <- a + 1;
+    od;
+    return exists;
+};
+
+{
+    call InputNum();
+    let m <- num;
+    let exists <- call checkTriplet(m);
+    if exists == 1 then
+        call OutputNum(1);
+    else
+        call OutputNum(0);
+    fi;
+}.
