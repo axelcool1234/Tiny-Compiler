@@ -3,6 +3,8 @@
 
 #include <elf.h>
 #include <fstream>
+#include <functional>
+#include <iterator>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -10,11 +12,18 @@
 
 void write_hello();
 
+constexpr int INSTR_REX     = 0;
+constexpr int INSTR_OP      = 1;
+constexpr int INSTR_MODRM   = 2;
+constexpr int INSTR_SIB     = 3;
+constexpr int INSTR_DISP    = 4;
+constexpr int INSTR_IMM     = 5;
 struct IntelInstruction {
-    struct { uint8_t hdr : 4, w : 1, r : 1, x : 1, b : 1; } REX;
-    std::variant<uint8_t,uint16_t> opcode;
-    struct { uint8_t mod : 2, reg : 3, rm  : 3; } modrm;
-    struct { uint8_t scale : 2, index : 3, base  : 3; } sib;
+    std::array<bool, 6> used_fields{};
+    struct { uint8_t b : 1, x : 1, r : 1, w : 1, b4 : 1, b3 : 1, b2 : 1, b1 : 1; } rex;
+    uint8_t opcode;
+    struct { uint8_t rm : 3, reg : 3, mod  : 2; } modrm;
+    struct { uint8_t base : 3, index : 3, scale  : 2; } sib;
     uint64_t displacement;
     uint64_t immediate;
 };
@@ -43,44 +52,40 @@ public:
      */
     void create_binary();
 
+
 private:
-    IntelInstruction assemble_instruction(const std::vector<std::string>& instr);
+    IntelInstruction assemble_instruction(std::istream_iterator<std::string>& is);
+
+    static void setREXW(IntelInstruction& result);
+
+    static IntelInstruction create_mov(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_xor(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_div(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_push(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_pop(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_inc(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_dec(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_test(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_jmp(std::istream_iterator<std::string>& is);
+    static IntelInstruction create_jne(std::istream_iterator<std::string>& is);
+
+    inline static const std::unordered_map<std::string, std::function<IntelInstruction(std::istream_iterator<std::string>&)>> instructions {
+        {"mov",     create_mov},
+        {"movabs",  create_mov},
+        {"xor",     create_xor},
+        {"div",     create_div},
+        {"push",    create_push},
+        {"pop",     create_pop},
+        {"inc",     create_inc},
+        {"dec",     create_dec},
+        {"test",    create_test},
+    };
 
     std::ifstream infile;
-    std::unordered_map<std::string, Elf64_Addr> sym_table;
-    std::vector<uint8_t> bytecode;
+    std::unordered_map<std::string, size_t> sym_table;
 };
 
 
-// values are vector containing the opcode and the number of operands
-static const std::unordered_map<std::string, std::vector<size_t>> instructions {
-    {"syscall"  , {0x050f, 0}},
-    {"ret"      , {0xc3, 0}},
-
-    {"push"     , {0x50, 1}},
-    {"pop"      , {0x58, 1}},
-    {"inc"      , {0xff, 1}},
-    {"dec"      , {0xff, 1}},
-    {"je"       , {0x74, 1}},
-    {"jne"      , {0x75, 1}},
-    {"jmp"      , {0xe9, 1}},
-    {"div"      , {0xf7, 1}},
-    {"call"     , {0xe8, 1}},
-
-    {"cmp"      , {0x00, 2}},
-
-    {"mov"      , {0x00, 2}},
-    {"movabs"   , {0x00, 2}},
-    {"movzx"    , {0x00, 2}},
-
-    {"lea"      , {0x00, 2}},
-    {"xor"      , {0x00, 2}},
-    {"add"      , {0x00, 2}},
-    {"sub"      , {0x00, 2}},
-    {"mul"      , {0x00, 2}},
-    {"imul"     , {0x00, 2}},
-    {"idiv"     , {0x00, 2}},
-};
 
 static const std::unordered_set<std::string> directives {
     ".section",

@@ -1,94 +1,94 @@
 .section .text
 .global _start
 write:
-    movabsq $10, %rcx       # divisor
-    xorq %rbx, %rbx         # count digits
+    movabs $10, %rcx
+    xor %rbx, %rbx
 
 _divide:
-    xorq %rdx, %rdx         # High part = 0
-    divq %rcx               # RAX = RDX:RAX / RCX, RDX = remainder
-    pushq %rdx              # DL is a digit in range [0..9]
-    incq %rbx               # Count digits
-    testq %rax, %rax        # RAX is 0?
-    jnz _divide             # No, continue
+    xor %rdx, %rdx
+    div %rcx
+    push %rdx
+    inc %rbx
+    test %rax, %rax
+    jnz _divide
 
-    # POP digits from stack in reverse order
-    movq %rbx, %rcx         # Number of digits
-    leaq strResult, %rsi    # RSI points to string buffer
+
+    mov %rbx, %rcx
+    lea strResult, %rsi
 
 _next_digit:
-    popq %rax
-    addb $'0', %al          # Convert to ASCII
-    movb %al, (%rsi)        # Write it to the buffer
-    incq %rsi
-    decq %rcx
-    jnz _next_digit          # Repeat until all digits are processed
+    pop %rax
+    add $'0', %al
+    mov %al, (%rsi)
+    inc %rsi
+    dec %rcx
+    jnz _next_digit
 
-    # Null-terminate the string
-    movb $0, (%rsi)         # Null terminator
 
-    # Prepare for sys_write
-    movq $1, %rax           # sys_write system call number
-    movq $1, %rdi           # File descriptor (stdout)
-    leaq strResult, %rsi    # Buffer (string to print)
-    movq %rbx, %rdx         # Length
-    syscall                 # Invoke system call
+    mov $0, (%rsi)
 
-    # Return
+
+    mov $1, %rax
+    mov $1, %rdi
+    lea strResult, %rsi
+    mov %rbx, %rdx
+    syscall
+
+
     ret
 
-# Entry point for read routine
-read:
-    movq $0, %rax                # syscall: read
-    movq $0, %rdi                # fd: stdin
-    leaq buff(%rip), %rsi        # buffer to store input
-    movq $11, %rdx               # max number of bytes to read
-    syscall                      # make syscall
 
-    leaq buff(%rip), %rsi        # RSI points to the input buffer
-    xorq %rax, %rax              # Clear RAX (result)
-    xorq %rdi, %rdi              # Clear RDI (multiplier)
+read:
+    mov $0, %rax
+    mov $0, %rdi
+    lea buff(%rip), %rsi
+    mov $11, %rdx
+    syscall
+
+    lea buff(%rip), %rsi
+    xor %rax, %rax
+    xor %rdi, %rdi
 
 _read_loop:
-    movzxb (%rsi), %rcx          # Load current byte into RCX
-    cmpb $0x0A, %cl              # Check for newline character
-    je _read_done                # If newline, we're done
-    subq $'0', %rcx              # Convert ASCII to integer
-    imulq $10, %rax              # Multiply current result by 10
-    addq %rcx, %rax              # Add current digit to result
-    incq %rsi                    # Move to next character
-    jmp _read_loop               # Repeat for next character
+    movzx (%rsi), %rcx
+    cmp $0x0A, %cl
+    je _read_done
+    sub $'0', %rcx
+    imul $10, %rax
+    add %rcx, %rax
+    inc %rsi
+    jmp _read_loop
 
 _read_done:
     ret
 
 _start:
 
-pushq %rbp
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-# BB13
+
 push $110
 push $121
 
 call function20
 add $0, %rsp
-popq %r15
-popq %r14
-popq %r13
-popq %r12
-popq %r10
-popq %r9
-popq %r8
-popq %rdi
-popq %rsi
-popq %rdx
-popq %rcx
-popq %rbx
+pop %r15
+pop %r14
+pop %r13
+pop %r12
+pop %r10
+pop %r9
+pop %r8
+pop %rdi
+pop %rsi
+pop %rdx
+pop %rcx
+pop %rbx
 mov %rax, %rax
-add $8, %rsp 
-popq %rbp
-movq %rbp, %rsp
+add $8, %rsp
+pop %rbp
+mov %rbp, %rsp
 push %rbx
 push %rcx
 push %rdx
@@ -108,205 +108,205 @@ push %rcx
 mov $1, %rax
 mov $1, %rdi
 mov $newline, %rsi
-mov $newline_len, %rdx 
+mov $newline_len, %rdx
 syscall
 pop %rcx
 pop %rdx
 pop %rsi
 pop %rdi
 pop %rax
-movq $60, %rax          # sys_exit system call number
-xorq %rdi, %rdi         # Status: 0
-syscall                 # Invoke system call
+mov $60, %rax
+xor %rdi, %rdi
+syscall
 
 function1:
-pushq %rax
-pushq %rbx
-pushq %rcx
-pushq %rdx
-pushq %rsi
-pushq %rdi
-pushq %r8
-pushq %r9
-pushq %r10
-pushq %r12
-pushq %r13
-pushq %r14
-pushq %r15
+push %rax
+push %rbx
+push %rcx
+push %rdx
+push %rsi
+push %rdi
+push %r8
+push %r9
+push %r10
+push %r12
+push %r13
+push %r14
+push %r15
 mov %rsp, %r11
 add $104, %rsp
 
-# BB1
+
 pop %rbx
 pop %rax
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 mov $0, %r11
 cmp %r11, %rbx
 jne branch6
 
-# BB2
+
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 ret
 
-# BB3
+
 branch6:
 
-# BB4
+
 branch10:
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 mov $0, %r11
 cmp %r11, %rax
 jge branch12
 
-# BB5
+
 branch9:
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 add %rbx, %rax
 jmp branch10
 
-# BB6
+
 branch12:
 
-# BB7
+
 branch16:
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 cmp %rbx, %rax
 jl branch18
 
-# BB8
+
 branch15:
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 sub %rbx, %rax
 jmp branch16
 
-# BB9
+
 branch18:
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 ret
 function20:
-pushq %rax
-pushq %rbx
-pushq %rcx
-pushq %rdx
-pushq %rsi
-pushq %rdi
-pushq %r8
-pushq %r9
-pushq %r10
-pushq %r12
-pushq %r13
-pushq %r14
-pushq %r15
+push %rax
+push %rbx
+push %rcx
+push %rdx
+push %rsi
+push %rdi
+push %r8
+push %r9
+push %r10
+push %r12
+push %r13
+push %r14
+push %r15
 mov %rsp, %r11
 add $104, %rsp
 
-# BB10
+
 pop %rcx
 pop %rax
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 mov $0, %r11
 cmp %r11, %rax
 jne branch25
 
-# BB11
+
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 ret
 
-# BB12
+
 branch25:
 mov %r11, %rsp
-popq %r11
-pushq %rbp
+pop %r11
+push %rbp
 mov %rsp, %rbp
 add $0, %rsp
-pushq %r11
+push %r11
 push %rcx
 push %rax
 push %rcx
 
 call function1
 add $0, %rsp
-popq %r15
-popq %r14
-popq %r13
-popq %r12
-popq %r10
-popq %r9
-popq %r8
-popq %rdi
-popq %rsi
-popq %rdx
-popq %rcx
-popq %rbx
+pop %r15
+pop %r14
+pop %r13
+pop %r12
+pop %r10
+pop %r9
+pop %r8
+pop %rdi
+pop %rsi
+pop %rdx
+pop %rcx
+pop %rbx
 mov %rax, %rax
-add $8, %rsp 
-popq %rbp
-movq %rbp, %rsp
+add $8, %rsp
+pop %rbp
+mov %rbp, %rsp
 push %rax
 
 call function20
 add $0, %rsp
-popq %r15
-popq %r14
-popq %r13
-popq %r12
-popq %r10
-popq %r9
-popq %r8
-popq %rdi
-popq %rsi
-popq %rdx
-popq %rcx
-popq %rbx
+pop %r15
+pop %r14
+pop %r13
+pop %r12
+pop %r10
+pop %r9
+pop %r8
+pop %rdi
+pop %rsi
+pop %rdx
+pop %rcx
+pop %rbx
 mov %rax, %rax
-add $8, %rsp 
-popq %rbp
-movq %rbp, %rsp
+add $8, %rsp
+pop %rbp
+mov %rbp, %rsp
 ret
 .section .data
     strResult: .space 16, 0

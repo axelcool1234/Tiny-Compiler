@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     // p.print();
     // write_hello();
 
-    Assembler a{"rsrc/good2.s"};
+    Assembler a{"rsrc/good3.s"};
     a.read_symbols();
 
     return 0;

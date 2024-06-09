@@ -1,5 +1,7 @@
 #include <cstdint>
 #include <iterator>
+#include <iomanip>
+#include <unordered_map>
 #include <vector>
 #include <fstream>
 #include <cstring>
@@ -13,27 +15,39 @@ constexpr size_t VADDR_START = 0x08048000;
 constexpr size_t NUM_SECTIONS = 2;
 
 
+static const std::unordered_map<std::string, uint8_t> registers {
+    {"rax", 0},
+        {"rcx", 1},
+        {"rdx", 2},
+        {"rbx", 3},
+        {"rsp", 4},
+        {"rbp", 5},
+        {"rsi", 6},
+        {"rdi", 7},
+        {"r8" , 0},
+        {"r9" , 1},
+        {"r10", 2},
+        {"r11", 3},
+        {"r12", 4},
+        {"r13", 5},
+        {"r14", 6},
+        {"r15", 7},
+};
+
 
 // TODO
-// x86 instructions will fill out IntelInstruction struct in
-// assemble_instruction based mainly on its operands, find out what types the
-// operands are and fill in the fields accordingly
+// back to two pass, change the unoredered map to functions to just a function
+// that returns other functions. c++ pattern matching sucks whatever deal with
+// it.
 //
-// AS FAR AS I KNOW the only multibyte opcode we're using is syscall, so that's
-// why it's a variant. displacement and sib are often unused.
-//
-// thinking about doing one pass, maintain a map of (unkown used labels) to
-// (vector of the addresses they're used). When we find a label/data
-// definition, then go through and find all places that thing was used in this
-// map, then remove it from the map. the map MUST be empty by the end
-//
-// hardcode everything to be 64-bit if possible
-//
-// putting notes in discord about how the bytecode looks
+// first past will basically just work when we have eveyr create_instruction
+// function implemented. boiler plate work for the most part. then the same
+// create functions will work for the second pass and creating the byte code.
+// scaffolding for the second pass is already in this function commented out.
 void Assembler::read_symbols()
 {
     // kept in memory for now, maybe write to disk later
-    [[maybe_unused]] Elf64_Addr curr_addr{};
+    size_t curr_offset{};
     std::istream_iterator<std::string> is{infile}, end{};
 
     while (is != end) {
@@ -41,25 +55,36 @@ void Assembler::read_symbols()
             ++is; ++is;
 
         } else if (instructions.contains(*is)) { // parse instruction into vector to analyze
-            std::vector<std::string> curr_instr;
-            curr_instr.push_back(*is);
+            IntelInstruction ii = instructions.at(*is)(is);
+            if (ii.used_fields[INSTR_REX])  { ++curr_offset; }
+            if (ii.used_fields[INSTR_OP])   { ++curr_offset; }
+            if (ii.used_fields[INSTR_MODRM]){ ++curr_offset; }
+            if (ii.used_fields[INSTR_SIB])  { ++curr_offset; }
+            if (ii.used_fields[INSTR_DISP]) { curr_offset += 8; }
+            if (ii.used_fields[INSTR_IMM])  { curr_offset += 8; }
 
-            int num_ops = instructions.at(*is++)[0];
-            for (int i = 0; i < num_ops; ++i) {
-                curr_instr.push_back(*is);
-                if (curr_instr.back().ends_with(',')) {
-                    curr_instr.back().pop_back();
-                }
-                ++is;
+            std::vector<uint8_t> bytecode;
+            if (ii.used_fields[INSTR_REX])  { bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.rex));   }
+            if (ii.used_fields[INSTR_OP])   { bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.opcode));}
+            if (ii.used_fields[INSTR_MODRM]){ bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.modrm)); }
+            if (ii.used_fields[INSTR_SIB])  { bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.sib));   }
+            if (ii.used_fields[INSTR_DISP]) {
+                const uint8_t *temp = reinterpret_cast<const uint8_t*>(&ii.displacement);
+                for (int i = 0; i < 8; ++i)
+                    bytecode.push_back(temp[i]);
             }
-
-            // [[maybe_unused]] IntelInstruction ii = assemble_instruction(curr_instr);
-
-            std::ranges::copy(curr_instr, std::ostream_iterator<std::string>{std::cout, "\t"});
-            std::cout << std::endl;
+            if (ii.used_fields[INSTR_IMM]) {
+                const uint8_t *temp = reinterpret_cast<const uint8_t*>(&ii.immediate);
+                for (int i = 0; i < 8; ++i)
+                    bytecode.push_back(temp[i]);
+            }
+            for (auto i: bytecode)
+                std::cout << std::hex << std::setw(2) << std::setfill('0') << (unsigned)i << " ";
+            std::cout <<  std::endl;
 
         } else {
             // std::cout << "something else: " << *is << std::endl;
+            std::cout << "label at: " << std::hex << curr_offset << std::endl;
             ++is;
 
         }
@@ -67,10 +92,241 @@ void Assembler::read_symbols()
 
 }
 
-IntelInstruction assemble_instruction(const std::vector<std::string>& instr) {
+
+void Assembler::setREXW(IntelInstruction& result) {
+    result.rex.b1 = 0;
+    result.rex.b2 = 1;
+    result.rex.b3 = 0;
+    result.rex.b4 = 0;
+    result.rex.w = 1;
+    result.rex.r = 0;
+    result.rex.x = 0;
+    result.rex.b = 0;
+    result.used_fields[INSTR_REX] = true;
+}
 
 
-    return {};
+IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    std::string op2{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+    if (op1.starts_with('$')) { // imm => reg
+        op1.erase(op1.begin());
+        op1.pop_back();
+        op2.erase(op2.begin());
+
+        setREXW(result);
+
+        result.opcode = 0xb8 + registers.at(op2);
+        result.used_fields[INSTR_OP] = true;
+
+        result.immediate = std::stoul(op1);
+        result.used_fields[INSTR_IMM] = true;
+    } else if (op1.starts_with('%') && op2.starts_with('%')) {
+        op1.erase(op1.begin());
+        op1.pop_back();
+        op2.erase(op2.begin());
+
+        setREXW(result);
+
+        result.opcode = 0x89;
+        result.used_fields[INSTR_OP] = true;
+
+        result.modrm.mod = 0b11;
+        result.modrm.reg = registers.at(op1);
+        result.modrm.rm = registers.at(op2);
+    }
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_xor(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    std::string op2{*(++is)};
+    ++is;
+
+    op1.erase(op1.begin());
+    op1.pop_back();
+    op2.erase(op2.begin());
+
+    IntelInstruction result;
+
+    setREXW(result);
+
+    result.opcode = 0x31;
+    result.used_fields[INSTR_OP] = true;
+
+    result.modrm.mod = 0b11;
+    result.modrm.reg = registers.at(op1);
+    result.modrm.rm = registers.at(op2);
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_div(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    op1.erase(op1.begin());
+
+    IntelInstruction result;
+
+    setREXW(result);
+
+    result.opcode = 0xf7;
+    result.used_fields[INSTR_OP] = true;
+
+    result.modrm.mod = 0b11;
+    result.modrm.reg = 0b110;
+    result.modrm.rm = registers.at(op1);
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_push(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    op1.erase(op1.begin());
+
+    IntelInstruction result;
+
+    result.opcode = 0x50 + registers.at(op1);
+    result.used_fields[INSTR_OP] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_pop(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    op1.erase(op1.begin());
+
+    IntelInstruction result;
+
+    result.opcode = 0x58 + registers.at(op1);
+    result.used_fields[INSTR_OP] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_inc(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    op1.erase(op1.begin());
+
+    IntelInstruction result;
+
+    setREXW(result);
+
+    result.opcode = 0xff;
+    result.used_fields[INSTR_OP] = true;
+
+    result.modrm.mod = 0b11;
+    result.modrm.reg = 0b000;
+    result.modrm.rm = registers.at(op1);
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_dec(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    op1.erase(op1.begin());
+
+    IntelInstruction result;
+
+    setREXW(result);
+
+    result.opcode = 0xff;
+    result.used_fields[INSTR_OP] = true;
+
+    result.modrm.mod = 0b11;
+    result.modrm.reg = 0b001;
+    result.modrm.rm = registers.at(op1);
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_test(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    std::string op2{*(++is)};
+    ++is;
+
+    op1.erase(op1.begin());
+    op1.pop_back();
+    op2.erase(op2.begin());
+
+    IntelInstruction result;
+
+    setREXW(result);
+
+    result.opcode = 0x85;
+    result.used_fields[INSTR_OP] = true;
+
+    result.modrm.mod = 0b11;
+    result.modrm.reg = registers.at(op1);
+    result.modrm.rm = registers.at(op2);
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_jne(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+
+    result.opcode = 0x75;
+    result.used_fields[INSTR_OP] = true;
+
+    // if (sym_table.contains(op1)) {
+    //     // magic
+    // } else {
+    //     *reinterpret_cast<uint8_t*>(&result.modrm) = 0;
+    // }
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
+
+}
+
+
+IntelInstruction Assembler::create_jmp(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+
+    result.opcode = 0xeb;
+    result.used_fields[INSTR_OP] = true;
+
+    // if (sym_table.contains(op1)) {
+    //     // magic
+    // } else {
+    //     *reinterpret_cast<uint8_t*>(&result.modrm) = 0;
+    // }
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
 }
 
 
@@ -112,34 +368,34 @@ void write_hello()
 
     Elf64_Phdr text_hdr {
         .p_type     = PT_LOAD,
-        .p_flags    = PF_X | PF_R,
-        .p_offset   = 0x1000,
-        .p_vaddr    = VADDR_START + 0x1000,
-        .p_filesz   = 0,   // to be updated later
-        .p_memsz    = 0,   // to be updated later
-        .p_align    = 0x1000,
+            .p_flags    = PF_X | PF_R,
+            .p_offset   = 0x1000,
+            .p_vaddr    = VADDR_START + 0x1000,
+            .p_filesz   = 0,   // to be updated later
+            .p_memsz    = 0,   // to be updated later
+            .p_align    = 0x1000,
     };
 
     // Data section metadata depends on the size of the text section
     Elf64_Phdr data_hdr {
         .p_type     = PT_LOAD,
-        .p_flags    = PF_W | PF_R,
-        .p_offset   = 0,   // to be updated later
-        .p_vaddr    = 0,   // to be updated later
-        .p_filesz   = 0,   // to be updated later
-        .p_memsz    = 0,   // to be updated later
-        .p_align    = 0x1000,
+            .p_flags    = PF_W | PF_R,
+            .p_offset   = 0,   // to be updated later
+            .p_vaddr    = 0,   // to be updated later
+            .p_filesz   = 0,   // to be updated later
+            .p_memsz    = 0,   // to be updated later
+            .p_align    = 0x1000,
     };
 
     std::vector<uint8_t> text {
         0xb8, 0x04, 0x00, 0x00, 0x00, // mov $4, %eax
-        0xbb, 0x01, 0x00, 0x00, 0x00, // mov $1, %ebx
-        0xb9, 0x00, 0xa0, 0x04, 0x08, // mov $0x0804a000, %ecx (address of "Hello, world!\n")
-        0xba, 0x0e, 0x00, 0x00, 0x00, // mov $14, %edx
-        0xcd, 0x80,                   // int $0x80 (syscall)
-        0xb8, 0x01, 0x00, 0x00, 0x00, // mov $1, %eax
-        0xbb, 0x2a, 0x00, 0x00, 0x00, // mov $0, %ebx
-        0xcd, 0x80                    // int $0x80 (syscall)
+            0xbb, 0x01, 0x00, 0x00, 0x00, // mov $1, %ebx
+            0xb9, 0x00, 0xa0, 0x04, 0x08, // mov $0x0804a000, %ecx (address of "Hello, world!\n")
+            0xba, 0x0e, 0x00, 0x00, 0x00, // mov $14, %edx
+            0xcd, 0x80,                   // int $0x80 (syscall)
+            0xb8, 0x01, 0x00, 0x00, 0x00, // mov $1, %eax
+            0xbb, 0x2a, 0x00, 0x00, 0x00, // mov $0, %ebx
+            0xcd, 0x80                    // int $0x80 (syscall)
     };
     text_hdr.p_filesz = text.size();
     text_hdr.p_memsz = text.size();
