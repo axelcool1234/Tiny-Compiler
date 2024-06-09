@@ -11,8 +11,8 @@ void CodeEmitter::debug() const {
 void CodeEmitter::emit_code() {
     static const std::string data_section = 
 R"(.section .data
-    strResult: .space 16, 0
-    buff: .skip 11
+    strResult: .space 21, 0
+    buff: .skip 21
     newline: .byte 10
     .equ newline_len, 1
 )";
@@ -62,7 +62,7 @@ read:
     movq $0, %rax                # syscall: read
     movq $0, %rdi                # fd: stdin
     leaq buff(%rip), %rsi        # buffer to store input
-    movq $11, %rdx               # max number of bytes to read
+    movq $21, %rdx               # max number of bytes to read
     syscall                      # make syscall
 
     leaq buff(%rip), %rsi        # RSI points to the input buffer

@@ -254,6 +254,7 @@ public:
     * @param branch_back The while loop's branch block.
     */
     void generate_phi(const bb_t& loop_header, const bb_t& branch_back);
+    void update_phi(const bb_t& loop_header, const bb_t& branch_back);
 
     /*
      * Given a vector of tuples containing information about identifiers that should be changed and what their value should be
@@ -456,7 +457,7 @@ public:
     bool is_emitted(const bb_t& b) const;
     bool is_const_block(const bb_t& b) const;
 
-    void while_cse(const bb_t& curr_block, const bb_t& loop_header, const bb_t& branch_back, std::map<std::string, ident_t>& identifier_table);
+    void commit_while(const bb_t& curr_block, const bb_t& loop_header, const bb_t& branch_back, std::map<std::string, ident_t>& identifier_table);
     void cse_replace(const bb_t& curr_block, const bb_t& branch_back, const instruct_t& replacer, const instruct_t& to_delete);
 private:
 // Should be private:

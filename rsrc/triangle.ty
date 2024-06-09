@@ -1,0 +1,26 @@
+main
+var px, py, n;
+
+function printTriangle(n);
+var i, j;
+{
+    let i <- 0;
+    while i < n do
+        let j <- 0;
+        while j <= i do
+            if j == i then
+                call OutputNum(8);
+            else
+                call OutputNum(1);
+            fi;
+            let j <- j + 1;
+        od;
+        call OutputNewLine();
+        let i <- i + 1;
+    od;
+};
+
+{
+    let n <- 10;
+    call printTriangle(n);
+}.

@@ -58,7 +58,14 @@ bb_t IntermediateRepresentation::new_function(const bb_t& idom, const ident_t& i
 bb_t IntermediateRepresentation::new_block_helper(const bb_t& p1, const bb_t& p2, const bb_t& idom, Blocktype t) {
     if(ignore) return -1;
     bb_t index = basic_blocks.size();
-    if(t != Blocktype::INVALID) { // New block has 1 parent, and either FALLTHROUGH or BRANCH Blocktype.
+    if(t == Blocktype::LOOP_HEADER) {
+        basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values, p1, Blocktype::INVALID);
+        basic_blocks[p1].successors.emplace_back(index);
+        for(ident_t ident = 0; ident < static_cast<ssize_t>(basic_blocks[index].identifier_values.size()); ++ident) {
+            instruct_t phi_instruct = add_instruction(index, Opcode::PHI, { basic_blocks[index].identifier_values[ident], ident }, { -1, -1});
+            change_ident_value(index, ident, phi_instruct);
+        }
+    } else if(t != Blocktype::INVALID) { // New block has 1 parent, and either FALLTHROUGH or BRANCH Blocktype.
         basic_blocks.emplace_back(index, basic_blocks[p1].identifier_values, p1, t);
         basic_blocks[p1].successors.emplace_back(index);
     }
@@ -159,8 +166,8 @@ instruct_t IntermediateRepresentation::add_instruction_helper(const bb_t& b, Opc
         basic_blocks[b].add_instruction(++instruction_count, op, larg.first, rarg.first, larg.second, rarg.second);  
     }
     if(op == Opcode::CONST) const_instructions[instruction_count] = larg.first;
-    // Not only place phis can be made. Check generate_phis function too!
-    if(op == Opcode::PHI) establish_affinity_group(instruction_count, larg.first, rarg.first);
+    // Not only place phis can be made. Check update_phis/generate_phis function too!
+    if(op == Opcode::PHI && rarg.first != -1) establish_affinity_group(instruction_count, larg.first, rarg.first);
     return instruction_count;
 }
 
@@ -248,8 +255,17 @@ instruct_t IntermediateRepresentation::search_cse(const bb_t& b, Opcode op, cons
 }
 
      
-void IntermediateRepresentation::while_cse(const bb_t& curr_block, const bb_t& loop_header, const bb_t& branch_back, std::map<std::string, ident_t>& identifier_table) {
+void IntermediateRepresentation::commit_while(const bb_t& curr_block, const bb_t& loop_header, const bb_t& branch_back, std::map<std::string, ident_t>& identifier_table) {
     if(ignore) return;
+    // PHI affinity groups
+    if(is_loop_header(curr_block)) {
+        for(const auto& instruction : basic_blocks[curr_block].instructions) {
+            if(instruction.opcode == Opcode::DELETED) continue;
+            if(instruction.opcode != Opcode::PHI) break;
+            establish_affinity_group(instruction.instruction_number, instruction.larg, instruction.rarg);
+        }
+    }
+    // CSE
     for(int op = 0; op < Opcode::CSE_COUNT; op += 1) {
         for(const int& instruct : basic_blocks[curr_block].partitioned_instructions[op] | std::views::reverse) {
             instruct_t copy = search_cse(curr_block, basic_blocks[curr_block].instructions[instruct].opcode, 
@@ -278,7 +294,7 @@ void IntermediateRepresentation::while_cse(const bb_t& curr_block, const bb_t& l
     }
     if(curr_block == branch_back) return;
     for(const auto& successor : basic_blocks[curr_block].successors) {
-        while_cse(successor, loop_header, branch_back, identifier_table);
+        commit_while(successor, loop_header, branch_back, identifier_table);
     }
 }
 
@@ -292,6 +308,34 @@ void IntermediateRepresentation::cse_replace(const bb_t& curr_block, const bb_t&
     for(const auto& successor : basic_blocks[curr_block].successors) {
         cse_replace(successor, branch_back, replacer, to_delete);
     }
+}
+
+void IntermediateRepresentation::update_phi(const bb_t& loop_header, const bb_t& branch_back) {
+    if(ignore) return;
+    if(will_return(branch_back)) return;
+    basic_blocks[loop_header].branch_block = branch_back;
+    basic_blocks[branch_back].loop_header = loop_header;
+
+    const std::vector<instruct_t>& loop_ident_vals = basic_blocks[loop_header].identifier_values;
+    const std::vector<instruct_t>& branch_ident_vals = basic_blocks[branch_back].identifier_values;
+    std::vector<std::tuple<int, instruct_t, instruct_t>> changed_idents;
+
+    for(Instruction& instruction : basic_blocks[loop_header].instructions) {
+        if(instruction.opcode != Opcode::PHI) break;
+        if(loop_ident_vals[instruction.larg_owner] != branch_ident_vals[instruction.larg_owner]) {
+            instruction.rarg = branch_ident_vals[instruction.larg_owner];
+            instruction.rarg_owner = instruction.larg_owner;
+            // establish_affinity_group(instruction.instruction_number, instruction.larg, instruction.rarg);
+        } else {
+            instruction.rarg = instruction.larg;
+            instruction.rarg_owner = instruction.larg_owner;
+            instruction.opcode = Opcode::DELETED;
+            changed_idents.emplace_back(instruction.larg_owner, instruction.larg, instruction.instruction_number);
+        }
+    }
+
+    update_ident_vals(loop_header, changed_idents, true);
+    update_ident_vals_loop(basic_blocks[loop_header].successors[0], changed_idents); 
 }
 
 void IntermediateRepresentation::generate_phi(const bb_t& loop_header, const bb_t& branch_back) {
@@ -347,8 +391,11 @@ void IntermediateRepresentation::update_ident_vals(const bb_t& b, const std::vec
         basic_blocks[b].identifier_values[std::get<0>(triplet)] = std::get<1>(triplet);
         for(auto& instruct : basic_blocks[b].instructions) {
             if(skip_phi && instruct.opcode == PHI) continue;
-            if(instruct.larg == std::get<2>(triplet) && instruct.larg_owner == std::get<0>(triplet)) instruct.larg = std::get<1>(triplet); 
-            if(instruct.rarg == std::get<2>(triplet) && instruct.rarg_owner == std::get<0>(triplet)) instruct.rarg = std::get<1>(triplet);
+            // WARNING: COMMENTED PORTION IS DANGEROUS IF WE DO NORMAL PHI PROPAGATION
+            // However, phi DESTRUCTION propagation is fine because ownership of a phi doesn't matter. We want ALL
+            // references of that phi number to be replaced. 
+            if(instruct.larg == std::get<2>(triplet) /* && instruct.larg_owner == std::get<0>(triplet) */) instruct.larg = std::get<1>(triplet); 
+            if(instruct.rarg == std::get<2>(triplet) /* && instruct.rarg_owner == std::get<0>(triplet) */) instruct.rarg = std::get<1>(triplet);
         }
     }
 }

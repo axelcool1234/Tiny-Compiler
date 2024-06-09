@@ -75,6 +75,7 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
     
     // Determine points of death and liveness of SSA instructions at the beginning of the block.
     for(const auto& instruction : ir.get_instructions(block) | std::views::reverse) {
+        if(instruction.opcode == Opcode::DELETED) continue; 
         // When something is born, everything beyond this point will not have it as a living SSA instruction. 
         // Also check to see if it was alive before this - if it wasn't, it is considered dead code.
         if(!ir.is_live_instruction(block, instruction.instruction_number)) {
@@ -110,6 +111,7 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
 
 void RegisterAllocator::get_phi_liveness(const bb_t& block, const std::vector<Instruction>& instructions, const bool& left) {
     for(const auto& instruction : instructions) {
+        if(instruction.opcode == Opcode::DELETED) continue;
         if(instruction.opcode != Opcode::PHI) break;
         if(left) {
             if(ir.is_const_instruction(instruction.larg)) continue;
@@ -195,6 +197,7 @@ void RegisterAllocator::color_block(const bb_t& block) {
     // instructions in the current block's predecessors and hence don't represent live 
     // instructions in the current block.
     for(const auto& instruction : ir.get_instructions(block)) {
+        if(instruction.opcode == Opcode::DELETED) continue;
         if(instruction.opcode != Opcode::PHI) break;
         ir.set_assigned_register(instruction.instruction_number, get_register(instruction, occupied));
         ir.prefer(instruction.instruction_number, ir.get_assigned_register(instruction.instruction_number), true);
@@ -203,7 +206,7 @@ void RegisterAllocator::color_block(const bb_t& block) {
 
     // Assign registers
     for(const auto& instruction : ir.get_instructions(block)) {
-        if(instruction.opcode == Opcode::PHI || instruction.opcode == Opcode::EMPTY) continue;
+        if(instruction.opcode == Opcode::DELETED || instruction.opcode == Opcode::PHI || instruction.opcode == Opcode::EMPTY) continue;
 
         // Unoccupy registers from dead SSA instructions
         if(ir.is_valid_instruction(instruction.larg) && ir.has_death_point(instruction.larg, instruction.instruction_number)) {
@@ -330,6 +333,7 @@ void RegisterAllocator::insert_phi_copies(const bb_t& block, const bb_t& phi_blo
     std::map<instruct_t, instruct_t> mov_instructs;
     std::vector<std::pair<instruct_t, instruct_t>> const_movs;
     for(const auto& instruction : ir.get_instructions(phi_block)) {
+        if(instruction.opcode == Opcode::DELETED) continue;
         if(instruction.opcode != Opcode::PHI) break;
         if(left) {
             if(ir.is_const_instruction(instruction.larg)) { 

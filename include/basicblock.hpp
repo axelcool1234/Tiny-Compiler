@@ -13,6 +13,7 @@ enum Blocktype {
     NONE,
     INVALID, // A block should NEVER be this type. This exists for IntermediateRepresentation functions that want to
             // communicate that a Blocktype shouldn't be specified when creating a new BasicBlock. 
+    LOOP_HEADER,
 };
 using ident_t = ssize_t;
 using bb_t = ssize_t;
