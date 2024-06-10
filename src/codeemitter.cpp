@@ -23,6 +23,14 @@ R"(.section .text
 write:
     movabsq $10, %rcx       # divisor
     xorq %rbx, %rbx         # count digits
+    mov %rax, %rdi          # Save original value
+    cmpq $0, %rax           # Compare %rax to zero
+    jge _divide             # If greater than or equal to zero, skip to division
+
+    # Handle negative number
+    negq %rax               # Get the absolute value
+    movb $'-', strResult    # Place the negative sign at the start of the buffer
+    incq %rbx               # Increment digit count for the negative sign
 
 _divide:
     xorq %rdx, %rdx         # High part = 0
@@ -35,6 +43,12 @@ _divide:
     # POP digits from stack in reverse order
     movq %rbx, %rcx         # Number of digits
     leaq strResult, %rsi    # RSI points to string buffer
+
+    # If the number was negative, adjust the pointer for the sign
+    cmpq $0, %rdi             # Compare %rdi to zero
+    jge _next_digit           # If greater than or equal to zero, skip to next digit loop
+    incq %rsi                 # Adjust RSI to skip the negative sign
+    decq %rcx                 # Decrement digit count for negative sign
 
 _next_digit:
     popq %rax
@@ -256,6 +270,7 @@ push {}
 push {}
 mov $0, %rdx
 mov 8(%rsp), %rax
+cqto
 {} (%rsp)
 push %rax
 add $8, %rsp
@@ -330,9 +345,9 @@ std::string CodeEmitter::instruction(const Instruction& i) {
         case(Opcode::SUB):
             return prologue() + additive(i, "sub");
         case(Opcode::MUL):
-            return prologue() + scale(i, "mul");
+            return prologue() + scale(i, "imulq");
         case(Opcode::DIV):
-            return prologue() + scale(i, "div");
+            return prologue() + scale(i, "idivq");
         case(Opcode::CMP):
             return prologue() + cmp(i);
         case(Opcode::BRA):
