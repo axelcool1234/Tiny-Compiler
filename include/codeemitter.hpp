@@ -11,8 +11,6 @@ public:
     void emit_code();
     void debug() const;
 private:
-    std::string set_par_str = "";
-    std::string get_par_str = "";
     bool getting_pars = false;
     /* Code Emitting */
     // Several //

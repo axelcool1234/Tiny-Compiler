@@ -324,7 +324,6 @@ add ${}, %rsp
 }
 
 std::string CodeEmitter::instruction(const Instruction& i) {
-    std::string additional_instructions = "";
     switch(i.opcode) {
         case(Opcode::ADD):
             return prologue() + additive(i, "add");
@@ -351,10 +350,7 @@ std::string CodeEmitter::instruction(const Instruction& i) {
         case(Opcode::BGT):
             return prologue() + branch(i.rarg, "jg");
         case(Opcode::JSR):
-            additional_instructions = set_par_str;
-            set_par_str = "";
-            return prologue() + std::format(R"({}
-call function{}
+            return prologue() + std::format(R"(call function{}
 add $-120, %rsp
 popq %r15
 popq %r14
@@ -372,7 +368,7 @@ mov %rax, {}
 {}
 pop %r11
 mov %r11, %rsp
-)", additional_instructions, i.larg, reg_str(i.instruction_number), ir.get_assigned_register(i.instruction_number) == Register::RAX ? "add $8, %rsp" : "popq %rax");
+)", i.larg, reg_str(i.instruction_number), ir.get_assigned_register(i.instruction_number) == Register::RAX ? "add $8, %rsp" : "popq %rax");
         case(Opcode::RET):
             return prologue() + std::format(R"(add ${}, %rsp
 pop %rbp
@@ -387,8 +383,7 @@ ret
         case(Opcode::GETPAR):
             return std::format("pop {}\n", reg_str(i.instruction_number));
         case(Opcode::SETPAR):
-            set_par_str += std::format("push {}\n", reg_str(i.larg));
-            return prologue() + "";
+            return prologue() + std::format("# SETPAR\npush {}\n", reg_str(i.larg));
         case(Opcode::READ):
             return prologue() + read(i);
         case(Opcode::WRITE):

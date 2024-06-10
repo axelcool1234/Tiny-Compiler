@@ -26,9 +26,7 @@ var exists2, a, b, c;
             let c <- b;
             while c <= m2 do
                 if call isPythagoreanTriplet(a, b, c) == 1 then
-                    if a == m2 then let exists2 <- 1; fi;
-                    if b == m2 then let exists2 <- 1; fi;
-                    if c == m2 then let exists2 <- 1; fi;
+                    if c == m2 then let exists2 <- 1; return exists2; fi;
                 fi;
                 let c <- c + 1;
             od;
@@ -36,15 +34,10 @@ var exists2, a, b, c;
         od;
         let a <- a + 1;
     od;
-    return exists;
+    return exists2;
 };
 
 {
     let m <- call InputNum();
-    let exists <- call checkTriplet(m);
-    if exists == 1 then
-        call OutputNum(1);
-    else
-        call OutputNum(0);
-    fi;
+    call OutputNum(call checkTriplet(m));
 }.
