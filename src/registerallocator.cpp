@@ -59,6 +59,11 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
     // Get liveness from loop header (that you're re-entering as the branch_back block)
     if(ir.is_branch_back(block)) {
         get_phi_liveness(block, ir.get_instructions(ir.get_loop_header(block)), false);
+        //TODO: IMPLEMENT SPECIAL LIVE_INs for LOOP HEADERS
+        // if(ir.is_analyzed(ir.get_loop_header(block))) std::cout << "hi\n";
+        // for(const auto& live : ir.get_live_ins(ir.get_loop_header(block))) {
+            // ir.insert_live_in(block, live);
+        // }
     } 
     // Get liveness from loop header you're entering into for the first time
     else if(ir.has_one_successor(block) && ir.is_loop_header(ir.get_successors(block).at(0))) {
@@ -103,9 +108,41 @@ void RegisterAllocator::analyze_block(const bb_t& block) {
     // This block has now been analyzed.
     ir.set_analyzed(block);
 
+    // Propagate the removal of death points if we're in a loop header
+    if(ir.is_loop_header(block)) {
+        propagate_death_deletions(block);
+    }
+    
     // Analyze predecessor blocks.
     for(const auto& predecessor : ir.get_predecessors(block)) {
         analyze_block(predecessor);
+    }
+}
+
+void RegisterAllocator::propagate_death_deletions(const bb_t& loop_header) {
+    delete_deaths(loop_header, ir.get_live_ins(loop_header));
+    const bb_t& fall_through = ir.get_block_type(ir.get_successors(loop_header).at(0)) == Blocktype::WHILE_FALLTHROUGH 
+                               ? ir.get_successors(loop_header).at(0) 
+                               : ir.get_successors(loop_header).at(1);
+    delete_deaths_loop(fall_through, ir.get_live_ins(loop_header));
+}
+
+void RegisterAllocator::delete_deaths(const bb_t& curr_block, const std::unordered_set<instruct_t>& alives) {
+    ir.get_live_ins(curr_block).insert(alives.begin(), alives.end());
+    for(const Instruction& instruction : ir.get_instructions(curr_block)) {
+        for(const instruct_t& live_instruct : alives) {
+            if(ir.get_death_points().find(live_instruct) == ir.get_death_points().end()) continue;
+            ir.get_death_points().at(live_instruct).erase(instruction.instruction_number);
+        }
+    }
+}
+
+void RegisterAllocator::delete_deaths_loop(const bb_t& curr_block, const std::unordered_set<instruct_t>& alives) {
+    delete_deaths(curr_block, alives);
+    if(ir.get_successors(curr_block).size() == 0) return;
+    delete_deaths_loop(ir.get_successors(curr_block).at(0), alives);
+    if(ir.get_successors(curr_block).size() == 2) {
+        delete_deaths_loop(ir.get_successors(curr_block).at(1), alives);
     }
 }
 

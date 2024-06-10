@@ -2,7 +2,6 @@ main
 var n, m, num;
 
 function mod(x,y); 
-var x, y;
 {
     if y == 0 then
         return x;
@@ -16,18 +15,18 @@ var x, y;
     return x;
 };
 
-function isPrime(num);
-var i, result, num;
+function isPrime(num2);
+var i, result;
 {
     let result <- 1;
-    if num < 2 then
+    if num2 < 2 then
         let result <- 0;
     else
         let i <- 2;
-        while i * i <= num do
-            if call mod(num, i) == 0 then
+        while i * i <= num2 do
+            if call mod(num2, i) == 0 then
                 let result <- 0;
-                let i <- num;
+                let i <- num2;
             else
                 let i <- i + 1;
             fi;
@@ -36,17 +35,17 @@ var i, result, num;
     return result;
 };
 
-function countDistinctPrimeFactors(num);
-var count, factor, num;
+function countDistinctPrimeFactors(number);
+var count, factor;
 {
     let count <- 0;
     let factor <- 2;
-    while num > 1 do
+    while number > 1 do
         if call isPrime(factor) > 0 then
-            if call mod(num, factor) == 0 then
+            if call mod(number, factor) == 0 then
                 let count <- count + 1;
-                while call mod(num, factor) == 0 do
-                    let num <- num / factor;
+                while call mod(number, factor) == 0 do
+                    let number <- number / factor;
                 od;
             fi;
         fi;
@@ -70,7 +69,7 @@ var count, factor, num;
 
 
 The following code takes numbers from 'num' to 'n' and returns the number if it
-has m distinct primes. It should return the following numbers for m = 2 and n = 100 code:
+has m distinct primes. It should return the following numbers for m = 3 and n = 100 code:
 TRY BOTH DEFAULT CASE AND REPLACE THE INPUTNUM() WITH DEFAULTS TO CHECK WITH AND WITHOUT FOLDING.
 30
 42

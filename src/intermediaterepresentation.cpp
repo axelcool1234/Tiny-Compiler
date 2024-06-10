@@ -388,10 +388,19 @@ void IntermediateRepresentation::update_ident_vals(const bb_t& b, const std::vec
     // 1: new instruction number to change to
     // 2: old instruction number to change from
     for(const auto& triplet : changed_idents) {
-        basic_blocks[b].identifier_values[std::get<0>(triplet)] = std::get<1>(triplet);
+        // WARNING: THE FOLLOWING FOR LOOP WAS ADDED FOR PHI DESTRUCTION PROPAGATION
+        // It didn't exist for normal phi propagation
+        for(ident_t ident = 0; ident < static_cast<ident_t>(basic_blocks[b].identifier_values.size()); ++ident) {
+            if (basic_blocks[b].identifier_values[ident] == std::get<2>(triplet)) {
+                basic_blocks[b].identifier_values[ident] = std::get<1>(triplet);
+            }
+        }
+        // WARNING: THE FOLLOWING WAS COMMENTED OUT FOR PHI DESTRUCTION PROPAGATION
+        // It wasn't commented out for normal phi propagation
+        // basic_blocks[b].identifier_values[std::get<0>(triplet)] = std::get<1>(triplet);
         for(auto& instruct : basic_blocks[b].instructions) {
             if(skip_phi && instruct.opcode == PHI) continue;
-            // WARNING: COMMENTED PORTION IS DANGEROUS IF WE DO NORMAL PHI PROPAGATION
+            // WARNING: COMMENTING OUT THE CURRENT COMMENTED OUT PORTION IS DANGEROUS IF WE DO NORMAL PHI PROPAGATION
             // However, phi DESTRUCTION propagation is fine because ownership of a phi doesn't matter. We want ALL
             // references of that phi number to be replaced. 
             if(instruct.larg == std::get<2>(triplet) /* && instruct.larg_owner == std::get<0>(triplet) */) instruct.larg = std::get<1>(triplet); 
@@ -472,6 +481,10 @@ bool IntermediateRepresentation::propagate_live_ins(const bb_t& b) {
     return true;
 }
 
+const Blocktype& IntermediateRepresentation::get_block_type(const bb_t& b) const {
+    return basic_blocks[b].type;
+}
+
 const std::vector<BasicBlock>& IntermediateRepresentation::get_basic_blocks() const {
     return basic_blocks;
 }
@@ -502,8 +515,12 @@ const instruct_t& IntermediateRepresentation::get_branch_back(const bb_t& b) con
     return basic_blocks.at(b).branch_block;
 }
 
-const std::unordered_set<instruct_t>& IntermediateRepresentation::get_live_ins(const bb_t& b) const {
+std::unordered_set<instruct_t>& IntermediateRepresentation::get_live_ins(const bb_t& b) {
     return live_ins.at(b);
+}
+
+std::unordered_map<instruct_t, std::unordered_set<instruct_t>>& IntermediateRepresentation::get_death_points() {
+    return death_points;
 }
 
 const Register& IntermediateRepresentation::get_assigned_register(const instruct_t& instruct) const {

@@ -410,8 +410,10 @@ public:
      * @return The index of the given block's immediate dominator.
      */ 
     const bb_t& get_idom(const bb_t& b) const;
+    const Blocktype& get_block_type(const bb_t& b) const;
     const std::vector<BasicBlock>& get_basic_blocks() const;
-    const std::unordered_set<instruct_t>& get_live_ins(const bb_t& b) const;
+    std::unordered_set<instruct_t>& get_live_ins(const bb_t& b);
+    std::unordered_map<instruct_t, std::unordered_set<instruct_t>>& get_death_points();
     const Register& get_assigned_register(const instruct_t& instruct) const;
     const std::vector<instruct_t>& get_predecessors(const bb_t& b) const;
     const std::vector<instruct_t>& get_successors(const bb_t& b) const;

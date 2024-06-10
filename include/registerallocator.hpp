@@ -20,6 +20,10 @@ private:
     void check_argument_deaths(const Instruction& instruction, const bb_t& block);
     void apply_constraints(const Instruction& instruction, const bb_t& block);
 
+    void propagate_death_deletions(const bb_t& loop_header);
+    void delete_deaths(const bb_t& curr_block, const std::unordered_set<instruct_t>& alives);
+    void delete_deaths_loop(const bb_t& curr_block, const std::unordered_set<instruct_t>& alives);
+
     /* Color Graph */
     void color_ir();
     void color_block(const bb_t& block);
