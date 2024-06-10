@@ -21,51 +21,51 @@ R"(.section .data
 R"(.section .text
 .global _start
 write:
-    movabsq $10, %rcx       # divisor
-    xorq %rbx, %rbx         # count digits
+    movabs $10, %rcx        # divisor
+    xor %rbx, %rbx          # count digits
     mov %rax, %rdi          # Save original value
-    cmpq $0, %rax           # Compare %rax to zero
+    cmp $0, %rax            # Compare %rax to zero
     jge _divide             # If greater than or equal to zero, skip to division
 
     # Handle negative number
-    negq %rax               # Get the absolute value
+    neg %rax                # Get the absolute value
     movb $'-', strResult    # Place the negative sign at the start of the buffer
-    incq %rbx               # Increment digit count for the negative sign
+    inc %rbx                # Increment digit count for the negative sign
 
 _divide:
-    xorq %rdx, %rdx         # High part = 0
-    divq %rcx               # RAX = RDX:RAX / RCX, RDX = remainder
-    pushq %rdx              # DL is a digit in range [0..9]
-    incq %rbx               # Count digits
-    testq %rax, %rax        # RAX is 0?
+    xor %rdx, %rdx          # High part = 0
+    div %rcx                # RAX = RDX:RAX / RCX, RDX = remainder
+    push %rdx               # DL is a digit in range [0..9]
+    inc %rbx                # Count digits
+    test %rax, %rax         # RAX is 0?
     jnz _divide             # No, continue
 
     # POP digits from stack in reverse order
-    movq %rbx, %rcx         # Number of digits
-    leaq strResult, %rsi    # RSI points to string buffer
+    mov %rbx, %rcx          # Number of digits
+    lea strResult, %rsi     # RSI points to string buffer
 
     # If the number was negative, adjust the pointer for the sign
-    cmpq $0, %rdi             # Compare %rdi to zero
+    cmp $0, %rdi              # Compare %rdi to zero
     jge _next_digit           # If greater than or equal to zero, skip to next digit loop
-    incq %rsi                 # Adjust RSI to skip the negative sign
-    decq %rcx                 # Decrement digit count for negative sign
+    inc %rsi                  # Adjust RSI to skip the negative sign
+    dec %rcx                  # Decrement digit count for negative sign
 
 _next_digit:
-    popq %rax
+    pop %rax
     addb $'0', %al          # Convert to ASCII
     movb %al, (%rsi)        # Write it to the buffer
-    incq %rsi
-    decq %rcx
+    inc %rsi
+    dec %rcx
     jnz _next_digit          # Repeat until all digits are processed
 
     # Null-terminate the string
     movb $0, (%rsi)         # Null terminator
 
     # Prepare for sys_write
-    movq $1, %rax           # sys_write system call number
-    movq $1, %rdi           # File descriptor (stdout)
-    leaq strResult, %rsi    # Buffer (string to print)
-    movq %rbx, %rdx         # Length
+    mov $1, %rax            # sys_write system call number
+    mov $1, %rdi            # File descriptor (stdout)
+    lea strResult, %rsi     # Buffer (string to print)
+    mov %rbx, %rdx          # Length
     syscall                 # Invoke system call
 
     # Return
@@ -73,24 +73,24 @@ _next_digit:
 
 # Entry point for read routine
 read:
-    movq $0, %rax                # syscall: read
-    movq $0, %rdi                # fd: stdin
-    leaq buff(%rip), %rsi        # buffer to store input
-    movq $21, %rdx               # max number of bytes to read
+    mov $0, %rax                 # syscall: read
+    mov $0, %rdi                 # fd: stdin
+    lea buff(%rip), %rsi         # buffer to store input
+    mov $21, %rdx                # max number of bytes to read
     syscall                      # make syscall
 
-    leaq buff(%rip), %rsi        # RSI points to the input buffer
-    xorq %rax, %rax              # Clear RAX (result)
-    xorq %rdi, %rdi              # Clear RDI (multiplier)
+    lea buff(%rip), %rsi         # RSI points to the input buffer
+    xor %rax, %rax               # Clear RAX (result)
+    xor %rdi, %rdi               # Clear RDI (multiplier)
 
 _read_loop:
     movzxb (%rsi), %rcx          # Load current byte into RCX
     cmpb $0x0A, %cl              # Check for newline character
     je _read_done                # If newline, we're done
-    subq $'0', %rcx              # Convert ASCII to integer
+    sub $'0', %rcx               # Convert ASCII to integer
     imulq $10, %rax              # Multiply current result by 10
-    addq %rcx, %rax              # Add current digit to result
-    incq %rsi                    # Move to next character
+    add %rcx, %rax               # Add current digit to result
+    inc %rsi                     # Move to next character
     jmp _read_loop               # Repeat for next character
 
 _read_done:
@@ -100,8 +100,8 @@ _start:
 
 )";
     static const std::string exit = 
-R"(movq $60, %rax          # sys_exit system call number
-xorq %rdi, %rdi         # Status: 0
+R"(mov $60, %rax           # sys_exit system call number
+xor %rdi, %rdi          # Status: 0
 syscall                 # Invoke system call
 
 )"; 
@@ -127,19 +127,19 @@ syscall                 # Invoke system call
         program_string += std::format("function{}:\n", ir.get_instructions(ir.get_successors(0).at(index)).at(0).instruction_number);
         // program_string += std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
         program_string += R"(push %rbp
-pushq %rax
-pushq %rbx
-pushq %rcx
-pushq %rdx
-pushq %rsi
-pushq %rdi
-pushq %r8
-pushq %r9
-pushq %r10
-pushq %r12
-pushq %r13
-pushq %r14
-pushq %r15
+push %rax
+push %rbx
+push %rcx
+push %rdx
+push %rsi
+push %rdi
+push %r8
+push %r9
+push %r10
+push %r12
+push %r13
+push %r14
+push %r15
 mov %rsp, %r11
 add $120, %rsp
 )";
@@ -367,18 +367,18 @@ std::string CodeEmitter::instruction(const Instruction& i) {
         case(Opcode::JSR):
             return prologue() + std::format(R"(call function{}
 add $-120, %rsp
-popq %r15
-popq %r14
-popq %r13
-popq %r12
-popq %r10
-popq %r9
-popq %r8
-popq %rdi
-popq %rsi
-popq %rdx
-popq %rcx
-popq %rbx
+pop %r15
+pop %r14
+pop %r13
+pop %r12
+pop %r10
+pop %r9
+pop %r8
+pop %rdi
+pop %rsi
+pop %rdx
+pop %rcx
+pop %rbx
 mov %rax, {}
 {}
 pop %r11
