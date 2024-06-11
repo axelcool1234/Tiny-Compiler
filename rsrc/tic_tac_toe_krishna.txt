@@ -1,0 +1,194 @@
+main
+var board00, board01, board02, board10, board11, board12, board20, board21, board22;
+var currentPlayer, input, row, col, move, gameOver;
+
+void function initializeBoard();
+{
+    let board00 <- 0;
+    let board01 <- 0;
+    let board02 <- 0;
+    let board10 <- 0;
+    let board11 <- 0;
+    let board12 <- 0;
+    let board20 <- 0;
+    let board21 <- 0;
+    let board22 <- 0;
+};
+
+void function printBoard();
+{
+    call OutputNum(board00); call OutputNum(1); call OutputNum(board01); call OutputNum(1); call OutputNum(board02); call OutputNewLine();
+    call OutputNum(board10); call OutputNum(1); call OutputNum(board11); call OutputNum(1); call OutputNum(board12); call OutputNewLine();
+    call OutputNum(board20); call OutputNum(1); call OutputNum(board21); call OutputNum(1); call OutputNum(board22); call OutputNewLine();
+};
+
+void function checkWin();
+var win;
+{
+    let win <- 0;
+
+    if (board00 == board01) then
+        if (board01 == board02) then
+            if (board00 != 0) then
+                let win <- board00;
+            fi;
+        fi;
+    fi;
+
+    if (board10 == board11) then
+        if (board11 == board12) then
+            if (board10 != 0) then
+                let win <- board10;
+            fi;
+        fi;
+    fi;
+
+    if (board20 == board21) then
+        if (board21 == board22) then
+            if (board20 != 0) then
+                let win <- board20;
+            fi;
+        fi;
+    fi;
+
+    if (board00 == board10) then
+        if (board10 == board20) then
+            if (board00 != 0) then
+                let win <- board00;
+            fi;
+        fi;
+    fi;
+
+    if (board01 == board11) then
+        if (board11 == board21) then
+            if (board01 != 0) then
+                let win <- board01;
+            fi;
+        fi;
+    fi;
+
+    if (board02 == board12) then
+        if (board12 == board22) then
+            if (board02 != 0) then
+                let win <- board02;
+            fi;
+        fi;
+    fi;
+
+    if (board00 == board11) then
+        if (board11 == board22) then
+            if (board00 != 0) then
+                let win <- board00;
+            fi;
+        fi;
+    fi;
+
+    if (board02 == board11) then
+        if (board11 == board20) then
+            if (board02 != 0) then
+                let win <- board02;
+            fi;
+        fi;
+    fi;
+
+    return win;
+};
+
+function makeMove(row, col, player);
+{
+    if row == 0 then
+        if col == 0 then let board00 <- player; fi;
+        if col == 1 then let board01 <- player; fi;
+        if col == 2 then let board02 <- player; fi;
+    fi;
+    if row == 1 then
+        if col == 0 then let board10 <- player; fi;
+        if col == 1 then let board11 <- player; fi;
+        if col == 2 then let board12 <- player; fi;
+    fi;
+    if row == 2 then
+        if col == 0 then let board20 <- player; fi;
+        if col == 1 then let board21 <- player; fi;
+        if col == 2 then let board22 <- player; fi;
+    fi;
+};
+
+function isMoveValid(row, col);
+var valid;
+{
+    let valid <- 0;
+    if row == 0 then
+        if col == 0 then
+            if board00 == 0 then let valid <- 1; fi;
+        fi;
+        if col == 1 then
+            if board01 == 0 then let valid <- 1; fi;
+        fi;
+        if col == 2 then
+            if board02 == 0 then let valid <- 1; fi;
+        fi;
+    fi;
+    if row == 1 then
+        if col == 0 then
+            if board10 == 0 then let valid <- 1; fi;
+        fi;
+        if col == 1 then
+            if board11 == 0 then let valid <- 1; fi;
+        fi;
+        if col == 2 then
+            if board12 == 0 then let valid <- 1; fi;
+        fi;
+    fi;
+    if row == 2 then
+        if col == 0 then
+            if board20 == 0 then let valid <- 1; fi;
+        fi;
+        if col == 1 then
+            if board21 == 0 then let valid <- 1; fi;
+        fi;
+        if col == 2 then
+            if board22 == 0 then let valid <- 1; fi;
+        fi;
+    fi;
+    return valid;
+};
+
+{
+    call initializeBoard();
+    let currentPlayer <- 1;
+    let move <- 0;
+    let gameOver <- 0;
+
+    while gameOver == 0 do
+        call printBoard();
+        call OutputNum(currentPlayer); call OutputNewLine();
+        call InputNum();
+        let input <- num;
+        let row <- input / 10;
+        let col <- input - row * 10;
+
+        if call isMoveValid(row, col) then
+            call makeMove(row, col, currentPlayer);
+            let move <- move + 1;
+
+            let win <- call checkWin();
+            if win != 0 then
+                let gameOver <- 1;
+                call printBoard();
+                call OutputNum(currentPlayer); call OutputNum(9); call OutputNewLine();
+            else
+                if move == 9 then
+                    let gameOver <- 1;
+                    call printBoard();
+                    call OutputNum(0); call OutputNum(9); call OutputNewLine();
+                else
+                    if currentPlayer == 1 then
+                        let currentPlayer <- 2;
+                    else
+                        let currentPlayer <- 1;
+                    fi;
+                fi;
+            fi;
+        fi;
+    od;
+}.

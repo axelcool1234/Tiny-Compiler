@@ -21,12 +21,14 @@ std::vector<std::string> Lexer::wipe() {
     for (const auto& key : removed_keys) {
         identifier_table.erase(key);
     }
+    defineds.clear();
     return removed_keys;
 }
 
 void Lexer::insert_ident(const std::vector<std::string>& ident_strings) {
     for(const auto& str : ident_strings) {
         identifier_table[str] = ident_index; 
+        defineds.emplace_back(false);
         ++ident_index;
     }
 }
@@ -66,6 +68,7 @@ void Lexer::tokenize_identifier() {
     // Check if this identifier has been seen before
     if(!identifier_table.contains(lexeme)) {
         identifier_table[lexeme] = ident_index;
+        defineds.emplace_back(false);
         ++ident_index;
     }
     const int& ident_value = identifier_table.at(lexeme);     
@@ -118,6 +121,24 @@ void Lexer::tokenize_terminal()
     token = Invalid();
 }
 
+void Lexer::set_defined(const ident_t& ident) {
+    defineds[ident] = true; 
+}
+
+void Lexer::check_all_defined() {
+    int counter = 0;
+    for(const bool& defined : defineds) {
+        if(!defined && counter >= func_count) {
+            std::cout << "Warning! Variable is used before it is defined; defaulting to 0." << std::endl;
+            for(const auto& pair : identifier_table) {
+                if(pair.second == counter) {
+                    std::cout << "Variable " << pair.first << " is now defaulted to 0." << std::endl;
+                } 
+            }
+        }
+        ++counter;
+    }
+}
 
 Lexer::Lexer(std::istream& in)
     :istream{in} {next();}

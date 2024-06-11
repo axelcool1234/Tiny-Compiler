@@ -33,10 +33,13 @@
     OPCODE(SETPAR1, setpar1) \
     OPCODE(SETPAR2, setpar2) \
     OPCODE(SETPAR3, setpar3) \
+    OPCODE(MOV, mov) \
+    OPCODE(SWAP, swap) \
     OPCODE(READ, read) \
     OPCODE(WRITE, write) \
     OPCODE(WRITENL, writenl) \
-    OPCODE(EMPTY, \\<empty\\>)
+    OPCODE(EMPTY, \\<empty\\>) \
+    OPCODE(DELETED, \\<deleted\\>) \
 
 enum Opcode {
 #define OPCODE(name, str) name,

@@ -11,4 +11,7 @@ std::string Instruction::to_dotlang() const {
 }
 
 Instruction::Instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2) 
-    : instruction_number(num), opcode(op), larg(x1), rarg(x2) {};
+    : instruction_number(num), opcode(op), larg(x1), rarg(x2), larg_owner(-1), rarg_owner(-1) {};
+
+Instruction::Instruction(const instruct_t& num, Opcode op, const instruct_t& x1, const instruct_t& x2, const ident_t& x1_owner, const ident_t& x2_owner) 
+    : instruction_number(num), opcode(op), larg(x1), rarg(x2), larg_owner(x1_owner), rarg_owner(x2_owner) {};

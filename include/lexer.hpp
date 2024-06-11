@@ -20,6 +20,7 @@ class Lexer {
 public:
     Lexer(std::istream& in);
 
+    int func_count = 0;
     ident_t ident_index = 0;
     Token token;
     std::string last_ident_string;
@@ -41,8 +42,18 @@ public:
      * @param ident_strings A vector of strings of identifiers.
      */ 
     void insert_ident(const std::vector<std::string>& ident_strings);
-    
-private:
+
+    /*
+     * Sets the variable as having been defined.
+     */ 
+    void set_defined(const ident_t& ident);
+
+    /*
+     * Check if all variables have been defined.
+     */
+    void check_all_defined();
+
+    std::vector<bool> defineds;
     /*
      * Stores an integer to identify keywords, functions, and variables.
      * Stores KEYWORDS as non-positive enum values. Stores user functions and variables as positive values.
@@ -52,6 +63,8 @@ private:
         KEYWORD_LIST
 #undef KEYWORD
     };
+    
+private:
 
     std::istreambuf_iterator<char> istream;
 

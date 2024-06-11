@@ -2,6 +2,13 @@
 #define PARSER_HPP
 #include "intermediaterepresentation.hpp"
 #include "lexer.hpp"
+#include <functional>
+
+enum class Relation {
+ TRUE,
+ FALSE,
+ NEITHER
+};
 
 class Parser {
 public:
@@ -16,10 +23,23 @@ public:
      * Prints the intermediate representation of the parsed Tiny code.
      */
      void print();
+
+     /*
+      * Releases the intermediate representation object via move semantics.
+      */ 
+     IntermediateRepresentation release_ir();
 private:
     Lexer lexer;
     IntermediateRepresentation ir;
     const int const_block = 0;
+    
+    // const map is used to determine the operation to perform when given a specific Terminal Symbol
+    const std::unordered_map<Terminal, std::pair<Opcode, std::function<instruct_t(instruct_t, instruct_t)>>> operations_map = {
+        {Terminal::PLUS, {Opcode::ADD, [](const int& a, const int& b) { return a + b; }}},
+        {Terminal::MINUS, {Opcode::SUB, [](const int& a, const int& b) { return a - b; }}},
+        {Terminal::DIV, {Opcode::DIV, [](const int& a, const int& b) { return a / b; }}},
+        {Terminal::MUL, {Opcode::MUL, [](const int& a, const int& b) { return a * b; }}}
+    };
 
     /* Helpers */
     /*
@@ -90,6 +110,17 @@ private:
      */
     Opcode terminal_to_opcode(const Terminal& terminal);
 
+    /*
+     * Given a terminal (which is then translated to a comparison) and two constants, 
+     * returns the result of the comparison.
+     *
+     * @param terminal The given terminal.
+     * @param larg The given left argument.
+     * @param rarg The given right argument.
+     * @return The result of comparing larg and rarg.
+     */
+    bool terminal_cmp(const Terminal& terminal, const int& larg, const int& rarg);
+
     /* Computation */
     void computation();
 
@@ -121,27 +152,28 @@ private:
     void let_statement(const bb_t& curr_block);
 
     // "function" statement
-    instruct_t function_statement(const bb_t& curr_block);
-    instruct_t predefined_function_statement(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> function_statement(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> predefined_function_statement(const bb_t& curr_block);
 
     // "if" statement
     bool if_statement(bb_t& curr_block); // returns true if the if statement will always return.
     void join(bb_t& curr_block, const bb_t& then_block, const bb_t& else_block);
 
     // "while" statement
-    void while_statement(bb_t& curr_block);
+    bool while_statement(bb_t& curr_block);
     void branch(bb_t& curr_block, const bb_t& while_block);
 
     // "return" statement
     void return_statement(bb_t& curr_block);
 
     // relations
-    void relation(const bb_t& curr_block);
+    Relation relation(const bb_t& curr_block, const bool& while_statement);
 
     // Base parsing
-    instruct_t expression(const bb_t& curr_block);
-    instruct_t term(const bb_t& curr_block);
-    instruct_t factor(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> expression(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> term(const bb_t& curr_block);
+    std::pair<instruct_t, ident_t> factor(const bb_t& curr_block);
+    void operate(const bb_t& curr_block, std::pair<instruct_t, ident_t>& larg, std::pair<instruct_t, ident_t>(Parser::*func)(const bb_t&));
 };
 
 class ParserException : public std::exception {

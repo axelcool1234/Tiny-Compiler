@@ -1,0 +1,43 @@
+main
+var m, exists;
+
+function square(x);
+{
+    return x * x;
+};
+
+function isPythagoreanTriplet(a2, b2, c2);
+{
+    if call square(a2) + call square(b2) == call square(c2) then
+        return 1;
+    else
+        return 0;
+    fi;
+};
+
+function checkTriplet(m2);
+var exists2, a, b, c;
+{
+    let exists2 <- 0;
+    let a <- 1;
+    while a <= m2 do
+        let b <- a;
+        while b <= m2 do
+            let c <- b;
+            while c <= m2 do
+                if call isPythagoreanTriplet(a, b, c) == 1 then
+                    if c == m2 then let exists2 <- 1; return exists2; fi;
+                fi;
+                let c <- c + 1;
+            od;
+            let b <- b + 1;
+        od;
+        let a <- a + 1;
+    od;
+    return exists2;
+};
+
+{
+    let m <- call InputNum();
+    call OutputNum(call checkTriplet(m));
+}.
