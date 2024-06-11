@@ -82,7 +82,7 @@ function testEqualTo(valOne, valTwo, printValue);
     call testEqualTo(call mod(12,24), 12, 7);
     call testEqualTo(call mod(0-7,3), 2, 8);
     call testEqualTo(call gcd(15,320), 5, 9);
-    call testEqualTo(call gcd(1,1), 1, 9);
+    call testEqualTo(call gcd(1,1), 1, 10);
 }.
 
 
