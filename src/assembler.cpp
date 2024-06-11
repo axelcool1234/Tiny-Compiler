@@ -1434,7 +1434,7 @@ void Assembler::create_binary() {
             .p_align    = 0x1000,
     };
 
-    elf_hdr.e_entry = VADDR_START + sym_table["_start"];
+    elf_hdr.e_entry = VADDR_START + sym_table["_start"] + 0x1000;
 
     text_hdr.p_filesz = program_bytecode.size();
     text_hdr.p_memsz = program_bytecode.size();
