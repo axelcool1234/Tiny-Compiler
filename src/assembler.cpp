@@ -85,6 +85,7 @@ enum InstructionType {
     IMUL,
     IDIV,
     SYSCALL,
+    RETN,
 };
 
 static const std::unordered_map<std::string, InstructionType> instruction_mapping {
@@ -256,12 +257,24 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
         case SYSCALL:
             result = create_syscall(is);
             break;
+        case RETN:
+            result = create_ret(is);
+            break;
     }
 
     return result;
 };
 
+IntelInstruction Assembler::create_ret(std::istream_iterator<std::string>& is) {
+    ++is;
 
+    IntelInstruction result;
+
+    result.opcode = 0xc3;
+    result.used_fields[INSTR_OP] = true;
+
+    return result;
+}
 
 
 IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
