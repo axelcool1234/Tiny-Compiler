@@ -43,5 +43,6 @@ OpType IntelInstruction::get_optype(std::string op) {
     } else if (op.ends_with(')')) {
         return (op.contains('%')) ? OpType::REGADDR : OpType::ADDR;
     }
-    return IMM;
+
+    return ADDR;
 }

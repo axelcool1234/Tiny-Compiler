@@ -54,6 +54,7 @@ private:
     IntelInstruction create_dec(std::istream_iterator<std::string>& is);
     IntelInstruction create_idiv(std::istream_iterator<std::string>& is);
     IntelInstruction create_imul(std::istream_iterator<std::string>& is);
+    IntelInstruction create_neg(std::istream_iterator<std::string>& is);
 
     IntelInstruction create_push(std::istream_iterator<std::string>& is);
     IntelInstruction create_pop(std::istream_iterator<std::string>& is);
@@ -72,6 +73,11 @@ private:
 
     IntelInstruction create_syscall(std::istream_iterator<std::string>& is);
     IntelInstruction create_ret(std::istream_iterator<std::string>& is);
+
+    IntelInstruction create_movb(std::istream_iterator<std::string>& is);
+    IntelInstruction create_addb(std::istream_iterator<std::string>& is);
+    IntelInstruction create_movzxb(std::istream_iterator<std::string>& is);
+    IntelInstruction create_cmpb(std::istream_iterator<std::string>& is);
 
     std::ifstream infile;
     std::unordered_map<std::string, size_t> sym_table;

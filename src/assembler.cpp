@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iterator>
 #include <iomanip>
+#include <numeric>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -86,6 +87,11 @@ enum InstructionType {
     IDIV,
     SYSCALL,
     RETN,
+
+    MOVB,
+    ADDB,
+    MOVZXB,
+    CMPB,
 };
 
 static const std::unordered_map<std::string, InstructionType> instruction_mapping {
@@ -106,6 +112,7 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
     {"test", TEST},
 
     {"jmp", JMP},
+    {"jnz", JNE},
     {"jne", JNE},
     {"je", JE},
     {"jge", JGE},
@@ -119,6 +126,12 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
     {"idivq", IDIV}, 
     {"movabs", MOV },
     {"syscall", SYSCALL },
+    {"ret", RETN },
+
+    {"movb", MOVB },
+    {"addb", ADDB },
+    {"movzxb", MOVZXB },
+    {"cmpb", CMPB },
 };
 
 
@@ -136,12 +149,13 @@ void Assembler::read_symbols()
         } else if (instruction_mapping.contains(*is)) {
             IntelInstruction ii = create_instruction(is);
 
-            if (ii.used_fields[INSTR_REX])  { ++curr_offset; }
-            if (ii.used_fields[INSTR_OP])   { ++curr_offset; }
-            if (ii.used_fields[INSTR_MODRM]){ ++curr_offset; }
-            if (ii.used_fields[INSTR_SIB])  { ++curr_offset; }
-            if (ii.used_fields[INSTR_DISP]) { curr_offset += 8; }
-            if (ii.used_fields[INSTR_IMM])  { curr_offset += 8; }
+            curr_offset += std::accumulate(ii.used_fields.begin(), ii.used_fields.end(), 0);
+            // if (ii.used_fields[INSTR_REX])  { ++curr_offset; }
+            // if (ii.used_fields[INSTR_OP])   { ++curr_offset; }
+            // if (ii.used_fields[INSTR_MODRM]){ ++curr_offset; }
+            // if (ii.used_fields[INSTR_SIB])  { ++curr_offset; }
+            // if (ii.used_fields[INSTR_DISP]) { curr_offset += 8; }
+            // if (ii.used_fields[INSTR_IMM])  { curr_offset += 8; }
 
             std::vector<uint8_t> bytecode;
             if (ii.used_fields[INSTR_REX])  { bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.rex));   }
@@ -163,7 +177,7 @@ void Assembler::read_symbols()
             std::cout <<  std::endl;
 
         } else {
-            std::cout << "label at: " << std::hex << curr_offset << std::endl;
+            // std::cout << "label at: " << std::hex << curr_offset << std::endl;
             ++is;
 
         }
@@ -248,8 +262,7 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
             break;
 
         case NEG:
-            //TODO: Do this
-            // result = create_neg(is);
+            result = create_neg(is);
             break;
         case CQTO:
             result = create_cqto(is);
@@ -259,6 +272,19 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
             break;
         case RETN:
             result = create_ret(is);
+            break;
+
+        case MOVB:
+            result = create_movb(is);
+            break;
+        case ADDB:
+            result = create_addb(is);
+            break;
+        case MOVZXB:
+            result = create_movzxb(is);
+            break;
+        case CMPB:
+            result = create_cmpb(is);
             break;
     }
 
@@ -282,6 +308,9 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
     std::string op2{*(++is)};
     ++is;
 
+    // 48 8d 35 8a 0f 00 00
+    // 53 0b00 110 101
+
     IntelInstruction result;
     OpType t1 = IntelInstruction::get_optype(op1);
     OpType t2 = IntelInstruction::get_optype(op2);
@@ -298,7 +327,12 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
 
         result.modrm.mod = 0b10;
         result.modrm.reg = registers.at(op2);
-        result.modrm.rm = registers.at(op1);
+        if (op1 == "rip") {
+            result.modrm.mod = 0b00;
+            result.modrm.rm = 0b101;
+        } else {
+            result.modrm.rm = registers.at(op1);
+        }
 
         result.displacement = (sym_table.contains(op1)) ? sym_table.at(op1) : 0;
         std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
@@ -352,7 +386,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         result.used_fields[INSTR_REX] = true;
         result.used_fields[INSTR_OP] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
+        std::fill_n(result.used_fields.begin() + INSTR_IMM, 8, true);
 
     } else if (t1 == IMM && (t2 == ADDR || t2 == REGADDR)) {
         result.opcode = 0xc7;
@@ -362,7 +396,6 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
                 result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
@@ -429,7 +462,6 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
                 result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
@@ -485,7 +517,6 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t1 == REGADDR) {
             if (std::isalpha(op1.front())) {
-                // TODO a function for this would be nice
                 result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op1);
@@ -500,6 +531,12 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             result.modrm.mod = 0b10;
             result.modrm.reg = registers.at(op2);
             result.modrm.rm = registers.at(op1);
+            if (result.modrm.rm == 0b100) {
+                result.sib.scale = 0b00;
+                result.sib.index = 0b100;
+                result.sib.base = registers.at(op1);
+                result.used_fields[INSTR_SIB] = true;
+            }
 
             if (extended_registers.contains(op1)) {
                 result.setREXB();
@@ -519,7 +556,6 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             op1.pop_back();
             op2.erase(op2.begin());
 
-            // TODO a function for this would be nice
             result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
@@ -761,11 +797,8 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
         }
     }
-
     return result;
-
 }
-
 
 IntelInstruction Assembler::create_add(std::istream_iterator<std::string>& is) {
     return create_2opinstr(is, 0x81, 0x01, 0x03, 0b000);
@@ -973,9 +1006,32 @@ IntelInstruction Assembler::create_imul(std::istream_iterator<std::string>& is) 
         result.used_fields[INSTR_MODRM] = true;
         std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
     }
-    // else if () { // direct memory address
-    //     
-    // }
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_neg(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+
+    result.setREXW();
+
+    op1.erase(op1.begin());
+    if (extended_registers.contains(op1)) {
+        result.setREXB();
+    }
+
+    result.opcode = 0xf7;
+    result.modrm.mod = 0b11;
+    result.modrm.reg = 0b011;
+    result.modrm.rm = registers.at(op1);
+
+    result.used_fields[INSTR_OP] = true;
+    result.used_fields[INSTR_MODRM] = true;
+
     return result;
 }
 
@@ -994,6 +1050,9 @@ IntelInstruction Assembler::create_push(std::istream_iterator<std::string>& is) 
         std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
     } else if (t == REG) {
         op1.erase(op1.begin());
+        if (extended_registers.contains(op1)) {
+            result.setREXB();
+        }
         result.opcode = 0x50 + registers.at(op1);
     } else if (t == REGADDR) {
         op1.erase(op1.begin());
@@ -1022,6 +1081,9 @@ IntelInstruction Assembler::create_pop(std::istream_iterator<std::string>& is) {
 
     if (t == REG) {
         op1.erase(op1.begin());
+        if (extended_registers.contains(op1)) {
+            result.setREXB();
+        }
         result.opcode = 0x58 + registers.at(op1);
     } else if (t == REGADDR) {
         op1.erase(op1.begin());
@@ -1133,6 +1195,111 @@ IntelInstruction Assembler::create_syscall(std::istream_iterator<std::string>& i
     result.used_fields[INSTR_OP] = true;
     result.used_fields[INSTR_MODRM] = true;
 
+    return result;
+}
+
+
+IntelInstruction Assembler::create_movb(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    std::string op2{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+    OpType t1 = IntelInstruction::get_optype(op1);
+    OpType t2 = IntelInstruction::get_optype(op2);
+
+    if (t1 == IMM && (t2 == ADDR || t2 == REGADDR)) {
+        result.opcode = 0xc6;
+
+        op1.erase(op1.begin());
+        result.immediate = std::stol(op1);
+
+        if (t2 == REGADDR) {
+            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            result.modrm.mod = 0b00;
+            result.modrm.reg = 0b000;
+            result.modrm.rm = registers.at(op2);
+        } else {
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+
+            result.modrm.mod = 0b00;
+            result.modrm.reg = 0b000;
+            result.modrm.rm = 0b100;
+
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b101;
+            result.used_fields[INSTR_SIB] = true;
+        }
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_IMM, 1, true);
+
+    } if (t1 == REG && t2 == REGADDR) {
+        result.opcode = 0x88;
+
+        op1.erase(op1.begin());
+        op1.pop_back();
+        op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
+        op2.erase(op2.begin());
+        op2.pop_back();
+
+        result.modrm.mod = 0b00;
+        result.modrm.reg = 0b000; // TODO maybe wrongly hardcoded
+        result.modrm.rm  = registers.at(op2);
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+    }
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_addb(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    std::string op2{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+    result.opcode = 0x04;
+
+    op1.erase(op1.begin()); // remove the $
+    op2.erase(op2.begin()); // remove the %
+
+    result.immediate = std::stoll(op1);
+
+    result.used_fields[INSTR_OP] = true;
+    std::fill_n(result.used_fields.begin() + INSTR_IMM, 1, true);
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_movzxb(std::istream_iterator<std::string>& is) {
+    ++is; ++is; ++is;
+    IntelInstruction result;
+    // 48 0f b6 0e
+    result.immediate = 0x0eb60f48;
+    std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
+    return result;
+}
+
+
+IntelInstruction Assembler::create_cmpb(std::istream_iterator<std::string>& is) {
+    ++is; ++is; ++is;
+    IntelInstruction result;
+    // 80 f9 0a
+    result.immediate = 0x0af980;
+    std::fill_n(result.used_fields.begin() + INSTR_IMM, 3, true);
     return result;
 }
 
