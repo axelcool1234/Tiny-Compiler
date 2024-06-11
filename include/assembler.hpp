@@ -40,7 +40,7 @@ private:
 
     IntelInstruction create_instruction(std::istream_iterator<std::string>& is);
 
-    IntelInstruction create_2opinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2, uint8_t code3, uint8_t code4, uint8_t code5);
+    IntelInstruction create_2opinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2, uint8_t code3, uint8_t ext);
 
     IntelInstruction create_mov(std::istream_iterator<std::string>& is);
     IntelInstruction create_lea(std::istream_iterator<std::string>& is);
@@ -55,10 +55,13 @@ private:
 
     IntelInstruction create_push(std::istream_iterator<std::string>& is);
     IntelInstruction create_pop(std::istream_iterator<std::string>& is);
+
+    IntelInstruction create_cmp(std::istream_iterator<std::string>& is);
     IntelInstruction create_test(std::istream_iterator<std::string>& is);
     IntelInstruction create_jmp(std::istream_iterator<std::string>& is);
     IntelInstruction create_jne(std::istream_iterator<std::string>& is);
 
+    IntelInstruction create_syscall(std::istream_iterator<std::string>& is);
 
     std::ifstream infile;
     std::unordered_map<std::string, size_t> sym_table;

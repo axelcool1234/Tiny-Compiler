@@ -74,6 +74,7 @@ enum InstructionType {
     CQTO,
     IMUL,
     IDIV,
+    SYSCALL,
 };
 
 static const std::unordered_map<std::string, InstructionType> instruction_mapping {
@@ -95,7 +96,8 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
     {"cqto", CQTO},
     {"imul", IMUL},
     {"idiv", IDIV}, 
-    { "movabs", MOV }
+    {"movabs", MOV },
+    {"syscall", SYSCALL },
 };
 
 
@@ -182,6 +184,14 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
         case DIV:
             result = create_div(is);
             break;
+        case IDIV:
+            //TODO: Do this
+            // result = create_cqto(is);
+            break;
+        case IMUL:
+            //TODO: Do this
+            // result = create_cqto(is);
+            break;
 
         case PUSH:
             result = create_push(is);
@@ -206,13 +216,8 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
             //TODO: Do this
             // result = create_cqto(is);
             break;
-        case IDIV:
-            //TODO: Do this
-            // result = create_cqto(is);
-            break;
-        case IMUL:
-            //TODO: Do this
-            // result = create_cqto(is);
+        case SYSCALL:
+            result = create_syscall(is);
             break;
     }
 
@@ -220,748 +225,6 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
 };
 
 
-IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2, uint8_t code3, uint8_t code4, uint8_t code5) {
-    std::string op1{*(++is)};
-    std::string op2{*(++is)};
-    ++is;
-
-    IntelInstruction result;
-    OpType t1 = IntelInstruction::get_optype(op1);
-    OpType t2 = IntelInstruction::get_optype(op2);
-
-    if (t1 == IMM && t2 == REG) {
-        result.opcode = code1;
-
-        op1.erase(op1.begin()); // remove the $
-        op2.erase(op2.begin()); // remove the %
-
-        result.setREXW();
-        if (extended_registers.contains(op2)) {
-            result.setREXB();
-        }
-        result.opcode += registers.at(op2);
-
-        result.immediate = std::stoll(op1);
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
-
-    } else if (t1 == IMM && (t2 == ADDR || t2 == REGADDR)) {
-        result.opcode = code2;
-
-        op1.erase(op1.begin());
-        result.immediate = std::stol(op1);
-
-        if (t2 == REGADDR) {
-            if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op2);
-            }
-
-            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (extended_registers.contains(op2)) {
-                result.setREXB();
-            }
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = 0b000;
-            result.modrm.rm = registers.at(op2);
-        } else {
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            result.modrm.mod = 0b00;
-            result.modrm.reg = 0b000;
-            result.modrm.rm = 0b100;
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-        }
-
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
-
-    } else if (t1 == REG && t2 == REG) {
-         result.opcode = code3;
-
-         op1.erase(op1.begin());
-         op1.pop_back();
-         op2.erase(op2.begin());
-
-         result.setREXW();
-         if (extended_registers.contains(op1)) {
-             result.setREXR();
-         }
-         if (extended_registers.contains(op2)) {
-             result.setREXB();
-         }
-
-         result.modrm.mod = 0b11;
-         result.modrm.reg = registers.at(op1);
-         result.modrm.rm  = registers.at(op2);
-
-         result.used_fields[INSTR_REX] = true;
-         result.used_fields[INSTR_OP] = true;
-         result.used_fields[INSTR_MODRM] = true;
-
-    } else if (t1 == REG && (t2 == ADDR || t2 == REGADDR)) {
-        result.opcode = code4;
-        result.setREXW();
-
-        if (t2 == REGADDR) {
-            if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op2);
-            }
-
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (extended_registers.contains(op1)) {
-                result.setREXR();
-            }
-            if (extended_registers.contains(op2)) {
-                result.setREXB();
-            }
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = registers.at(op1);
-            result.modrm.rm  = registers.at(op2);
-
-        } else {
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op2.erase(op2.begin());
-            op2.pop_back();
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            if (extended_registers.contains(op1)) {
-                result.setREXR();
-            }
-
-            // DOUBLE CHECK
-            result.modrm.mod = 0b00;
-            result.modrm.reg = registers.at(op1);
-            result.modrm.rm = 0b100;
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-        }
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-
-    } else if ((t1 == REGADDR || t1 == ADDR) && t2 == REG) {
-        result.opcode = code5;
-        result.setREXW();
-
-        if (t1 == REGADDR) {
-            if (std::isalpha(op1.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op1);
-            }
-
-            op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op1.pop_back();
-            op2.erase(op2.begin());
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = registers.at(op2);
-            result.modrm.rm = registers.at(op1);
-
-            if (extended_registers.contains(op1)) {
-                result.setREXB();
-            }
-            if (extended_registers.contains(op2)) {
-                result.setREXR();
-            }
-
-            result.used_fields[INSTR_REX] = true;
-            result.used_fields[INSTR_OP] = true;
-            result.used_fields[INSTR_MODRM] = true;
-            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-
-        } else {
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op1.pop_back();
-            op2.erase(op2.begin());
-
-            // TODO a function for this would be nice
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            result.modrm.mod = 0b00;
-            result.modrm.reg = registers.at(op2);
-            result.modrm.rm = 0b100;
-
-            if (extended_registers.contains(op2)) {
-                result.setREXR();
-            }
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-
-            result.used_fields[INSTR_REX] = true;
-            result.used_fields[INSTR_OP] = true;
-            result.used_fields[INSTR_MODRM] = true;
-            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-        }
-    }
-
-
-    return result;
-}
-
-
-IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
-    return create_2opinstr(is, 0xb8, 0xc7, 0x89, 0x89, 0x8b);
-}
-
-IntelInstruction Assembler::create_add(std::istream_iterator<std::string>& is) {
-    std::string op1{*(++is)};
-    std::string op2{*(++is)};
-    ++is;
-
-    IntelInstruction result;
-    OpType t1 = IntelInstruction::get_optype(op1);
-    OpType t2 = IntelInstruction::get_optype(op2);
-
-    if (t1 == IMM && t2 == REG) {
-        result.opcode = 0x81;
-
-        op1.erase(op1.begin()); // remove the $
-        op2.erase(op2.begin()); // remove the %
-
-        result.setREXW();
-        if (extended_registers.contains(op2)) {
-            result.setREXB();
-        }
-
-        result.modrm.mod = 0b11;
-        result.modrm.reg = 0b000;
-        result.modrm.rm = registers.at(op2);
-
-        result.immediate = std::stoll(op1);
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
-
-    } else if (t1 == IMM && (t2 == ADDR || t2 == REGADDR)) {
-        result.opcode = 0x81;
-
-        op1.erase(op1.begin());
-        result.immediate = std::stol(op1);
-
-        if (t2 == REGADDR) {
-            if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op2);
-            }
-
-            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (extended_registers.contains(op2)) {
-                result.setREXB();
-            }
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = 0b000;
-            result.modrm.rm = registers.at(op2);
-        } else {
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            result.modrm.mod = 0b00;
-            result.modrm.reg = 0b000;
-            result.modrm.rm = 0b100;
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-        }
-
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
-
-    } else if (t1 == REG && t2 == REG) {
-        result.opcode = 0x1;
-
-        op1.erase(op1.begin());
-        op1.pop_back();
-        op2.erase(op2.begin());
-
-        result.setREXW();
-        if (extended_registers.contains(op1)) {
-            result.setREXR();
-        }
-        if (extended_registers.contains(op2)) {
-            result.setREXB();
-        }
-
-        // DOUBLE CHECK
-        result.modrm.mod = 0b11;
-        result.modrm.reg = registers.at(op1);
-        result.modrm.rm  = registers.at(op2);
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-
-    } else if (t1 == REG && (t2 == ADDR || t2 == REGADDR)) {
-        result.opcode = 0x1;
-        result.setREXW();
-
-        if (t2 == REGADDR) {
-            if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op2);
-            }
-
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (extended_registers.contains(op1)) {
-                result.setREXR();
-            }
-            if (extended_registers.contains(op2)) {
-                result.setREXB();
-            }
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = registers.at(op1);
-            result.modrm.rm  = registers.at(op2);
-
-        } else {
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op2.erase(op2.begin());
-            op2.pop_back();
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            if (extended_registers.contains(op1)) {
-                result.setREXR();
-            }
-
-            // DOUBLE CHECK
-            result.modrm.mod = 0b00;
-            result.modrm.reg = registers.at(op1);
-            result.modrm.rm = 0b100;
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-        }
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-
-    } else if ((t1 == REGADDR || t1 == ADDR) && t2 == REG) {
-        result.opcode = 0x03;
-        result.setREXW();
-
-        if (t1 == REGADDR) {
-            if (std::isalpha(op1.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op1);
-            }
-
-            op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op1.pop_back();
-            op2.erase(op2.begin());
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = registers.at(op2);
-            result.modrm.rm = registers.at(op1);
-
-            if (extended_registers.contains(op1)) {
-                result.setREXB();
-            }
-            if (extended_registers.contains(op2)) {
-                result.setREXR();
-            }
-
-            result.used_fields[INSTR_REX] = true;
-            result.used_fields[INSTR_OP] = true;
-            result.used_fields[INSTR_MODRM] = true;
-            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-
-        } else {
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op1.pop_back();
-            op2.erase(op2.begin());
-
-            // TODO a function for this would be nice
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            result.modrm.mod = 0b00;
-            result.modrm.reg = registers.at(op2);
-            result.modrm.rm = 0b100;
-
-            if (extended_registers.contains(op2)) {
-                result.setREXR();
-            }
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-
-            result.used_fields[INSTR_REX] = true;
-            result.used_fields[INSTR_OP] = true;
-            result.used_fields[INSTR_MODRM] = true;
-            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-        }
-    }
-
-    return result;
-}
-
-
-IntelInstruction Assembler::create_sub(std::istream_iterator<std::string>& is) {
-    std::string op1{*(++is)};
-    std::string op2{*(++is)};
-    ++is;
-
-    IntelInstruction result;
-    OpType t1 = IntelInstruction::get_optype(op1);
-    OpType t2 = IntelInstruction::get_optype(op2);
-
-    if (t1 == IMM && t2 == REG) {
-        result.opcode = 0x81;
-
-        op1.erase(op1.begin()); // remove the $
-        op2.erase(op2.begin()); // remove the %
-
-        result.setREXW();
-        if (extended_registers.contains(op2)) {
-            result.setREXB();
-        }
-
-        result.modrm.mod = 0b11;
-        result.modrm.reg = 0b101;
-        result.modrm.rm = registers.at(op2);
-
-        result.immediate = std::stoll(op1);
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
-
-    } else if (t1 == IMM && (t2 == ADDR || t2 == REGADDR)) {
-        result.opcode = 0x81;
-
-        op1.erase(op1.begin());
-        result.immediate = std::stol(op1);
-
-        if (t2 == REGADDR) {
-            if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op2);
-            }
-
-            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (extended_registers.contains(op2)) {
-                result.setREXB();
-            }
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = 0b101;
-            result.modrm.rm = registers.at(op2);
-        } else {
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            result.modrm.mod = 0b00;
-            result.modrm.reg = 0b000;
-            result.modrm.rm = 0b100;
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-        }
-
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
-
-    } else if (t1 == REG && t2 == REG) {
-        result.opcode = 0x29;
-
-        op1.erase(op1.begin());
-        op1.pop_back();
-        op2.erase(op2.begin());
-
-        result.setREXW();
-        if (extended_registers.contains(op1)) {
-            result.setREXR();
-        }
-        if (extended_registers.contains(op2)) {
-            result.setREXB();
-        }
-
-        // DOUBLE CHECK
-        result.modrm.mod = 0b11;
-        result.modrm.reg = registers.at(op1);
-        result.modrm.rm  = registers.at(op2);
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-
-    } else if (t1 == REG && (t2 == ADDR || t2 == REGADDR)) {
-        result.opcode = 0x29;
-        result.setREXW();
-
-        if (t2 == REGADDR) {
-            if (std::isalpha(op2.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op2);
-            }
-
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            if (extended_registers.contains(op1)) {
-                result.setREXR();
-            }
-            if (extended_registers.contains(op2)) {
-                result.setREXB();
-            }
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = registers.at(op1);
-            result.modrm.rm  = registers.at(op2);
-
-        } else {
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op2.erase(op2.begin());
-            op2.pop_back();
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            if (extended_registers.contains(op1)) {
-                result.setREXR();
-            }
-
-            // DOUBLE CHECK
-            result.modrm.mod = 0b00;
-            result.modrm.reg = registers.at(op1);
-            result.modrm.rm = 0b100;
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-        }
-
-        result.used_fields[INSTR_REX] = true;
-        result.used_fields[INSTR_OP] = true;
-        result.used_fields[INSTR_MODRM] = true;
-        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-
-    } else if ((t1 == REGADDR || t1 == ADDR) && t2 == REG) {
-        result.opcode = 0x2b;
-        result.setREXW();
-
-        if (t1 == REGADDR) {
-            if (std::isalpha(op1.front())) {
-                // TODO a function for this would be nice
-                if (sym_table.contains(op2)) {
-                    result.displacement = sym_table.at(op2);
-                } else {
-                    result.displacement = 0;
-                }
-            } else {
-                result.displacement = std::stol(op1);
-            }
-
-            op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op1.pop_back();
-            op2.erase(op2.begin());
-
-            result.modrm.mod = 0b10;
-            result.modrm.reg = registers.at(op2);
-            result.modrm.rm = registers.at(op1);
-
-            if (extended_registers.contains(op1)) {
-                result.setREXB();
-            }
-            if (extended_registers.contains(op2)) {
-                result.setREXR();
-            }
-
-            result.used_fields[INSTR_REX] = true;
-            result.used_fields[INSTR_OP] = true;
-            result.used_fields[INSTR_MODRM] = true;
-            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-
-        } else {
-            op1.erase(op1.begin());
-            op1.pop_back();
-            op1.pop_back();
-            op2.erase(op2.begin());
-
-            // TODO a function for this would be nice
-            if (sym_table.contains(op2)) {
-                result.displacement = sym_table.at(op2);
-            } else {
-                result.displacement = 0;
-            }
-
-            result.modrm.mod = 0b00;
-            result.modrm.reg = registers.at(op2);
-            result.modrm.rm = 0b100;
-
-            if (extended_registers.contains(op2)) {
-                result.setREXR();
-            }
-
-            result.sib.scale = 0b00;
-            result.sib.index = 0b100;
-            result.sib.base = 0b101;
-            result.used_fields[INSTR_SIB] = true;
-
-            result.used_fields[INSTR_REX] = true;
-            result.used_fields[INSTR_OP] = true;
-            result.used_fields[INSTR_MODRM] = true;
-            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
-        }
-    }
-
-    return result;
-}
 
 
 IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
@@ -1000,30 +263,508 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
 };
 
 
-
-
-IntelInstruction Assembler::create_xor(std::istream_iterator<std::string>& is) {
+IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
     std::string op1{*(++is)};
     std::string op2{*(++is)};
     ++is;
 
-    op1.erase(op1.begin());
-    op1.pop_back();
-    op2.erase(op2.begin());
-
     IntelInstruction result;
+    OpType t1 = IntelInstruction::get_optype(op1);
+    OpType t2 = IntelInstruction::get_optype(op2);
 
-    result.setREXW();
+    if (t1 == IMM && t2 == REG) {
+        result.opcode = 0xb8;
 
-    result.opcode = 0x31;
-    result.used_fields[INSTR_OP] = true;
+        op1.erase(op1.begin()); // remove the $
+        op2.erase(op2.begin()); // remove the %
 
-    result.modrm.mod = 0b11;
-    result.modrm.reg = registers.at(op1);
-    result.modrm.rm = registers.at(op2);
-    result.used_fields[INSTR_MODRM] = true;
+        result.setREXW();
+        if (extended_registers.contains(op2)) {
+            result.setREXB();
+        }
+        result.opcode += registers.at(op2);
+
+        result.immediate = std::stoll(op1);
+
+        result.used_fields[INSTR_REX] = true;
+        result.used_fields[INSTR_OP] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
+
+    } else if (t1 == IMM && (t2 == ADDR || t2 == REGADDR)) {
+        result.opcode = 0xc7;
+
+        op1.erase(op1.begin());
+        result.immediate = std::stol(op1);
+
+        if (t2 == REGADDR) {
+            if (std::isalpha(op2.front())) {
+                // TODO a function for this would be nice
+                if (sym_table.contains(op2)) {
+                    result.displacement = sym_table.at(op2);
+                } else {
+                    result.displacement = 0;
+                }
+            } else {
+                result.displacement = std::stol(op2);
+            }
+
+            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            if (extended_registers.contains(op2)) {
+                result.setREXB();
+            }
+
+            result.modrm.mod = 0b10;
+            result.modrm.reg = 0b000;
+            result.modrm.rm = registers.at(op2);
+        } else {
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            if (sym_table.contains(op2)) {
+                result.displacement = sym_table.at(op2);
+            } else {
+                result.displacement = 0;
+            }
+
+            result.modrm.mod = 0b00;
+            result.modrm.reg = 0b000;
+            result.modrm.rm = 0b100;
+
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b101;
+            result.used_fields[INSTR_SIB] = true;
+        }
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
+
+    } else if (t1 == REG && t2 == REG) {
+         result.opcode = 0x89;
+
+         op1.erase(op1.begin());
+         op1.pop_back();
+         op2.erase(op2.begin());
+
+         result.setREXW();
+         if (extended_registers.contains(op1)) {
+             result.setREXR();
+         }
+         if (extended_registers.contains(op2)) {
+             result.setREXB();
+         }
+
+         result.modrm.mod = 0b11;
+         result.modrm.reg = registers.at(op1);
+         result.modrm.rm  = registers.at(op2);
+
+         result.used_fields[INSTR_REX] = true;
+         result.used_fields[INSTR_OP] = true;
+         result.used_fields[INSTR_MODRM] = true;
+
+    } else if (t1 == REG && (t2 == ADDR || t2 == REGADDR)) {
+        result.opcode = 0x89;
+        result.setREXW();
+
+        if (t2 == REGADDR) {
+            if (std::isalpha(op2.front())) {
+                // TODO a function for this would be nice
+                if (sym_table.contains(op2)) {
+                    result.displacement = sym_table.at(op2);
+                } else {
+                    result.displacement = 0;
+                }
+            } else {
+                result.displacement = std::stol(op2);
+            }
+
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            if (extended_registers.contains(op1)) {
+                result.setREXR();
+            }
+            if (extended_registers.contains(op2)) {
+                result.setREXB();
+            }
+
+            result.modrm.mod = 0b10;
+            result.modrm.reg = registers.at(op1);
+            result.modrm.rm  = registers.at(op2);
+
+        } else {
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op2.erase(op2.begin());
+            op2.pop_back();
+            if (sym_table.contains(op2)) {
+                result.displacement = sym_table.at(op2);
+            } else {
+                result.displacement = 0;
+            }
+
+            if (extended_registers.contains(op1)) {
+                result.setREXR();
+            }
+
+            // DOUBLE CHECK
+            result.modrm.mod = 0b00;
+            result.modrm.reg = registers.at(op1);
+            result.modrm.rm = 0b100;
+
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b101;
+            result.used_fields[INSTR_SIB] = true;
+        }
+
+        result.used_fields[INSTR_REX] = true;
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+
+    } else if ((t1 == REGADDR || t1 == ADDR) && t2 == REG) {
+        result.opcode = 0x8b;
+        result.setREXW();
+
+        if (t1 == REGADDR) {
+            if (std::isalpha(op1.front())) {
+                // TODO a function for this would be nice
+                if (sym_table.contains(op2)) {
+                    result.displacement = sym_table.at(op2);
+                } else {
+                    result.displacement = 0;
+                }
+            } else {
+                result.displacement = std::stol(op1);
+            }
+
+            op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op1.pop_back();
+            op2.erase(op2.begin());
+
+            result.modrm.mod = 0b10;
+            result.modrm.reg = registers.at(op2);
+            result.modrm.rm = registers.at(op1);
+
+            if (extended_registers.contains(op1)) {
+                result.setREXB();
+            }
+            if (extended_registers.contains(op2)) {
+                result.setREXR();
+            }
+
+            result.used_fields[INSTR_REX] = true;
+            result.used_fields[INSTR_OP] = true;
+            result.used_fields[INSTR_MODRM] = true;
+            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+
+        } else {
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op1.pop_back();
+            op2.erase(op2.begin());
+
+            // TODO a function for this would be nice
+            if (sym_table.contains(op2)) {
+                result.displacement = sym_table.at(op2);
+            } else {
+                result.displacement = 0;
+            }
+
+            result.modrm.mod = 0b00;
+            result.modrm.reg = registers.at(op2);
+            result.modrm.rm = 0b100;
+
+            if (extended_registers.contains(op2)) {
+                result.setREXR();
+            }
+
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b101;
+            result.used_fields[INSTR_SIB] = true;
+
+            result.used_fields[INSTR_REX] = true;
+            result.used_fields[INSTR_OP] = true;
+            result.used_fields[INSTR_MODRM] = true;
+            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+        }
+    }
 
     return result;
+}
+
+
+IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2, uint8_t code3, uint8_t ext) {
+    std::string op1{*(++is)};
+    std::string op2{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+    OpType t1 = IntelInstruction::get_optype(op1);
+    OpType t2 = IntelInstruction::get_optype(op2);
+
+    if (t1 == IMM && t2 == REG) {
+        result.opcode = code1;
+
+        op1.erase(op1.begin()); // remove the $
+        op2.erase(op2.begin()); // remove the %
+
+        result.setREXW();
+        if (extended_registers.contains(op2)) {
+            result.setREXB();
+        }
+
+        result.modrm.mod = 0b11;
+        result.modrm.reg = ext;
+        result.modrm.rm = registers.at(op2);
+
+        result.immediate = std::stoll(op1);
+
+        result.used_fields[INSTR_REX] = true;
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
+
+    } else if (t1 == IMM && (t2 == ADDR || t2 == REGADDR)) {
+        result.opcode = code1;
+
+        op1.erase(op1.begin());
+        result.immediate = std::stol(op1);
+
+        if (t2 == REGADDR) {
+            if (std::isalpha(op2.front())) {
+                // TODO a function for this would be nice
+                if (sym_table.contains(op2)) {
+                    result.displacement = sym_table.at(op2);
+                } else {
+                    result.displacement = 0;
+                }
+            } else {
+                result.displacement = std::stol(op2);
+            }
+
+            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            if (extended_registers.contains(op2)) {
+                result.setREXB();
+            }
+
+            result.modrm.mod = 0b10;
+            result.modrm.reg = ext;
+            result.modrm.rm = registers.at(op2);
+        } else {
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            if (sym_table.contains(op2)) {
+                result.displacement = sym_table.at(op2);
+            } else {
+                result.displacement = 0;
+            }
+
+            result.modrm.mod = 0b00;
+            result.modrm.reg = 0b000;
+            result.modrm.rm = 0b100;
+
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b101;
+            result.used_fields[INSTR_SIB] = true;
+        }
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
+
+    } else if (t1 == REG && t2 == REG) {
+        result.opcode = code2;
+
+        op1.erase(op1.begin());
+        op1.pop_back();
+        op2.erase(op2.begin());
+
+        result.setREXW();
+        if (extended_registers.contains(op1)) {
+            result.setREXR();
+        }
+        if (extended_registers.contains(op2)) {
+            result.setREXB();
+        }
+
+        // DOUBLE CHECK
+        result.modrm.mod = 0b11;
+        result.modrm.reg = registers.at(op1);
+        result.modrm.rm  = registers.at(op2);
+
+        result.used_fields[INSTR_REX] = true;
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+
+    } else if (t1 == REG && (t2 == ADDR || t2 == REGADDR)) {
+        result.opcode = code2;
+        result.setREXW();
+
+        if (t2 == REGADDR) {
+            if (std::isalpha(op2.front())) {
+                // TODO a function for this would be nice
+                if (sym_table.contains(op2)) {
+                    result.displacement = sym_table.at(op2);
+                } else {
+                    result.displacement = 0;
+                }
+            } else {
+                result.displacement = std::stol(op2);
+            }
+
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op2.erase(op2.begin(), std::find(op2.begin(), op2.end(), '%'));
+            op2.erase(op2.begin());
+            op2.pop_back();
+
+            if (extended_registers.contains(op1)) {
+                result.setREXR();
+            }
+            if (extended_registers.contains(op2)) {
+                result.setREXB();
+            }
+
+            result.modrm.mod = 0b10;
+            result.modrm.reg = registers.at(op1);
+            result.modrm.rm  = registers.at(op2);
+
+        } else {
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op2.erase(op2.begin());
+            op2.pop_back();
+            if (sym_table.contains(op2)) {
+                result.displacement = sym_table.at(op2);
+            } else {
+                result.displacement = 0;
+            }
+
+            if (extended_registers.contains(op1)) {
+                result.setREXR();
+            }
+
+            // DOUBLE CHECK
+            result.modrm.mod = 0b00;
+            result.modrm.reg = registers.at(op1);
+            result.modrm.rm = 0b100;
+
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b101;
+            result.used_fields[INSTR_SIB] = true;
+        }
+
+        result.used_fields[INSTR_REX] = true;
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+
+    } else if ((t1 == REGADDR || t1 == ADDR) && t2 == REG) {
+        result.opcode = code3;
+        result.setREXW();
+
+        if (t1 == REGADDR) {
+            if (std::isalpha(op1.front())) {
+                // TODO a function for this would be nice
+                if (sym_table.contains(op2)) {
+                    result.displacement = sym_table.at(op2);
+                } else {
+                    result.displacement = 0;
+                }
+            } else {
+                result.displacement = std::stol(op1);
+            }
+
+            op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op1.pop_back();
+            op2.erase(op2.begin());
+
+            result.modrm.mod = 0b10;
+            result.modrm.reg = registers.at(op2);
+            result.modrm.rm = registers.at(op1);
+
+            if (extended_registers.contains(op1)) {
+                result.setREXB();
+            }
+            if (extended_registers.contains(op2)) {
+                result.setREXR();
+            }
+
+            result.used_fields[INSTR_REX] = true;
+            result.used_fields[INSTR_OP] = true;
+            result.used_fields[INSTR_MODRM] = true;
+            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+
+        } else {
+            op1.erase(op1.begin());
+            op1.pop_back();
+            op1.pop_back();
+            op2.erase(op2.begin());
+
+            // TODO a function for this would be nice
+            if (sym_table.contains(op2)) {
+                result.displacement = sym_table.at(op2);
+            } else {
+                result.displacement = 0;
+            }
+
+            result.modrm.mod = 0b00;
+            result.modrm.reg = registers.at(op2);
+            result.modrm.rm = 0b100;
+
+            if (extended_registers.contains(op2)) {
+                result.setREXR();
+            }
+
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b101;
+            result.used_fields[INSTR_SIB] = true;
+
+            result.used_fields[INSTR_REX] = true;
+            result.used_fields[INSTR_OP] = true;
+            result.used_fields[INSTR_MODRM] = true;
+            std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+        }
+    }
+
+    return result;
+
+}
+
+
+IntelInstruction Assembler::create_add(std::istream_iterator<std::string>& is) {
+    return create_2opinstr(is, 0x81, 0x01, 0x03, 0b000);
+}
+
+IntelInstruction Assembler::create_sub(std::istream_iterator<std::string>& is) {
+    return create_2opinstr(is, 0x81, 0x29, 0x2b, 0b101);
+}
+
+IntelInstruction Assembler::create_xor(std::istream_iterator<std::string>& is) {
+    return create_2opinstr(is, 0x81, 0x31, 0x33, 0b110);
 }
 
 
@@ -1170,6 +911,24 @@ IntelInstruction Assembler::create_test(std::istream_iterator<std::string>& is) 
 }
 
 
+IntelInstruction Assembler::create_cmp(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    std::string op2{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+    OpType t1 = IntelInstruction::get_optype(op1);
+    OpType t2 = IntelInstruction::get_optype(op2);
+
+    // if (t1 == IMM && t2 == ) {
+    //     
+    // }
+
+
+    return result;
+}
+
+
 IntelInstruction Assembler::create_jne(std::istream_iterator<std::string>& is) {
     std::string op1{*(++is)};
     ++is;
@@ -1205,6 +964,22 @@ IntelInstruction Assembler::create_jmp(std::istream_iterator<std::string>& is) {
     } else {
         *reinterpret_cast<uint8_t*>(&result.modrm) = 0;
     }
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
+}
+
+
+IntelInstruction Assembler::create_syscall(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+
+    result.opcode = 0x0f;
+    *reinterpret_cast<uint8_t*>(&result.modrm) = 0x05;
+
+    result.used_fields[INSTR_OP] = true;
     result.used_fields[INSTR_MODRM] = true;
 
     return result;
