@@ -2,10 +2,10 @@
 #include <format>
 #include <iostream>
 
-CodeEmitter::CodeEmitter(IntermediateRepresentation&& ir, const std::string& base_name) : ir(std::move(ir)), ofile(base_name) {
+CodeEmitter::CodeEmitter(IntermediateRepresentation&& ir, const std::string& file_name) : ir(std::move(ir)), ofile(file_name) {
     // Ensure the file is created by opening it
     if (!ofile.is_open()) {
-        throw std::runtime_error("Error: could not create output file " + base_name + ".s");
+        throw std::runtime_error("Error: could not create output file " + file_name);
     }
 }
 
@@ -24,96 +24,96 @@ R"(.section .data
 R"(.section .text
 .global _start
 write:
-    movabs $10, %rcx        # divisor
-    xor %rbx, %rbx          # count digits
-    mov %rax, %rdi          # Save original value
-    cmp $0, %rax            # Compare %rax to zero
-    jge _divide             # If greater than or equal to zero, skip to division
+    movabs $10, %rcx        )" /* divisor */ R"(
+    xor %rbx, %rbx          )" /* count digits */ R"(
+    mov %rax, %rdi          )" /* Save original value */ R"(
+    cmp $0, %rax            )" /* Compare %rax to zero */ R"(
+    jge _divide             )" /* If greater than or equal to zero, skip to division */ R"(
 
-    # Handle negative number
-    neg %rax                # Get the absolute value
-    movb $45, strResult     # Place the negative sign at the start of the buffer
-    inc %rbx                # Increment digit count for the negative sign
+    )" /* Handle negative number */ R"(
+    neg %rax                )" /* Get the absolute value */ R"(
+    movb $45, strResult     )" /* Place the negative sign at the start of the buffer */ R"(
+    inc %rbx                )" /* Increment digit count for the negative sign */ R"(
 
 _divide:
-    xor %rdx, %rdx          # High part = 0
-    div %rcx                # RAX = RDX:RAX / RCX, RDX = remainder
-    push %rdx               # DL is a digit in range [0..9]
-    inc %rbx                # Count digits
-    test %rax, %rax         # RAX is 0?
-    jnz _divide             # No, continue
+    xor %rdx, %rdx          )" /* High part = 0 */ R"(
+    div %rcx                )" /* RAX = RDX:RAX / RCX, RDX = remainder */ R"(
+    push %rdx               )" /* DL is a digit in range [0..9] */ R"(
+    inc %rbx                )" /* Count digits */ R"(
+    test %rax, %rax         )" /* RAX is 0? */ R"(
+    jnz _divide             )" /* No, continue */ R"(
 
-    # POP digits from stack in reverse order
-    mov %rbx, %rcx          # Number of digits
-    lea strResult, %rsi     # RSI points to string buffer
+    )" /* POP digits from stack in reverse order */ R"(
+    mov %rbx, %rcx          )" /* Number of digits */ R"(
+    lea strResult, %rsi     )" /* RSI points to string buffer */ R"(
 
-    # If the number was negative, adjust the pointer for the sign
-    cmp $0, %rdi              # Compare %rdi to zero
-    jge _next_digit           # If greater than or equal to zero, skip to next digit loop
-    inc %rsi                  # Adjust RSI to skip the negative sign
-    dec %rcx                  # Decrement digit count for negative sign
+    )" /* If the number was negative, adjust the pointer for the sign */ R"(
+    cmp $0, %rdi              )" /* Compare %rdi to zero */ R"(
+    jge _next_digit           )" /* If greater than or equal to zero, skip to next digit loop */ R"(
+    inc %rsi                  )" /* Adjust RSI to skip the negative sign */ R"(
+    dec %rcx                  )" /* Decrement digit count for negative sign */ R"(
 
 _next_digit:
     pop %rax
-    addb $48, %al            # Convert to ASCII
-    movb %al, 0(%rsi)        # Write it to the buffer
+    addb $48, %al            )" /* Convert to ASCII */ R"(
+    movb %al, 0(%rsi)        )" /* Write it to the buffer */ R"(
     inc %rsi
     dec %rcx
-    jnz _next_digit          # Repeat until all digits are processed
+    jnz _next_digit          )" /* Repeat until all digits are processed */ R"(
 
-    # Null-terminate the string
-    movb $0, 0(%rsi)         # Null terminator
+    )" /* Null-terminate the string */ R"(
+    movb $0, 0(%rsi)         )" /* Null terminator */ R"(
 
-    # Prepare for sys_write
-    mov $1, %rax            # sys_write system call number
-    mov $1, %rdi            # File descriptor (stdout)
-    lea strResult, %rsi     # Buffer (string to print)
-    mov %rbx, %rdx          # Length
-    syscall                 # Invoke system call
+    )" /* Prepare for sys_write */ R"(
+    mov $1, %rax            )" /* sys_write system call number */ R"(
+    mov $1, %rdi            )" /* File descriptor (stdout) */ R"(
+    lea strResult, %rsi     )" /* Buffer (string to print) */ R"(
+    mov %rbx, %rdx          )" /* Length */ R"(
+    syscall                 )" /* Invoke system call */ R"(
 
-    # Return
+    )" /* Return */ R"(
     ret
 
-# Entry point for read routine
+)" /* Entry point for read routine */ R"(
 read:
-    mov $0, %rax                 # syscall: read
-    mov $0, %rdi                 # fd: stdin
-    lea buff, %rsi               # buffer to store input
-    mov $21, %rdx                # max number of bytes to read
-    syscall                      # make syscall
+    mov $0, %rax                 )" /* syscall: read */ R"(
+    mov $0, %rdi                 )" /* fd: stdin */ R"(
+    lea buff, %rsi               )" /* buffer to store input */ R"(
+    mov $21, %rdx                )" /* max number of bytes to read */ R"(
+    syscall                      )" /* make syscall */ R"(
 
-    lea buff, %rsi               # RSI points to the input buffer
-    xor %rax, %rax               # Clear RAX (result)
-    xor %rdi, %rdi               # Clear RDI (multiplier)
+    lea buff, %rsi               )" /* RSI points to the input buffer */ R"(
+    xor %rax, %rax               )" /* Clear RAX (result) */ R"(
+    xor %rdi, %rdi               )" /* Clear RDI (multiplier) */ R"(
 
-    movzxb 0(%rsi), %rcx         # Load current byte into RCX
+    movzxb 0(%rsi), %rcx         )" /* Load current byte into RCX */ R"(
     cmpb $45, %cl
     je _read_neg
 
 _read_loop1:
-    movzxb 0(%rsi), %rcx         # Load current byte into RCX
-    cmpb $10, %cl                # Check for newline character
-    je _read_done                # If newline, we're done
-    sub $48, %rcx                # Convert ASCII to integer
-    mov $10, %r11                # Move 10 to a temp register
-    imulq %r11                   # Multiply current result by 10
-    add %rcx, %rax               # Add current digit to result
-    inc %rsi                     # Move to next character
-    jmp _read_loop1              # Repeat for next character
+    movzxb 0(%rsi), %rcx         )" /* Load current byte into RCX */ R"(
+    cmpb $10, %cl                )" /* Check for newline character */ R"(
+    je _read_done                )" /* If newline, we're done */ R"(
+    sub $48, %rcx                )" /* Convert ASCII to integer */ R"(
+    mov $10, %r11                )" /* Move 10 to a temp register */ R"(
+    imulq %r11                   )" /* Multiply current result by 10 */ R"(
+    add %rcx, %rax               )" /* Add current digit to result */ R"(
+    inc %rsi                     )" /* Move to next character */ R"(
+    jmp _read_loop1              )" /* Repeat for next character */ R"(
 
 _read_neg:
     inc %rsi
 
 _read_loop2:
-    movzxb 0(%rsi), %rcx         # Load current byte into RCX
-    cmpb $10, %cl                # Check for newline character
-    je _read_done                # If newline, we're done
-    sub $48, %rcx                # Convert ASCII to integer
-    mov $10, %r11                # Move 10 to a temp register
-    imulq %r11                   # Multiply current result by 10
-    sub %rcx, %rax               # Sub current digit to result
-    inc %rsi                     # Move to next character
-    jmp _read_loop2              # Repeat for next character
+    movzxb 0(%rsi), %rcx         )" /* Load current byte into RCX */ R"(
+    cmpb $10, %cl                )" /* Check for newline character */ R"(
+    je _read_done                )" /* If newline, we're done */ R"(
+    sub $48, %rcx                )" /* Convert ASCII to integer */ R"(
+    mov $10, %r11                )" /* Move 10 to a temp register */ R"(
+    imulq %r11                   )" /* Multiply current result by 10 */ R"(
+    sub %rcx, %rax               )" /* Sub current digit to result */ R"(
+    inc %rsi                     )" /* Move to next character */ R"(
+    jmp _read_loop2              )" /* Repeat for next character */ R"(
 
 _read_done:
     ret
@@ -122,9 +122,9 @@ _start:
 
     )";
     static const std::string exit = 
-R"(mov $60, %rax           # sys_exit system call number
-xor %rdi, %rdi          # Status: 0
-syscall                 # Invoke system call
+R"(mov $60, %rax           )" /* sys_exit system call number */ R"(
+xor %rdi, %rdi          )" /* Status: 0 */ R"(
+syscall                 )" /* Invoke system call */ R"(
 
 )"; 
    std::string program_string;
@@ -134,7 +134,7 @@ syscall                 # Invoke system call
     program_string += std::format("push %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
     for(const auto& b : ir.get_basic_blocks()) {
         if(!(b.index >= ir.get_successors(0).back())) continue;
-        program_string += std::format("\n# BB{}\n", b.index);
+        // program_string += std::format("\n# BB{}\n", b.index);
         program_string += block(b.index);
     }
 
@@ -160,7 +160,7 @@ add ${}, %rsp
 )", ((REGISTER_COUNT + 1) * 8) + 8);
         getting_pars = true;
         for(bb_t func_index = ir.get_successors(0).at(index); func_index < ir.get_successors(0).at(index+1); ++func_index) {
-            program_string += std::format("\n# BB{}\n", func_index);
+            // program_string += std::format("\n# BB{}\n", func_index);
             program_string += block(func_index);
         }
     }
@@ -407,9 +407,9 @@ ret
 )", 8 * ir.spill_count, (REGISTER_COUNT * 8) + 8, i.larg != -1 ? std::format("mov {}, %rax", reg_str(i.larg)) : ""); 
             } else {
                 return prologue() + 
-R"(mov $60, %rax        # sys_exit system call number
-xor %rdi, %rdi          # Status: 0
-syscall                 # Invoke system call
+R"(mov $60, %rax        )" /* sys_exit system call number */ R"(
+xor %rdi, %rdi          )" /* Status: 0 */ R"(
+syscall                 )" /* Invoke system call */ R"(
 
 )"; 
             }
@@ -420,7 +420,7 @@ syscall                 # Invoke system call
         case(Opcode::GETPAR):
             return std::format("pop {}\n", reg_str(i.instruction_number));
         case(Opcode::SETPAR):
-            return prologue() + std::format("# SETPAR\npush {}\n", reg_str(i.larg));
+            return prologue() + std::format("push {}\n", reg_str(i.larg));
         case(Opcode::READ):
             return prologue() + read(i);
         case(Opcode::WRITE):

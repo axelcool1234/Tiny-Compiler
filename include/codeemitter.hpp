@@ -5,7 +5,7 @@
 
 class CodeEmitter {
 public:
-    CodeEmitter(IntermediateRepresentation&& ir, const std::string& base_name);
+    CodeEmitter(IntermediateRepresentation&& ir, const std::string& file_name);
     IntermediateRepresentation ir;
     std::ofstream ofile;
     void emit_code();
