@@ -139,7 +139,7 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
 void Assembler::read_symbols()
 {
     // kept in memory for now, maybe write to disk later
-    size_t curr_offset{};
+    [[maybe_unused]] size_t curr_offset{};
     std::istream_iterator<std::string> is{infile}, end{};
 
     while (is != end) {

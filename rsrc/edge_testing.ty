@@ -27,6 +27,4 @@ function testEqualTo(valOne, valTwo, printValue);
 {
     let a <- call earlyReturn1;
     call testEqualTo(a, 0-11, 1);
-
-    
 }.
