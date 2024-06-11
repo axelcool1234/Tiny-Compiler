@@ -71,8 +71,15 @@ enum InstructionType {
     INC,
     DEC,
     TEST,
+
     JMP,
     JNE,
+    JE,
+    JGE,
+    JG,
+    JLE,
+    JL,
+
     NEG,
     CQTO,
     IMUL,
@@ -96,8 +103,15 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
     {"inc", INC},
     {"dec", DEC},
     {"test", TEST},
+
     {"jmp", JMP},
     {"jne", JNE},
+    {"je", JE},
+    {"jge", JGE},
+    {"jg", JG},
+    {"jle", JLE},
+    {"jl", JL},
+
     {"neg", NEG},
     {"cqto", CQTO},
     {"imulq", IMUL},
@@ -209,18 +223,34 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
         case TEST:
             result = create_test(is);
             break;
+
         case JMP:
             result = create_jmp(is);
             break;
         case JNE:
             result = create_jne(is);
             break;
+        case JE:
+            result = create_je(is);
+            break;
+        case JGE:
+            result = create_jge(is);
+            break;
+        case JG:
+            result = create_jg(is);
+            break;
+        case JLE:
+            result = create_jle(is);
+            break;
+        case JL:
+            result = create_jl(is);
+            break;
+
         case NEG:
             //TODO: Do this
             // result = create_neg(is);
             break;
         case CQTO:
-            //TODO: Brian check this plz
             result = create_cqto(is);
             break;
         case SYSCALL:
@@ -1036,29 +1066,7 @@ IntelInstruction Assembler::create_test(std::istream_iterator<std::string>& is) 
     return result;
 }
 
-
-IntelInstruction Assembler::create_jne(std::istream_iterator<std::string>& is) {
-    std::string op1{*(++is)};
-    ++is;
-
-    IntelInstruction result;
-
-    result.opcode = 0x75;
-    result.used_fields[INSTR_OP] = true;
-
-    if (sym_table.contains(op1)) {
-        // magic
-    } else {
-        *reinterpret_cast<uint8_t*>(&result.modrm) = 0;
-    }
-    result.used_fields[INSTR_MODRM] = true;
-
-    return result;
-
-}
-
 IntelInstruction Assembler::create_cqto(std::istream_iterator<std::string>& is) {
-    std::string op1{*(++is)};
     ++is;
 
     IntelInstruction result;
@@ -1073,28 +1081,55 @@ IntelInstruction Assembler::create_cqto(std::istream_iterator<std::string>& is) 
 }
 
 
-IntelInstruction Assembler::create_jmp(std::istream_iterator<std::string>& is) {
+IntelInstruction Assembler::create_jmpinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2) {
     std::string op1{*(++is)};
     ++is;
 
     IntelInstruction result;
+    result.opcode = code1;
 
-    result.opcode = 0xeb;
-    result.used_fields[INSTR_OP] = true;
+    if (code2 != 0) {
+        *reinterpret_cast<uint8_t*>(&result.modrm) = code2;
+        result.used_fields[INSTR_MODRM] = true;
+    }
 
     if (sym_table.contains(op1)) {
         // magic
     } else {
-        *reinterpret_cast<uint8_t*>(&result.modrm) = 0;
+        result.immediate = 0;
     }
-    result.used_fields[INSTR_MODRM] = true;
+
+    result.used_fields[INSTR_OP] = true;
+    std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
 
     return result;
 }
 
 
+IntelInstruction Assembler::create_jmp(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0xe9, 0x00);
+}
+IntelInstruction Assembler::create_jne(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0x0f, 0x85);
+}
+IntelInstruction Assembler::create_je(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0x0f, 0x84);
+}
+IntelInstruction Assembler::create_jge(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0x0f, 0x8d);
+}
+IntelInstruction Assembler::create_jg(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0x0f, 0x8f);
+}
+IntelInstruction Assembler::create_jle(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0x0f, 0x8e);
+}
+IntelInstruction Assembler::create_jl(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0x0f, 0x8c);
+}
+
+
 IntelInstruction Assembler::create_syscall(std::istream_iterator<std::string>& is) {
-    std::string op1{*(++is)};
     ++is;
 
     IntelInstruction result;

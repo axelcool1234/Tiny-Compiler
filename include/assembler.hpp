@@ -40,13 +40,13 @@ private:
 
     IntelInstruction create_instruction(std::istream_iterator<std::string>& is);
 
-    IntelInstruction create_2opinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2, uint8_t code3, uint8_t ext);
-
     IntelInstruction create_mov(std::istream_iterator<std::string>& is);
     IntelInstruction create_lea(std::istream_iterator<std::string>& is);
 
+    IntelInstruction create_2opinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2, uint8_t code3, uint8_t ext);
     IntelInstruction create_add(std::istream_iterator<std::string>& is);
     IntelInstruction create_sub(std::istream_iterator<std::string>& is);
+    IntelInstruction create_cmp(std::istream_iterator<std::string>& is);
     IntelInstruction create_mul(std::istream_iterator<std::string>& is);
     IntelInstruction create_div(std::istream_iterator<std::string>& is);
     IntelInstruction create_xor(std::istream_iterator<std::string>& is);
@@ -58,10 +58,15 @@ private:
     IntelInstruction create_push(std::istream_iterator<std::string>& is);
     IntelInstruction create_pop(std::istream_iterator<std::string>& is);
 
-    IntelInstruction create_cmp(std::istream_iterator<std::string>& is);
+    IntelInstruction create_jmpinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2);
     IntelInstruction create_test(std::istream_iterator<std::string>& is);
     IntelInstruction create_jmp(std::istream_iterator<std::string>& is);
+    IntelInstruction create_je(std::istream_iterator<std::string>& is);
     IntelInstruction create_jne(std::istream_iterator<std::string>& is);
+    IntelInstruction create_jge(std::istream_iterator<std::string>& is);
+    IntelInstruction create_jg(std::istream_iterator<std::string>& is);
+    IntelInstruction create_jle(std::istream_iterator<std::string>& is);
+    IntelInstruction create_jl(std::istream_iterator<std::string>& is);
     
     IntelInstruction create_cqto(std::istream_iterator<std::string>& is);
 
