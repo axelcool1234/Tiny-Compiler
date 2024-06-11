@@ -46,10 +46,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Assembler Test */
-    Assembler a{"rsrc/cqto_test.s"};
-    a.read_symbols();
-  
     /* Parse */
     Parser p{ stream };
     p.parse();
@@ -63,7 +59,14 @@ int main(int argc, char *argv[])
     CodeEmitter c { r.release_ir(), file_name };
     c.emit_code();
     if(debug) c.debug();
+    
 
     /* Generate ELF Binary */
+    /* Assembler Test */
+    Assembler a{"a.out"};
+    a.read_symbols();
+    a.read_program();
+    a.create_binary();
+
     return 0;
 }
