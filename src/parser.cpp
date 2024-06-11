@@ -225,7 +225,7 @@ std::pair<instruct_t, ident_t> Parser::function_statement(const bb_t& curr_block
     if(token_is<Keyword>(lexer.token)) {
         return predefined_function_statement(curr_block);
     }
-
+    
     // User defined functions
     ident_t ident = match_return<ident_t>();
     if(token_is(lexer.token, Terminal::LPAREN)) {
