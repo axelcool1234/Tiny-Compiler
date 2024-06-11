@@ -18,10 +18,13 @@ function earlyReturn2();
 var a2, b2, c2;
 {
     let b2 <- (0-7);
-    while b2 < a2 do 
+    while b2 < a2 do
         let a2 <- a2 - 1;
         if c2 > 3 then
-            return a2 - b2;
+            while c2 < 10 do
+                return a2 - b2;
+                let c2 <- c2 + 1;
+            od;
         fi;
         let c2 <- c2 + 1;
     od;
@@ -40,5 +43,7 @@ function testEqualTo(valOne, valTwo, printValue);
 
 {
     let a <- call earlyReturn1;
-    call testEqualTo(a, 3, 1);
+    call testEqualTo(a, 2, 1);
+    let a <- call earlyReturn2;
+    call testEqualTo(a, 2, 1);
 }.

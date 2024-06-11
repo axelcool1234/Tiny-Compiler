@@ -146,7 +146,12 @@ function testEqualTo(valOne, valTwo, printValue);
     od;
 
     return;
+    
     call OutputNewLine;
     call OutputNum(987654321);
 }.
 
+
+/*
+Should print 1 to 12 if we give inputs of -1 and 1.
+*/
