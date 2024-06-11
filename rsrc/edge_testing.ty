@@ -1,6 +1,32 @@
 main
 var a;
 
+function earlyReturn1();
+var a1, b1, c1;
 {
+    let b1 <- (0-7);
+    while b1 < a1 do 
+        let a1 <- a1 - 1;
+        if c1 > 3 then
+            return a1 - b1;
+        let c1 <- c1 + 1;
+    od;
+};
 
+function testEqualTo(valOne, valTwo, printValue);
+{
+    if valOne == valTwo then
+        call OutputNum(printValue);
+        call OutputNewLine();
+    else
+        call OutputNum(0-1234567890);
+        call OutputNewLine();
+    fi;
+};
+
+{
+    let a <- call earlyReturn1;
+    call testEqualTo(a, 0-11, 1);
+
+    
 }.
