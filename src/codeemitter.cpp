@@ -6,7 +6,8 @@ CodeEmitter::CodeEmitter(IntermediateRepresentation&& ir, const std::string& bas
     // Ensure the file is created by opening it
     if (!ofile.is_open()) {
         throw std::runtime_error("Error: could not create output file " + base_name + ".s");
-    }}
+    }
+}
 
 void CodeEmitter::debug() const {
     ir.debug();

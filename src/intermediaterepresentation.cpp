@@ -312,7 +312,7 @@ void IntermediateRepresentation::cse_replace(const bb_t& curr_block, const bb_t&
 
 void IntermediateRepresentation::update_phi(const bb_t& loop_header, const bb_t& branch_back) {
     if(ignore) return;
-    if(will_return(branch_back)) return;
+    // if(will_return(branch_back)) return;
     basic_blocks[loop_header].branch_block = branch_back;
     basic_blocks[branch_back].loop_header = loop_header;
 
@@ -322,7 +322,7 @@ void IntermediateRepresentation::update_phi(const bb_t& loop_header, const bb_t&
 
     for(Instruction& instruction : basic_blocks[loop_header].instructions) {
         if(instruction.opcode != Opcode::PHI) break;
-        if(loop_ident_vals[instruction.larg_owner] != branch_ident_vals[instruction.larg_owner]) {
+        if(loop_ident_vals[instruction.larg_owner] != branch_ident_vals[instruction.larg_owner] && !will_return(branch_back)) {
             instruction.rarg = branch_ident_vals[instruction.larg_owner];
             instruction.rarg_owner = instruction.larg_owner;
             // establish_affinity_group(instruction.instruction_number, instruction.larg, instruction.rarg);

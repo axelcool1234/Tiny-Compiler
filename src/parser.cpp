@@ -336,14 +336,17 @@ bool Parser::while_statement(bb_t& curr_block) {
         ir.set_branch_cond(while_block, Opcode::BRA, ir.first_instruction(curr_block));
         if(!ir.while_loop) ir.commit_while(curr_block, curr_block, while_block, lexer.identifier_table); 
         curr_block = while_block;
-        return true;
+        return true;  // Since we ARE NEVER branching to outside the while loop,
+                      // We do want to ignore parsing past the while loop (thus, we return true).
     } else if(result == Relation::TRUE) {
-        return false;
+        return false; // Since we ARE branching immediately to outside the while loop,
+                      // We don't want to ignore parsing (thus, we return false).
     }
 
     // Create BRANCH block
     branch(curr_block, while_block);
-    return false;
+    return false; // Since we may or may not branch, 
+                  // We don't want to ignore parsing (thus, we return false).
 }
 
 void Parser::branch(bb_t& curr_block, const bb_t& while_block) {
