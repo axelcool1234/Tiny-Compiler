@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <array>
 #include <string>
-#include <unordered_map>
 
 constexpr int INSTR_REX     = 0;
 constexpr int INSTR_OP      = 1;
@@ -12,39 +11,6 @@ constexpr int INSTR_MODRM   = 2;
 constexpr int INSTR_SIB     = 3;
 constexpr int INSTR_DISP    = 4;
 constexpr int INSTR_IMM     = 12;
-
-#define INSTRUCTIONTYPE_LIST \
-    INSTRUCTIONTYPE(MOV, mov) \
-    INSTRUCTIONTYPE(LEA, lea) \
-    INSTRUCTIONTYPE(ADD, add) \
-    INSTRUCTIONTYPE(SUB, sub) \
-    INSTRUCTIONTYPE(XOR, xor) \
-    INSTRUCTIONTYPE(MUL, mul) \
-    INSTRUCTIONTYPE(DIV, div) \
-    INSTRUCTIONTYPE(PUSH, push) \
-    INSTRUCTIONTYPE(POP, pop) \
-    INSTRUCTIONTYPE(INC, inc) \
-    INSTRUCTIONTYPE(DEC, dec) \
-    INSTRUCTIONTYPE(TEST, test) \
-    INSTRUCTIONTYPE(JMP, jmp) \
-    INSTRUCTIONTYPE(JNE, jne) \
-    INSTRUCTIONTYPE(NEG, neg) \
-    INSTRUCTIONTYPE(CQTO, cqto) \
-    INSTRUCTIONTYPE(IMUL, imul) \
-    INSTRUCTIONTYPE(IDIV, idiv) 
-
-enum InstructionType {
-#define INSTRUCTIONTYPE(name, str) name,
-    INSTRUCTIONTYPE_LIST
-#undef INSTRUCTIONTYPE
-};
-
-static const std::unordered_map<std::string, InstructionType> instruction_mapping {
-#define INSTRUCTIONTYPE(name, str) { #str, name }, 
-    INSTRUCTIONTYPE_LIST
-    { "movabs", MOV }
-#undef INSTRUCTIONTYPE
-};
 
 enum OpType {
     IMM,
@@ -64,6 +30,7 @@ struct IntelInstruction {
 
     void setREXW();
     void setREXB();
+    void setREXR();
     static OpType get_optype(std::string op);
 };
 

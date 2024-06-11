@@ -40,6 +40,8 @@ private:
 
     IntelInstruction create_instruction(std::istream_iterator<std::string>& is);
 
+    IntelInstruction create_2opinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2, uint8_t code3, uint8_t code4, uint8_t code5);
+
     IntelInstruction create_mov(std::istream_iterator<std::string>& is);
     IntelInstruction create_lea(std::istream_iterator<std::string>& is);
 
