@@ -1,0 +1,95 @@
+main 
+
+function mod(xDPF,yDPF); 
+{
+    if yDPF == 0 then
+        return xDPF;
+    fi;
+    while xDPF < 0 do
+        let xDPF <- xDPF + yDPF;
+    od;
+    while xDPF >= yDPF do
+        let xDPF <- xDPF - yDPF;
+    od;
+    return xDPF;
+};
+
+function gcd(xGCD,yGCD); 
+{
+    if xGCD == 0 then
+        return yGCD;
+    fi;
+    return call gcd(yGCD, call mod(xGCD,yGCD));
+};
+
+function isPrime(num2DPF);
+var iDPF, resultDPF;
+{
+    let resultDPF <- 1;
+    if num2DPF < 2 then
+        let resultDPF <- 0;
+    else
+        let iDPF <- 2;
+        while iDPF * iDPF <= num2DPF do
+            if call mod(num2DPF, iDPF) == 0 then
+                let resultDPF <- 0;
+                let iDPF <- num2DPF;
+            else
+                let iDPF <- iDPF + 1;
+            fi;
+        od;
+    fi;
+    return resultDPF;
+};
+
+function countDistinctPrimeFactors(numberDPF);
+var countDPF, factorDPF;
+{
+    let countDPF <- 0;
+    let factorDPF <- 2;
+    while numberDPF > 1 do
+        if call isPrime(factorDPF) > 0 then
+            if call mod(numberDPF, factorDPF) == 0 then
+                let countDPF <- countDPF + 1;
+                while call mod(numberDPF, factorDPF) == 0 do
+                    let numberDPF <- numberDPF / factorDPF;
+                od;
+            fi;
+        fi;
+        let factorDPF <- factorDPF + 1;
+    od;
+    return countDPF;
+};
+
+function testEqualTo(valOne, valTwo, printValue);
+{
+    if valOne == valTwo then
+        call OutputNum(printValue);
+        call OutputNewLine();
+    else
+        call OutputNum(0-1234567890);
+        call OutputNewLine();
+    fi;
+};
+
+{
+	call testEqualTo(call countDistinctPrimeFactors(0-12), 0, 1);
+    call testEqualTo(call countDistinctPrimeFactors(13), 1, 2);
+    call testEqualTo(call countDistinctPrimeFactors(510510), 7, 3);
+    call testEqualTo(call countDistinctPrimeFactors(32), 1, 4);
+    call testEqualTo(call isPrime(4001), 1, 5);
+    call testEqualTo(call isPrime(4011), 0, 6);
+    call testEqualTo(call mod(12,24), 12, 7);
+    call testEqualTo(call mod(0-7,3), 2, 8);
+    call testEqualTo(call gcd(15,320), 5, 9);
+    call testEqualTo(call gcd(1,1), 1, 9);
+}.
+
+
+
+/**
+
+testEqualTo(a, b, c): checks if a is equal to b and prints c if it is else prints -1234567890
+
+
+**/
