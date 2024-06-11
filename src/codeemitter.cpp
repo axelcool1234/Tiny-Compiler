@@ -133,7 +133,7 @@ push %r10
 push %r14
 push %r15
 mov %rsp, %r11
-add $120, %rsp
+add $104, %rsp
 )";
         getting_pars = true;
         for(bb_t func_index = ir.get_successors(0).at(index); func_index < ir.get_successors(0).at(index+1); ++func_index) {
@@ -320,8 +320,8 @@ std::string CodeEmitter::prologue() {
         return std::format(R"(mov %rsp, %rbp
 mov %r11, %rsp
 mov %rbp, %r11
-mov 104(%rsp), %rbp
-mov %r11, 104(%rsp)
+mov 88(%rsp), %rbp
+mov %r11, 88(%rsp)
 push %rbp
 mov %rsp, %rbp
 add ${}, %rsp 
@@ -358,7 +358,7 @@ std::string CodeEmitter::instruction(const Instruction& i) {
             return prologue() + branch(i.rarg, "jg");
         case(Opcode::JSR):
             return prologue() + std::format(R"(call function{}
-add $-120, %rsp
+add $-104, %rsp
 pop %r15
 pop %r14
 pop %r10
@@ -377,7 +377,7 @@ mov %r11, %rsp
         case(Opcode::RET):
             return prologue() + std::format(R"(add ${}, %rsp
 pop %rbp
-add $112, %rsp
+add $96, %rsp
 {}
 ret
 )", 8 * ir.spill_count, i.larg != -1 ? std::format("mov {}, %rax", reg_str(i.larg)) : ""); 
