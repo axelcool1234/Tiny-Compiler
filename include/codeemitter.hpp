@@ -12,6 +12,7 @@ public:
     void debug() const;
 private:
     bool getting_pars = false;
+    bool main = false;
     /* Code Emitting */
     // Several //
     std::string block(const bb_t& b);

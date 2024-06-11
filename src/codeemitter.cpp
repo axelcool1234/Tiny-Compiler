@@ -125,6 +125,7 @@ syscall                 # Invoke system call
    std::string program_string;
 
     // Emit main blocks
+    main = true;
     program_string += std::format("push %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
     for(const auto& b : ir.get_basic_blocks()) {
         if(!(b.index >= ir.get_successors(0).back())) continue;
@@ -133,7 +134,7 @@ syscall                 # Invoke system call
     }
 
     program_string += exit;
-
+    main = false;
     // Emit function blocks
     for(size_t index = 0; index < ir.get_successors(0).size() - 1; ++index) {
         program_string += std::format("function{}:\n", ir.get_instructions(ir.get_successors(0).at(index)).at(0).instruction_number);
@@ -392,12 +393,21 @@ pop %r11
 mov %r11, %rsp
 )", i.larg, ((REGISTER_COUNT + 1) * 8 + 8), reg_str(i.instruction_number), ir.get_assigned_register(i.instruction_number) == Register::RAX ? "add $8, %rsp" : "popq %rax");
         case(Opcode::RET):
-            return prologue() + std::format(R"(add ${}, %rsp
+            if(!main) {
+                return prologue() + std::format(R"(add ${}, %rsp
 pop %rbp
 add ${}, %rsp
 {}
 ret
 )", 8 * ir.spill_count, (REGISTER_COUNT * 8) + 8, i.larg != -1 ? std::format("mov {}, %rax", reg_str(i.larg)) : ""); 
+            } else {
+                return prologue() + 
+R"(mov $60, %rax        # sys_exit system call number
+xor %rdi, %rdi          # Status: 0
+syscall                 # Invoke system call
+
+)"; 
+            }
         case(Opcode::MOV):
             return prologue() + mov_instruction(i.rarg, i.larg);
         case(Opcode::SWAP):

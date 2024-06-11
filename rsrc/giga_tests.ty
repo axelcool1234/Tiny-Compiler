@@ -137,6 +137,10 @@ function testEqualTo(valOne, valTwo, printValue);
 
     call testEqualTo(call InputNum(), 0-1, 11);
     call testEqualTo(call InputNum(), 1, 12);
+
+    return;
+    call OutputNewLine;
+    call OutputNum(987654321);
 }.
 
 
