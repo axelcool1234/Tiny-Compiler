@@ -60,6 +60,8 @@ private:
     IntelInstruction create_test(std::istream_iterator<std::string>& is);
     IntelInstruction create_jmp(std::istream_iterator<std::string>& is);
     IntelInstruction create_jne(std::istream_iterator<std::string>& is);
+    
+    IntelInstruction create_cqto(std::istream_iterator<std::string>& is);
 
     IntelInstruction create_syscall(std::istream_iterator<std::string>& is);
 
