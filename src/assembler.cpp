@@ -220,8 +220,8 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
             // result = create_neg(is);
             break;
         case CQTO:
-            //TODO: Do this
-            // result = create_cqto(is);
+            //TODO: Brian check this plz
+            result = create_cqto(is);
             break;
         case SYSCALL:
             result = create_syscall(is);
@@ -1055,6 +1055,21 @@ IntelInstruction Assembler::create_jne(std::istream_iterator<std::string>& is) {
 
     return result;
 
+}
+
+IntelInstruction Assembler::create_cqto(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+
+    result.opcode = 0x48;
+    *reinterpret_cast<uint8_t*>(&result.modrm) = 0x99;
+
+    result.used_fields[INSTR_OP] = true;
+    result.used_fields[INSTR_MODRM] = true;
+
+    return result;
 }
 
 
