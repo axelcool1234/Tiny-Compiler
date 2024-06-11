@@ -28,6 +28,7 @@ void Parser::computation() {
     statement_sequence(curr_block, Terminal::RBRACE);
     match(Terminal::RBRACE);
     match(Terminal::PERIOD);
+    lexer.check_all_defined();
 }
 
 /* Declarations */
@@ -65,6 +66,7 @@ bb_t Parser::function_declaration() {
         lexer.insert_ident(func_strings);
         match(Keyword::FUNCTION);
         match<ident_t>();
+        ++lexer.func_count;
         func_strings.emplace_back(lexer.last_ident_string);
 
         // formal_parameters ";" function_body ";"
@@ -72,6 +74,7 @@ bb_t Parser::function_declaration() {
         match(Terminal::SEMICOLON);
         func_first_instructs.emplace_back(function_body(formal_params, func_first_instructs));
         match(Terminal::SEMICOLON);
+        lexer.check_all_defined();
     }
 
     // Establish main function
@@ -94,11 +97,15 @@ std::vector<ident_t> Parser::formal_parameters() {
     std::vector<ident_t> formal_params{};
     match(Terminal::LPAREN);
     if(!token_is(lexer.token, Terminal::RPAREN)) {
-        formal_params.emplace_back(match_return<ident_t>());
+        ident_t param = match_return<ident_t>();
+        formal_params.emplace_back(param);
+        lexer.set_defined(param);
     }
     while(!token_is(lexer.token, Terminal::RPAREN)) {
         match(Terminal::COMMA);
-        formal_params.emplace_back(match_return<ident_t>());
+        ident_t param = match_return<ident_t>();
+        formal_params.emplace_back(param);
+        lexer.set_defined(param);
     }
     match(Terminal::RPAREN);
     return formal_params;
@@ -184,6 +191,7 @@ void Parser::let_statement(const bb_t& curr_block) {
     ident_t ident = match_return<ident_t>();
     match(Terminal::ASSIGN);
     ir.change_ident_value(curr_block, ident, expression(curr_block).first);
+    lexer.set_defined(ident);
 }
 
 std::pair<instruct_t, ident_t> Parser::predefined_function_statement(const bb_t& curr_block) {

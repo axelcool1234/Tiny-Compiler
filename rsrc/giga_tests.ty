@@ -1,7 +1,8 @@
 main 
+var undefinedMainVar, definedMainVar, nonfold;
 
 function mandelbrot(MBx,MBy);
-var MBiters, MBx2, MBgo, MBx0, MBy0; 
+var MBiters, MBx2, MBgo, MBx0, MBy0, undefinedFuncVar; 
 {
     let MBx0 <- MBx;
     let MBy0 <- MBy;
@@ -119,6 +120,7 @@ function testEqualTo(valOne, valTwo, printValue);
 };
 
 {
+    let definedMainVar <- 0;
     call printMandelbrot;
     call OutputNewLine;
     call OutputNewLine;
@@ -137,6 +139,11 @@ function testEqualTo(valOne, valTwo, printValue);
 
     call testEqualTo(call InputNum(), 0-1, 11);
     call testEqualTo(call InputNum(), 1, 12);
+
+    let nonfold <- call InputNum();
+    while undefinedMainVar < nonfold do
+        let nonfold <- nonfold - 1;
+    od;
 
     return;
     call OutputNewLine;

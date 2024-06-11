@@ -553,11 +553,7 @@ bool IntermediateRepresentation::is_valid_instruction(const instruct_t& instruct
 
 bool IntermediateRepresentation::is_undefined_instruction(const instruct_t& instruct) const {
     // If 0, the instruction is an uninitialized const value (of 0) for a user identifier.
-    if(instruct == 0) {
-        std::cout << "Warning! Variable is used before it is defined; defaulting to 0." << std::endl; 
-        return true;
-    }
-    return false;
+    return instruct == 0;
 }
 
 void IntermediateRepresentation::set_assigned_register(const instruct_t& instruct, const Register& reg) {
