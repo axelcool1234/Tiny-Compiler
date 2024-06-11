@@ -1,6 +1,5 @@
 main
-var b00, b01, b02, b10, b11, b12, b20, b21, b22;
-var player, row, col, moves, winner;
+var b00, b01, b02, b10, b11, b12, b20, b21, b22, player, row, col, moves, winner;
 
 void function initialize_board(); {
     let b00 <- 0; let b01 <- 0; let b02 <- 0;
@@ -37,15 +36,12 @@ void function make_move(player); {
 };
 
 function check_winner(); {
-    // Check rows
     if b00 = b01 then if b01 = b02 then if b00 != 0 then return b00; fi; fi; fi;
     if b10 = b11 then if b11 = b12 then if b10 != 0 then return b10; fi; fi; fi;
     if b20 = b21 then if b21 = b22 then if b20 != 0 then return b20; fi; fi; fi;
-    // Check columns
     if b00 = b10 then if b10 = b20 then if b00 != 0 then return b00; fi; fi; fi;
     if b01 = b11 then if b11 = b21 then if b01 != 0 then return b01; fi; fi; fi;
     if b02 = b12 then if b12 = b22 then if b02 != 0 then return b02; fi; fi; fi;
-    // Check diagonals
     if b00 = b11 then if b11 = b22 then if b00 != 0 then return b00; fi; fi; fi;
     if b02 = b11 then if b11 = b20 then if b02 != 0 then return b02; fi; fi; fi;
     return 0;
