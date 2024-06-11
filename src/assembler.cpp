@@ -46,46 +46,6 @@ static const std::unordered_set<std::string> directives {
     ".global",
 };
 
-
-enum InstructionType {
-    MOV,
-    LEA,
-    ADD,
-    SUB,
-    XOR,
-    MUL,
-    DIV,
-    PUSH,
-    POP,
-    INC,
-    DEC,
-    TEST,
-    JMP,
-    JNE
-};
-
-static const std::unordered_map<std::string, InstructionType> instruction_mapping {
-    {"mov"      , MOV},
-    {"movabs"   , MOV},
-    {"lea"      , LEA},
-
-    {"add"      , ADD},
-    {"sub"      , SUB},
-    {"xor"      , XOR},
-    {"inc"      , INC},
-    {"dec"      , DEC},
-    {"div"      , DIV},
-    {"mul"      , MUL},
-
-    {"push"     , PUSH},
-    {"pop"      , POP},
-    {"test"     , TEST},
-    {"jmp"      , JMP},
-    {"jne"      , JNE},
-    {"jnz"      , JNE},
-};
-
-
 void Assembler::read_symbols()
 {
     // kept in memory for now, maybe write to disk later
@@ -183,6 +143,14 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
             break;
         case JNE:
             result = create_jne(is);
+            break;
+        case NEG:
+            //TODO: Do this
+            // result = create_neg(is);
+            break;
+        case CQTO:
+            //TODO: Do this
+            // result = create_cqto(is);
             break;
     }
 

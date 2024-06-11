@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <array>
 #include <string>
+#include <unordered_map>
 
 constexpr int INSTR_REX     = 0;
 constexpr int INSTR_OP      = 1;
@@ -12,6 +13,36 @@ constexpr int INSTR_SIB     = 3;
 constexpr int INSTR_DISP    = 4;
 constexpr int INSTR_IMM     = 12;
 
+#define INSTRUCTIONTYPE_LIST \
+    INSTRUCTIONTYPE(MOV, mov) \
+    INSTRUCTIONTYPE(LEA, lea) \
+    INSTRUCTIONTYPE(ADD, add) \
+    INSTRUCTIONTYPE(SUB, sub) \
+    INSTRUCTIONTYPE(XOR, xor) \
+    INSTRUCTIONTYPE(MUL, mul) \
+    INSTRUCTIONTYPE(DIV, div) \
+    INSTRUCTIONTYPE(PUSH, push) \
+    INSTRUCTIONTYPE(POP, pop) \
+    INSTRUCTIONTYPE(INC, inc) \
+    INSTRUCTIONTYPE(DEC, dec) \
+    INSTRUCTIONTYPE(TEST, test) \
+    INSTRUCTIONTYPE(JMP, jmp) \
+    INSTRUCTIONTYPE(JNE, jne) \
+    INSTRUCTIONTYPE(NEG, neg) \
+    INSTRUCTIONTYPE(CQTO, cqto) 
+
+enum InstructionType {
+#define INSTRUCTIONTYPE(name, str) name,
+    INSTRUCTIONTYPE_LIST
+#undef INSTRUCTIONTYPE
+};
+
+static const std::unordered_map<std::string, InstructionType> instruction_mapping {
+#define INSTRUCTIONTYPE(name, str) { #str, name }, 
+    INSTRUCTIONTYPE_LIST
+    { "movabs", MOV }
+#undef INSTRUCTIONTYPE
+};
 
 enum OpType {
     IMM,
@@ -33,6 +64,5 @@ struct IntelInstruction {
     void setREXB();
     static OpType get_optype(std::string op);
 };
-
 
 #endif /* ifndef SYMBOL */
