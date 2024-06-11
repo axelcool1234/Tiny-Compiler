@@ -8,7 +8,7 @@ void Parser::parse() {
     computation();
 }
 
-Parser::Parser() : lexer(std::cin) {}
+Parser::Parser(std::istream& in) : lexer(in) {}
 
 void Parser::print() {
     std::cout << ir.to_dotlang();

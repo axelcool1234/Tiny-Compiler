@@ -12,7 +12,7 @@ enum class Relation {
 
 class Parser {
 public:
-    Parser();
+    Parser(std::istream& in);
 
     /*
      * Given an stdin of Tiny code, parses given code into an intermediate representation.
