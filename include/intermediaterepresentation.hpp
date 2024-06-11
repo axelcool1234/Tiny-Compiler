@@ -20,6 +20,10 @@
     REGISTER(R14D, %r14) \
     REGISTER(R15D, %r15)
 
+// WARNING: If you add another register to this list, it'll fail to generate proper code from the CodeEmitter.
+// You'll need to add a push for that register and a pop for that register for functions (as that register needs to be
+// preserved across function calls)
+
 // TODO: Someday, we could add R12D and R13D back again. 
 // It has special cases in the assembler, so have been removed.
 
@@ -31,7 +35,7 @@ enum Register {
 #define REGISTER(name, str) name,
     REGISTER_LIST
 #undef REGISTER
-    LAST,
+    REGISTER_COUNT,
     UNASSIGNED
 };
 
