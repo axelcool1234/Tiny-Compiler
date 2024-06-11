@@ -71,6 +71,7 @@ private:
     IntelInstruction create_cqto(std::istream_iterator<std::string>& is);
 
     IntelInstruction create_syscall(std::istream_iterator<std::string>& is);
+    IntelInstruction create_ret(std::istream_iterator<std::string>& is);
 
     std::ifstream infile;
     std::unordered_map<std::string, size_t> sym_table;
