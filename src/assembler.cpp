@@ -135,27 +135,19 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
 };
 
 
+void Assembler::read_program() {
+    infile.clear();
+    infile.seekg(0);
+    curr_offset = 0;
 
-void Assembler::read_symbols()
-{
-    // kept in memory for now, maybe write to disk later
-    size_t curr_offset{};
     std::istream_iterator<std::string> is{infile}, end{};
+    // std::vector<uint8_t> program;
 
     while (is != end) {
         if (directives.contains(*is)) {
             ++is; ++is;
-
         } else if (instruction_mapping.contains(*is)) {
             IntelInstruction ii = create_instruction(is);
-
-            curr_offset += std::accumulate(ii.used_fields.begin(), ii.used_fields.end(), 0);
-            // if (ii.used_fields[INSTR_REX])  { ++curr_offset; }
-            // if (ii.used_fields[INSTR_OP])   { ++curr_offset; }
-            // if (ii.used_fields[INSTR_MODRM]){ ++curr_offset; }
-            // if (ii.used_fields[INSTR_SIB])  { ++curr_offset; }
-            // if (ii.used_fields[INSTR_DISP]) { curr_offset += 8; }
-            // if (ii.used_fields[INSTR_IMM])  { curr_offset += 8; }
 
             std::vector<uint8_t> bytecode;
             if (ii.used_fields[INSTR_REX])  { bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.rex));   }
@@ -172,17 +164,62 @@ void Assembler::read_symbols()
                 if (ii.used_fields[INSTR_IMM+i])
                     bytecode.push_back(temp[i]);
 
-            for (auto i: bytecode)
-                std::cout << std::hex << std::setw(2) << std::setfill('0') << (unsigned)i << " ";
-            std::cout <<  std::endl;
+            std::copy(bytecode.begin(), bytecode.end(), std::back_inserter(program_bytecode));
+
+            curr_offset += std::accumulate(ii.used_fields.begin(), ii.used_fields.end(), 0);
+
+            // for (auto i: bytecode)
+            //     std::cout << std::hex << std::setw(2) << std::setfill('0') << (unsigned)i << " ";
+            // std::cout <<  std::endl;
 
         } else {
-            // std::cout << "label at: " << std::hex << curr_offset << std::endl;
+            ++is;
+        }
+    }
+
+}
+
+
+
+void Assembler::read_symbols()
+{
+    // kept in memory for now, maybe write to disk later
+    // size_t curr_offset{};
+    std::istream_iterator<std::string> is{infile}, end{};
+
+    while (is != end) {
+        if (directives.contains(*is)) {
+            ++is;
+            if (*is == ".data") {
+                ++is;
+                read_data(is);
+                return;
+            }
+            ++is;
+
+        } else if (instruction_mapping.contains(*is)) {
+            IntelInstruction ii = create_instruction(is);
+            curr_offset += std::accumulate(ii.used_fields.begin(), ii.used_fields.end(), 0);
+
+        } else {
+            std::string label{*is};
+            label.pop_back();
+
+            // std::cout << label << " at: " << std::hex << curr_offset << std::endl;
+            sym_table[label] = curr_offset;
             ++is;
 
         }
     }
 
+}
+
+
+void Assembler::read_data(std::istream_iterator<std::string>& is) {
+    curr_offset += (0x1000 - (curr_offset % 0x1000));
+
+    sym_table["strResult"] = curr_offset;
+    sym_table["buff"] = curr_offset+21;
 }
 
 
@@ -334,7 +371,7 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
             result.modrm.rm = registers.at(op1);
         }
 
-        result.displacement = (sym_table.contains(op1)) ? sym_table.at(op1) : 0;
+        result.displacement = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
         std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
     } else {
         op1.pop_back();
@@ -348,7 +385,7 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
         result.sib.index = 0b100;
         result.sib.base = 0b101;
 
-        result.immediate = (sym_table.contains(op1)) ? sym_table.at(op1) : 0;
+        result.immediate = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
         result.used_fields[INSTR_SIB] = true;
         std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
     }
@@ -396,7 +433,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -412,11 +449,18 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             result.modrm.mod = 0b10;
             result.modrm.reg = 0b000;
             result.modrm.rm = registers.at(op2);
+            if (result.modrm.rm == 0b100) {
+                result.sib.scale = 0b00;
+                result.sib.index = 0b100;
+                result.sib.base = registers.at(op2);
+                result.used_fields[INSTR_SIB] = true;
+            }
+
         } else {
             op2.erase(op2.begin());
             op2.pop_back();
 
-            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = 0b000;
@@ -462,7 +506,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -483,13 +527,19 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             result.modrm.mod = 0b10;
             result.modrm.reg = registers.at(op1);
             result.modrm.rm  = registers.at(op2);
+            if (result.modrm.rm == 0b100) {
+                result.sib.scale = 0b00;
+                result.sib.index = 0b100;
+                result.sib.base = registers.at(op2);
+                result.used_fields[INSTR_SIB] = true;
+            }
 
         } else {
             op1.erase(op1.begin());
             op1.pop_back();
             op2.erase(op2.begin());
             op2.pop_back();
-            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
 
             if (extended_registers.contains(op1)) {
                 result.setREXR();
@@ -517,7 +567,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t1 == REGADDR) {
             if (std::isalpha(op1.front())) {
-                result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op1);
             }
@@ -556,7 +606,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             op1.pop_back();
             op2.erase(op2.begin());
 
-            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = registers.at(op2);
@@ -621,7 +671,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -641,7 +691,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             op2.erase(op2.begin());
             op2.pop_back();
 
-            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = 0b000;
@@ -688,7 +738,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -715,7 +765,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             op1.pop_back();
             op2.erase(op2.begin());
             op2.pop_back();
-            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
 
             if (extended_registers.contains(op1)) {
                 result.setREXR();
@@ -743,7 +793,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
 
         if (t1 == REGADDR) {
             if (std::isalpha(op1.front())) {
-                result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op1);
             }
@@ -776,7 +826,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             op1.pop_back();
             op2.erase(op2.begin());
 
-            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = registers.at(op2);
@@ -935,7 +985,7 @@ IntelInstruction Assembler::create_idiv(std::istream_iterator<std::string>& is) 
 
     } else if (t == REGADDR) {
         if (std::isalpha(op1.front())) {
-            result.displacement = (sym_table.contains(op1)) ? sym_table.at(op1) : 0;
+            result.displacement = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
         } else {
             result.displacement = std::stol(op1);
         }
@@ -951,6 +1001,12 @@ IntelInstruction Assembler::create_idiv(std::istream_iterator<std::string>& is) 
         result.modrm.mod = 0b10;
         result.modrm.reg = 0b111;
         result.modrm.rm  = registers.at(op1);
+        if (result.modrm.rm  == 0b100) { // 0b10 101 100
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b100;
+            result.used_fields[INSTR_SIB] = true;
+        }
 
         result.used_fields[INSTR_OP] = true;
         result.used_fields[INSTR_MODRM] = true;
@@ -977,7 +1033,7 @@ IntelInstruction Assembler::create_imul(std::istream_iterator<std::string>& is) 
         result.modrm.rm = registers.at(op1);
 
         if (extended_registers.contains(op1)) {
-            result.setREXR();
+            result.setREXB();
         }
 
         result.used_fields[INSTR_OP] = true;
@@ -985,7 +1041,7 @@ IntelInstruction Assembler::create_imul(std::istream_iterator<std::string>& is) 
 
     } else if (t == REGADDR) {
         if (std::isalpha(op1.front())) {
-            result.displacement = (sym_table.contains(op1)) ? sym_table.at(op1) : 0;
+            result.displacement = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
         } else {
             result.displacement = std::stol(op1);
         }
@@ -1001,6 +1057,12 @@ IntelInstruction Assembler::create_imul(std::istream_iterator<std::string>& is) 
         result.modrm.mod = 0b10;
         result.modrm.reg = 0b101;
         result.modrm.rm  = registers.at(op1);
+        if (result.modrm.rm  == 0b100) { // 0b10 101 100
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = 0b100;
+            result.used_fields[INSTR_SIB] = true;
+        }
 
         result.used_fields[INSTR_OP] = true;
         result.used_fields[INSTR_MODRM] = true;
@@ -1153,7 +1215,7 @@ IntelInstruction Assembler::create_jmpinstr(std::istream_iterator<std::string>& 
         result.used_fields[INSTR_MODRM] = true;
     }
 
-    result.immediate = (sym_table.contains(op1)) ? sym_table.at(op1) : 0;
+    result.immediate = (sym_table.contains(op1)) ? sym_table.at(op1) - curr_offset - 2 : 0;
 
     result.used_fields[INSTR_OP] = true;
     std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
@@ -1222,11 +1284,15 @@ IntelInstruction Assembler::create_movb(std::istream_iterator<std::string>& is) 
             result.modrm.mod = 0b00;
             result.modrm.reg = 0b000;
             result.modrm.rm = registers.at(op2);
+            if (result.modrm.rm == 0b100) {
+                result.sib.scale = 0b00;
+                result.sib.index = 0b100;
+                result.sib.base = registers.at(op2);
+                result.used_fields[INSTR_SIB] = true;
+            }
+            
         } else {
-            op2.erase(op2.begin());
-            op2.pop_back();
-
-            result.displacement = (sym_table.contains(op2)) ? sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
             std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
 
             result.modrm.mod = 0b00;
@@ -1295,10 +1361,18 @@ IntelInstruction Assembler::create_movzxb(std::istream_iterator<std::string>& is
 
 
 IntelInstruction Assembler::create_cmpb(std::istream_iterator<std::string>& is) {
-    ++is; ++is; ++is;
+    std::string op1{*(++is)}; ++is; ++is;
     IntelInstruction result;
-    // 80 f9 0a
-    result.immediate = 0x0af980;
+
+    op1.erase(op1.begin());
+    op1.pop_back();
+    if (op1 == "45") {
+        result.immediate = 0x2df980;
+    } else {
+        // 80 f9 0a
+        result.immediate = 0x0af980;
+    }
+
     std::fill_n(result.used_fields.begin() + INSTR_IMM, 3, true);
     return result;
 }
@@ -1309,6 +1383,92 @@ Assembler::Assembler(std::string infilename)
 {
     // ignore leading whitespace in the file
     infile >> std::ws;
+}
+
+
+
+void Assembler::create_binary() {
+    Elf64_Ehdr elf_hdr = {
+        .e_ident = {
+            '\x7f','E','L','F', // magic
+            ELFCLASS64,         // architecture class
+            ELFDATA2LSB,        // little-endian
+            EV_CURRENT,         // current-version
+            ELFOSABI_LINUX,     // OS/ABI
+            0,                  // ABI version
+            0,0,0,0,0,0,0,      // padding
+        },
+        .e_type         = ET_EXEC,
+        .e_machine      = EM_X86_64,
+        .e_version      = EV_CURRENT,
+        // .e_entry        = VADDR_START + 0x1000,
+        .e_phoff        = sizeof(Elf64_Ehdr),
+        .e_shoff        = 0,
+        .e_flags        = 0,
+        .e_ehsize       = sizeof(Elf64_Ehdr),
+        .e_phentsize    = sizeof(Elf64_Phdr),
+        .e_phnum        = NUM_SECTIONS, // may change later for stack
+        .e_shentsize    = sizeof(Elf64_Shdr),
+        .e_shnum        = 0,
+        .e_shstrndx     = 0,
+    };
+
+    Elf64_Phdr text_hdr {
+        .p_type     = PT_LOAD,
+            .p_flags    = PF_X | PF_R,
+            .p_offset   = 0x1000,
+            .p_vaddr    = VADDR_START + 0x1000,
+            .p_filesz   = 0,   // to be updated later
+            .p_memsz    = 0,   // to be updated later
+            .p_align    = 0x1000,
+    };
+
+    // Data section metadata depends on the size of the text section
+    Elf64_Phdr data_hdr {
+        .p_type     = PT_LOAD,
+            .p_flags    = PF_W | PF_R,
+            .p_offset   = 0,   // to be updated later
+            .p_vaddr    = 0,   // to be updated later
+            .p_filesz   = 0,   // to be updated later
+            .p_memsz    = 0,   // to be updated later
+            .p_align    = 0x1000,
+    };
+
+    elf_hdr.e_entry = VADDR_START + sym_table["_start"];
+
+    text_hdr.p_filesz = program_bytecode.size();
+    text_hdr.p_memsz = program_bytecode.size();
+    std::vector<uint8_t> text_padding(0x1000 - sizeof(Elf64_Ehdr) - NUM_SECTIONS * sizeof(Elf64_Phdr), 0);
+
+    // const char* msg = "Hello World\n";
+    // size_t msg_len = std::strlen(msg);
+    data_hdr.p_offset = text_hdr.p_offset + text_hdr.p_memsz;
+    data_hdr.p_offset = data_hdr.p_offset + (0x1000 - data_hdr.p_offset % 0x1000);
+    data_hdr.p_vaddr = VADDR_START + data_hdr.p_offset;
+    data_hdr.p_filesz = 42;
+    data_hdr.p_memsz = 42;
+    std::vector<uint8_t> data_padding(0x1000 - text_hdr.p_memsz + data_hdr.p_filesz, 0);
+
+
+    std::ofstream file("my.out", std::ios::binary);
+
+    // write elf header
+    file.write(reinterpret_cast<const char*>(&elf_hdr), sizeof(elf_hdr));
+
+    // write program headers
+    file.write(reinterpret_cast<const char*>(&text_hdr), sizeof(text_hdr));
+    file.write(reinterpret_cast<const char*>(&data_hdr), sizeof(data_hdr));
+
+    // write padding before text segment
+    file.write(reinterpret_cast<const char*>(text_padding.data()), text_padding.size());
+    // Write text segment
+    file.write(reinterpret_cast<const char*>(program_bytecode.data()), program_bytecode.size());
+
+    // write padding before data segment
+    file.write(reinterpret_cast<const char*>(data_padding.data()), data_padding.size());
+    // Write data segment
+    // file.write(reinterpret_cast<const char*>(msg), msg_len);
+    // file.write(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
 

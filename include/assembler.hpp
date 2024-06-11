@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <unordered_map>
+#include <vector>
 
 #include "intelinstruction.hpp"
 
@@ -32,10 +33,16 @@ public:
      * Second pass through the assembly, construct the executable using
      * the symbol table.
      */
+    void read_program();
+
+
     void create_binary();
 
 
 private:
+
+    void read_data(std::istream_iterator<std::string>& is);
+
     IntelInstruction assemble_instruction(std::istream_iterator<std::string>& is);
 
     IntelInstruction create_instruction(std::istream_iterator<std::string>& is);
@@ -81,6 +88,8 @@ private:
 
     std::ifstream infile;
     std::unordered_map<std::string, size_t> sym_table;
+    size_t curr_offset{};
+    std::vector<uint8_t> program_bytecode;
 };
 
 
