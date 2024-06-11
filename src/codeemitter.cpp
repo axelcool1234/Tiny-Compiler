@@ -130,8 +130,6 @@ push %rdi
 push %r8
 push %r9
 push %r10
-push %r12
-push %r13
 push %r14
 push %r15
 mov %rsp, %r11
@@ -363,8 +361,6 @@ std::string CodeEmitter::instruction(const Instruction& i) {
 add $-120, %rsp
 pop %r15
 pop %r14
-pop %r13
-pop %r12
 pop %r10
 pop %r9
 pop %r8
