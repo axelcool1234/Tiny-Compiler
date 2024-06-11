@@ -108,7 +108,7 @@ syscall                 # Invoke system call
    std::string program_string;
 
     // Emit main blocks
-    program_string += std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
+    program_string += std::format("push %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
     for(const auto& b : ir.get_basic_blocks()) {
         if(!(b.index >= ir.get_successors(0).back())) continue;
         program_string += std::format("\n# BB{}\n", b.index);

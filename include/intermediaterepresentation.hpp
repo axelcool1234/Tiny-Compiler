@@ -17,10 +17,15 @@
     REGISTER(R8D, %r8) \
     REGISTER(R9D, %r9) \
     REGISTER(R10D, %r10) \
-    REGISTER(R12D, %r12) \
-    REGISTER(R13D, %r13) \
     REGISTER(R14D, %r14) \
     REGISTER(R15D, %r15)
+
+// TODO: Someday, we could add R12D and R13D back again. 
+// It has special cases in the assembler, so have been removed.
+
+// %r11 is dedicated as a temporary register
+// %rsp is dedicated as the stack pointer
+// %rbp is dedicated as the base pointer
 
 enum Register {
 #define REGISTER(name, str) name,
