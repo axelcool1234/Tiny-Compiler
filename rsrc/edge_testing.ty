@@ -45,6 +45,21 @@ function earlyReturn3(a3, b3, c3);
     fi;
 };
 
+function earlyReturn4(a4, b4, c4);
+{
+    if a4 < b4 then
+        let c4 <- 5;
+        if a4 < c4 then
+            return c4;
+        else
+            return c4;
+        fi;
+    else if b4 < c4 then
+        return b4;
+    else return c4; fi;
+    fi;
+};
+
 function testEqualTo(valOne, valTwo, printValue);
 {
     if valOne == valTwo then
