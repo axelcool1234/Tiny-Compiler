@@ -12,8 +12,6 @@ void IntermediateRepresentation::init_live_ins() {
     live_ins.assign(basic_blocks.size(), std::unordered_set<instruct_t>());
 }
 
-IntermediateRepresentation::IntermediateRepresentation() : basic_blocks{0}, doms{0} {} 
-
 // Cooper-Harvey-Kennedy 
 // Iterative Reverse Postorder Dominance Algorithm
 // This algorithm is implicitly ran just for new blocks that are added to the data structure.
