@@ -58,11 +58,14 @@ static const std::unordered_set<std::string> directives {
 enum InstructionType {
     MOV,
     LEA,
+
     ADD,
     SUB,
     XOR,
     MUL,
     DIV,
+    CMP,
+
     PUSH,
     POP,
     INC,
@@ -80,11 +83,14 @@ enum InstructionType {
 static const std::unordered_map<std::string, InstructionType> instruction_mapping {
     {"mov", MOV},
     {"lea", LEA},
+
     {"add", ADD},
     {"sub", SUB},
     {"xor", XOR},
     {"mul", MUL},
     {"div", DIV},
+    {"cmp", CMP},
+
     {"push", PUSH},
     {"pop", POP},
     {"inc", INC},
@@ -94,8 +100,8 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
     {"jne", JNE},
     {"neg", NEG},
     {"cqto", CQTO},
-    {"imul", IMUL},
-    {"idiv", IDIV}, 
+    {"imulq", IMUL},
+    {"idivq", IDIV}, 
     {"movabs", MOV },
     {"syscall", SYSCALL },
 };
@@ -169,6 +175,9 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
         case SUB:
             result = create_sub(is);
             break;
+        case CMP:
+            result = create_cmp(is);
+            break;
         case XOR:
             result = create_xor(is);
             break;
@@ -185,12 +194,10 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
             result = create_div(is);
             break;
         case IDIV:
-            //TODO: Do this
-            // result = create_cqto(is);
+            result = create_idiv(is);
             break;
         case IMUL:
-            //TODO: Do this
-            // result = create_cqto(is);
+            result = create_imul(is);
             break;
 
         case PUSH:
@@ -767,6 +774,9 @@ IntelInstruction Assembler::create_xor(std::istream_iterator<std::string>& is) {
     return create_2opinstr(is, 0x81, 0x31, 0x33, 0b110);
 }
 
+IntelInstruction Assembler::create_cmp(std::istream_iterator<std::string>& is) {
+    return create_2opinstr(is, 0x81, 0x39, 0x3b, 0b111);
+}
 
 IntelInstruction Assembler::create_inc(std::istream_iterator<std::string>& is) {
     std::string op1{*(++is)};
@@ -856,6 +866,122 @@ IntelInstruction Assembler::create_div(std::istream_iterator<std::string>& is) {
 }
 
 
+IntelInstruction Assembler::create_idiv(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+    OpType t = IntelInstruction::get_optype(op1);
+    result.setREXW();
+    result.opcode = 0xf7;
+
+    if (t == REG) {
+        op1.erase(op1.begin());
+
+        result.modrm.mod = 0b11;
+        result.modrm.reg = 0b111;
+        result.modrm.rm = registers.at(op1);
+
+        if (extended_registers.contains(op1)) {
+            result.setREXR();
+        }
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+
+    } else if (t == REGADDR) {
+        if (std::isalpha(op1.front())) {
+            // TODO a function for this would be nice
+            if (sym_table.contains(op1)) {
+                result.displacement = sym_table.at(op1);
+            } else {
+                result.displacement = 0;
+            }
+        } else {
+            result.displacement = std::stol(op1);
+        }
+
+        op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
+        op1.erase(op1.begin());
+        op1.pop_back();
+
+        if (extended_registers.contains(op1)) {
+            result.setREXB();
+        }
+
+        result.modrm.mod = 0b10;
+        result.modrm.reg = 0b111;
+        result.modrm.rm  = registers.at(op1);
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+    }
+    // else if () { // direct memory address
+    //     
+    // }
+    return result;
+}
+
+
+IntelInstruction Assembler::create_imul(std::istream_iterator<std::string>& is) {
+    std::string op1{*(++is)};
+    ++is;
+
+    IntelInstruction result;
+    OpType t = IntelInstruction::get_optype(op1);
+    result.setREXW();
+    result.opcode = 0xf7;
+
+    if (t == REG) {
+        op1.erase(op1.begin());
+
+        result.modrm.mod = 0b11;
+        result.modrm.reg = 0b101;
+        result.modrm.rm = registers.at(op1);
+
+        if (extended_registers.contains(op1)) {
+            result.setREXR();
+        }
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+
+    } else if (t == REGADDR) {
+        if (std::isalpha(op1.front())) {
+            // TODO a function for this would be nice
+            if (sym_table.contains(op1)) {
+                result.displacement = sym_table.at(op1);
+            } else {
+                result.displacement = 0;
+            }
+        } else {
+            result.displacement = std::stol(op1);
+        }
+
+        op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
+        op1.erase(op1.begin());
+        op1.pop_back();
+
+        if (extended_registers.contains(op1)) {
+            result.setREXB();
+        }
+
+        result.modrm.mod = 0b10;
+        result.modrm.reg = 0b101;
+        result.modrm.rm  = registers.at(op1);
+
+        result.used_fields[INSTR_OP] = true;
+        result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
+    }
+    // else if () { // direct memory address
+    //     
+    // }
+    return result;
+}
+
+
 IntelInstruction Assembler::create_push(std::istream_iterator<std::string>& is) {
     std::string op1{*(++is)};
     ++is;
@@ -906,24 +1032,6 @@ IntelInstruction Assembler::create_test(std::istream_iterator<std::string>& is) 
     result.modrm.reg = registers.at(op1);
     result.modrm.rm = registers.at(op2);
     result.used_fields[INSTR_MODRM] = true;
-
-    return result;
-}
-
-
-IntelInstruction Assembler::create_cmp(std::istream_iterator<std::string>& is) {
-    std::string op1{*(++is)};
-    std::string op2{*(++is)};
-    ++is;
-
-    IntelInstruction result;
-    OpType t1 = IntelInstruction::get_optype(op1);
-    OpType t2 = IntelInstruction::get_optype(op2);
-
-    // if (t1 == IMM && t2 == ) {
-    //     
-    // }
-
 
     return result;
 }

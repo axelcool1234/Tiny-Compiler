@@ -52,6 +52,8 @@ private:
     IntelInstruction create_xor(std::istream_iterator<std::string>& is);
     IntelInstruction create_inc(std::istream_iterator<std::string>& is);
     IntelInstruction create_dec(std::istream_iterator<std::string>& is);
+    IntelInstruction create_idiv(std::istream_iterator<std::string>& is);
+    IntelInstruction create_imul(std::istream_iterator<std::string>& is);
 
     IntelInstruction create_push(std::istream_iterator<std::string>& is);
     IntelInstruction create_pop(std::istream_iterator<std::string>& is);
