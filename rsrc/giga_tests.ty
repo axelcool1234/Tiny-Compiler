@@ -108,6 +108,11 @@ var countDPF, factorDPF;
     return countDPF;
 };
 
+function returnOne();
+{
+    return 1;
+};
+
 function testEqualTo(valOne, valTwo, printValue);
 {
     if valOne == valTwo then
@@ -140,21 +145,18 @@ function testEqualTo(valOne, valTwo, printValue);
     call testEqualTo(call InputNum(), 0-1, 11);
     call testEqualTo(call InputNum(), 1, 12);
 
-    let nonfold <- call InputNum();
+    let nonfold <- call returnOne();
     while undefinedMainVar < nonfold do
         let nonfold <- nonfold - 1;
     od;
 
     return;
+    
     call OutputNewLine;
     call OutputNum(987654321);
 }.
 
 
-
-/**
-
-testEqualTo(a, b, c): checks if a is equal to b and prints c if it is else prints -1234567890
-
-
-**/
+/*
+Should print 1 to 12 if we give inputs of -1 and 1.
+*/

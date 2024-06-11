@@ -2,7 +2,11 @@
 #include <format>
 #include <iostream>
 
-CodeEmitter::CodeEmitter(IntermediateRepresentation&& ir) : ir(std::move(ir)), ofile("a.out") {}
+CodeEmitter::CodeEmitter(IntermediateRepresentation&& ir, const std::string& base_name) : ir(std::move(ir)), ofile(base_name) {
+    // Ensure the file is created by opening it
+    if (!ofile.is_open()) {
+        throw std::runtime_error("Error: could not create output file " + base_name + ".s");
+    }}
 
 void CodeEmitter::debug() const {
     ir.debug();

@@ -1,0 +1,92 @@
+main
+var a;
+
+function earlyReturn1();
+var a1, b1, c1;
+{
+    let b1 <- (0-7);
+    while b1 < a1 do 
+        let a1 <- a1 - 1;
+        if c1 > 3 then
+            return a1 - b1;
+        fi;
+        let c1 <- c1 + 1;
+    od;
+};
+
+function earlyReturn2();
+var a2, b2, c2;
+{
+    return 0;
+    let b2 <- (0-7);
+    while b2 < a2 do
+        let a2 <- a2 - 1;
+        if c2 > 3 then
+            while c2 < 10 do
+                return a2 - b2;
+                let c2 <- c2 + 1;
+            od;
+        fi;
+        let c2 <- c2 + 1;
+    od;
+    return 0;
+};
+
+function earlyReturn3(a3, b3, c3);
+{
+    if a3 < b3 then
+        if a3 < c3 then
+            return a3;
+        else
+            return c3;
+        fi;
+    else if b3 < c3 then
+        return b3;
+    else return c3; fi;
+    fi;
+};
+
+function earlyReturn4(a4, b4, c4);
+{
+    if a4 < b4 then
+        let c4 <- (0-5);
+        if a4 < c4 then
+            let c4 <- (0-3);
+            return c4;
+        else
+            return c4;
+        fi;
+        let c4 <- 3;
+        return c4;
+    else if b4 < c4 then
+        let c4 <- (0-10);
+        return c4;
+    else return c4; fi;
+    fi;
+};
+
+function testEqualTo(valOne, valTwo, printValue);
+{
+    if valOne == valTwo then
+        call OutputNum(printValue);
+        call OutputNewLine();
+    else
+        call OutputNum(0-1234567890);
+        call OutputNewLine();
+    fi;
+};
+
+{
+    let a <- call earlyReturn1;
+    call testEqualTo(a, 2, 1);
+    let a <- call earlyReturn2;
+    call testEqualTo(a, 2, 2);
+    call testEqualTo(call earlyReturn3(1, 2, 3), 1, 3);
+    call testEqualTo(call earlyReturn3(3, 2, 1), 1, 4);
+    call testEqualTo(call earlyReturn3(2, 3, 1), 1, 5);
+    call testEqualTo(call earlyReturn3(2, 1, 3), 1, 6);
+    call testEqualTo(call earlyReturn4(1, 2, 3), (0-5), 7);
+    call testEqualTo(call earlyReturn4(1, 2, 0), (0-5), 8);
+    call testEqualTo(call earlyReturn4(4, 2, 10), (0-10), 9);
+    call testEqualTo(call earlyReturn4(4, 2, 1), 1, 10);
+}.

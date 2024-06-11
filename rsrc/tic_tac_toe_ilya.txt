@@ -1,0 +1,80 @@
+main
+var b00, b01, b02, b10, b11, b12, b20, b21, b22;
+var player, row, col, moves, winner;
+
+void function initialize_board(); {
+    let b00 <- 0; let b01 <- 0; let b02 <- 0;
+    let b10 <- 0; let b11 <- 0; let b12 <- 0;
+    let b20 <- 0; let b21 <- 0; let b22 <- 0;
+};
+
+void function print_board(); {
+    call OutputNum(b00); call OutputNum(b01); call OutputNum(b02); call OutputNewLine();
+    call OutputNum(b10); call OutputNum(b11); call OutputNum(b12); call OutputNewLine();
+    call OutputNum(b20); call OutputNum(b21); call OutputNum(b22); call OutputNewLine();
+};
+
+void function make_move(player); {
+    call OutputNum(player);
+    call OutputNewLine();
+    let row <- call InputNum();
+    let col <- call InputNum();
+    if row = 0 then
+        if col = 0 then if b00 = 0 then let b00 <- player; else call make_move(player); fi; fi;
+        if col = 1 then if b01 = 0 then let b01 <- player; else call make_move(player); fi; fi;
+        if col = 2 then if b02 = 0 then let b02 <- player; else call make_move(player); fi; fi;
+    fi;
+    if row = 1 then
+        if col = 0 then if b10 = 0 then let b10 <- player; else call make_move(player); fi; fi;
+        if col = 1 then if b11 = 0 then let b11 <- player; else call make_move(player); fi; fi;
+        if col = 2 then if b12 = 0 then let b12 <- player; else call make_move(player); fi; fi;
+    fi;
+    if row = 2 then
+        if col = 0 then if b20 = 0 then let b20 <- player; else call make_move(player); fi; fi;
+        if col = 1 then if b21 = 0 then let b21 <- player; else call make_move(player); fi; fi;
+        if col = 2 then if b22 = 0 then let b22 <- player; else call make_move(player); fi; fi;
+    fi;
+};
+
+function check_winner(); {
+    // Check rows
+    if b00 = b01 then if b01 = b02 then if b00 != 0 then return b00; fi; fi; fi;
+    if b10 = b11 then if b11 = b12 then if b10 != 0 then return b10; fi; fi; fi;
+    if b20 = b21 then if b21 = b22 then if b20 != 0 then return b20; fi; fi; fi;
+    // Check columns
+    if b00 = b10 then if b10 = b20 then if b00 != 0 then return b00; fi; fi; fi;
+    if b01 = b11 then if b11 = b21 then if b01 != 0 then return b01; fi; fi; fi;
+    if b02 = b12 then if b12 = b22 then if b02 != 0 then return b02; fi; fi; fi;
+    // Check diagonals
+    if b00 = b11 then if b11 = b22 then if b00 != 0 then return b00; fi; fi; fi;
+    if b02 = b11 then if b11 = b20 then if b02 != 0 then return b02; fi; fi; fi;
+    return 0;
+};
+
+{
+    call initialize_board();
+    let player <- 1;
+    let moves <- 0;
+    let winner <- 0;
+
+    while moves < 9 and winner = 0 do
+        call print_board();
+        call make_move(player);
+        let winner <- call check_winner();
+        if winner = 0 then
+            if player = 1 then
+                let player <- 2;
+            else
+                let player <- 1;
+            fi;
+            let moves <- moves + 1;
+        fi;
+    od;
+
+    call print_board();
+    if winner != 0 then
+        call OutputNum(winner);
+    else
+        call OutputNum(0);
+    fi;
+}.
