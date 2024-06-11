@@ -107,9 +107,6 @@ syscall                 # Invoke system call
 )"; 
    std::string program_string;
 
-    // mov rsp rbp // TODO
-    // sub {spill_count * 8}, rsp // TODO
-
     // Emit main blocks
     program_string += std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
     for(const auto& b : ir.get_basic_blocks()) {
@@ -120,12 +117,9 @@ syscall                 # Invoke system call
 
     program_string += exit;
 
-    // add, rsp, {spill_count * 8} // emit when we run into a return //TODO
-
     // Emit function blocks
     for(size_t index = 0; index < ir.get_successors(0).size() - 1; ++index) {
         program_string += std::format("function{}:\n", ir.get_instructions(ir.get_successors(0).at(index)).at(0).instruction_number);
-        // program_string += std::format("pushq %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
         program_string += R"(push %rbp
 push %rax
 push %rbx
