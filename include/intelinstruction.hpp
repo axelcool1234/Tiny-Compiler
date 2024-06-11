@@ -29,7 +29,9 @@ constexpr int INSTR_IMM     = 12;
     INSTRUCTIONTYPE(JMP, jmp) \
     INSTRUCTIONTYPE(JNE, jne) \
     INSTRUCTIONTYPE(NEG, neg) \
-    INSTRUCTIONTYPE(CQTO, cqto) 
+    INSTRUCTIONTYPE(CQTO, cqto) \
+    INSTRUCTIONTYPE(IMUL, imul) \
+    INSTRUCTIONTYPE(IDIV, idiv) 
 
 enum InstructionType {
 #define INSTRUCTIONTYPE(name, str) name,
