@@ -13,8 +13,6 @@ void CodeEmitter::emit_code() {
 R"(.section .data
     strResult: .space 21, 0
     buff: .skip 21
-    newline: .byte 10
-    .equ newline_len, 1
 )";
 
     static const std::string default_text_section = 
@@ -29,7 +27,7 @@ write:
 
     # Handle negative number
     neg %rax                # Get the absolute value
-    movb $'-', strResult    # Place the negative sign at the start of the buffer
+    movb $45, strResult     # Place the negative sign at the start of the buffer
     inc %rbx                # Increment digit count for the negative sign
 
 _divide:
@@ -52,14 +50,14 @@ _divide:
 
 _next_digit:
     pop %rax
-    addb $'0', %al          # Convert to ASCII
-    movb %al, (%rsi)        # Write it to the buffer
+    addb $48, %al            # Convert to ASCII
+    movb %al, 0(%rsi)        # Write it to the buffer
     inc %rsi
     dec %rcx
     jnz _next_digit          # Repeat until all digits are processed
 
     # Null-terminate the string
-    movb $0, (%rsi)         # Null terminator
+    movb $0, 0(%rsi)         # Null terminator
 
     # Prepare for sys_write
     mov $1, %rax            # sys_write system call number
@@ -75,30 +73,49 @@ _next_digit:
 read:
     mov $0, %rax                 # syscall: read
     mov $0, %rdi                 # fd: stdin
-    lea buff(%rip), %rsi         # buffer to store input
+    lea buff, %rsi               # buffer to store input
     mov $21, %rdx                # max number of bytes to read
     syscall                      # make syscall
 
-    lea buff(%rip), %rsi         # RSI points to the input buffer
+    lea buff, %rsi               # RSI points to the input buffer
     xor %rax, %rax               # Clear RAX (result)
     xor %rdi, %rdi               # Clear RDI (multiplier)
 
-_read_loop:
-    movzxb (%rsi), %rcx          # Load current byte into RCX
-    cmpb $0x0A, %cl              # Check for newline character
+    movzxb 0(%rsi), %rcx         # Load current byte into RCX
+    cmpb $45, %cl
+    je _read_neg
+
+_read_loop1:
+    movzxb 0(%rsi), %rcx         # Load current byte into RCX
+    cmpb $10, %cl                # Check for newline character
     je _read_done                # If newline, we're done
-    sub $'0', %rcx               # Convert ASCII to integer
-    imulq $10, %rax              # Multiply current result by 10
+    sub $48, %rcx                # Convert ASCII to integer
+    mov $10, %r11                # Move 10 to a temp register
+    imulq %r11                   # Multiply current result by 10
     add %rcx, %rax               # Add current digit to result
     inc %rsi                     # Move to next character
-    jmp _read_loop               # Repeat for next character
+    jmp _read_loop1              # Repeat for next character
+
+_read_neg:
+    inc %rsi
+
+_read_loop2:
+    movzxb 0(%rsi), %rcx         # Load current byte into RCX
+    cmpb $10, %cl                # Check for newline character
+    je _read_done                # If newline, we're done
+    sub $48, %rcx                # Convert ASCII to integer
+    mov $10, %r11                # Move 10 to a temp register
+    imulq %r11                   # Multiply current result by 10
+    sub %rcx, %rax               # Sub current digit to result
+    inc %rsi                     # Move to next character
+    jmp _read_loop2              # Repeat for next character
 
 _read_done:
     ret
 
 _start:
 
-)";
+    )";
     static const std::string exit = 
 R"(mov $60, %rax           # sys_exit system call number
 xor %rdi, %rdi          # Status: 0
@@ -263,7 +280,7 @@ push {}
 mov $0, %rdx
 mov 8(%rsp), %rax
 cqto
-{} (%rsp)
+{} 0(%rsp)
 push %rax
 add $8, %rsp
 )", 
@@ -297,7 +314,7 @@ std::string CodeEmitter::cmp(const Instruction& i) {
     std::string rarg = reg_str(i.rarg);
 
     if(ir.is_const_instruction(i.larg)){
-        larg = ir.get_assigned_register(i.rarg) != Register::RAX ? "%rax" : "%rdx";
+        larg = ir.is_const_instruction(i.rarg) || ir.get_assigned_register(i.rarg) != Register::RAX ? "%rax" : "%rdx";
         emit_string += std::format("push {}\nmov {}, {}\n", larg, reg_str(i.larg), larg);
     }
     
@@ -400,11 +417,14 @@ push %rdi
 push %rsi
 push %rdx
 push %rcx
+sub $8, %rsp
+movb $10, (%rsp)
+mov %rsp, %rsi
 mov $1, %rax
+mov $1, %rdx 
 mov $1, %rdi
-mov $newline, %rsi
-mov $newline_len, %rdx 
 syscall
+add $8, %rsp
 pop %rcx
 pop %rdx
 pop %rsi

@@ -136,7 +136,7 @@ function testEqualTo(valOne, valTwo, printValue);
     call testEqualTo(call gcd(1,1), 1, 10);
 
     call testEqualTo(call InputNum(), 0-1, 11);
-    call testEuqalTo(call InputNum(), 1, 12);
+    call testEqualTo(call InputNum(), 1, 12);
 }.
 
 
