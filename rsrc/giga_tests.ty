@@ -150,11 +150,3 @@ function testEqualTo(valOne, valTwo, printValue);
     call OutputNum(987654321);
 }.
 
-
-
-/**
-
-testEqualTo(a, b, c): checks if a is equal to b and prints c if it is else prints -1234567890
-
-
-**/
