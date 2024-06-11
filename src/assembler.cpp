@@ -836,12 +836,15 @@ IntelInstruction Assembler::create_mul(std::istream_iterator<std::string>& is) {
     IntelInstruction result;
 
     result.setREXW();
+    if (extended_registers.contains(op1)) {
+        result.setREXB();
+    }
 
     result.opcode = 0xf7;
     result.used_fields[INSTR_OP] = true;
 
     result.modrm.mod = 0b11;
-    result.modrm.reg = 0b110;
+    result.modrm.reg = 0b100;
     result.modrm.rm = registers.at(op1);
     result.used_fields[INSTR_MODRM] = true;
 
@@ -858,6 +861,9 @@ IntelInstruction Assembler::create_div(std::istream_iterator<std::string>& is) {
     IntelInstruction result;
 
     result.setREXW();
+    if (extended_registers.contains(op1)) {
+        result.setREXB();
+    }
 
     result.opcode = 0xf7;
     result.used_fields[INSTR_OP] = true;
@@ -917,9 +923,6 @@ IntelInstruction Assembler::create_idiv(std::istream_iterator<std::string>& is) 
         result.used_fields[INSTR_MODRM] = true;
         std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
     }
-    // else if () { // direct memory address
-    //     
-    // }
     return result;
 }
 
@@ -981,11 +984,29 @@ IntelInstruction Assembler::create_push(std::istream_iterator<std::string>& is) 
     std::string op1{*(++is)};
     ++is;
 
-    op1.erase(op1.begin());
-
     IntelInstruction result;
+    OpType t = IntelInstruction::get_optype(op1);
 
-    result.opcode = 0x50 + registers.at(op1);
+    if (t == IMM) {
+        op1.erase(op1.begin());
+        result.opcode = 0x68;
+        result.immediate = std::stol(op1);
+        std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
+    } else if (t == REG) {
+        op1.erase(op1.begin());
+        result.opcode = 0x50 + registers.at(op1);
+    } else if (t == REGADDR) {
+        op1.erase(op1.begin());
+        op1.erase(op1.begin());
+        op1.pop_back();
+        result.opcode = 0xff;
+        result.modrm.mod = 0b00;
+        result.modrm.reg = 0b110;
+        result.modrm.rm = registers.at(op1);
+        
+        result.used_fields[INSTR_MODRM] = true;
+    }
+
     result.used_fields[INSTR_OP] = true;
 
     return result;
@@ -996,11 +1017,23 @@ IntelInstruction Assembler::create_pop(std::istream_iterator<std::string>& is) {
     std::string op1{*(++is)};
     ++is;
 
-    op1.erase(op1.begin());
-
     IntelInstruction result;
+    OpType t = IntelInstruction::get_optype(op1);
 
-    result.opcode = 0x58 + registers.at(op1);
+    if (t == REG) {
+        op1.erase(op1.begin());
+        result.opcode = 0x58 + registers.at(op1);
+    } else if (t == REGADDR) {
+        op1.erase(op1.begin());
+        op1.erase(op1.begin());
+        op1.pop_back();
+        result.opcode = 0x8f;
+        result.modrm.mod = 0b00;
+        result.modrm.reg = 0b000;
+        result.modrm.rm = registers.at(op1);
+        result.used_fields[INSTR_MODRM] = true;
+    }
+
     result.used_fields[INSTR_OP] = true;
 
     return result;
@@ -1065,7 +1098,6 @@ IntelInstruction Assembler::create_jmpinstr(std::istream_iterator<std::string>& 
 
     return result;
 }
-
 
 IntelInstruction Assembler::create_jmp(std::istream_iterator<std::string>& is) {
     return create_jmpinstr(is, 0xe9, 0x00);
