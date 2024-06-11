@@ -41,7 +41,8 @@ OpType IntelInstruction::get_optype(std::string op) {
     } else if (op.starts_with('%')) {
         return OpType::REG;
     } else if (op.ends_with(')')) {
-        return (op.contains('%')) ? OpType::REGADDR : OpType::ADDR;
+        // return (op.contains('%')) ? OpType::REGADDR : OpType::ADDR;
+        return (op.find('%') != std::string::npos) ? OpType::REGADDR : OpType::ADDR;    
     }
 
     return ADDR;
