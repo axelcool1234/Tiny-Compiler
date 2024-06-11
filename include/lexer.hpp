@@ -54,7 +54,6 @@ public:
     void check_all_defined();
 
     std::vector<bool> defineds;
-
     /*
      * Stores an integer to identify keywords, functions, and variables.
      * Stores KEYWORDS as non-positive enum values. Stores user functions and variables as positive values.

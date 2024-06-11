@@ -1,10 +1,15 @@
 #include "codeemitter.hpp"
 #include "parser.hpp"
+#include "assembler.hpp"
 // #include "nonallocator.hpp"
 #include "registerallocator.hpp"
 
 int main(int argc, char *argv[])
 {
+    /* Assembler Test */
+    Assembler a{"rsrc/cqto_test.s"};
+    a.read_symbols();
+  
     /* Parse */
     Parser p;
     p.parse(); 
