@@ -692,6 +692,13 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             result.modrm.mod = 0b10;
             result.modrm.reg = ext;
             result.modrm.rm = registers.at(op2);
+            if (result.modrm.rm == 0b100) {
+                result.sib.scale = 0b00;
+                result.sib.index = 0b100;
+                result.sib.base = registers.at(op2);
+                result.used_fields[INSTR_SIB] = true;
+            }
+
         } else {
             op2.erase(op2.begin());
             op2.pop_back();
@@ -764,6 +771,12 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             result.modrm.mod = 0b10;
             result.modrm.reg = registers.at(op1);
             result.modrm.rm  = registers.at(op2);
+            if (result.modrm.rm == 0b100) {
+                result.sib.scale = 0b00;
+                result.sib.index = 0b100;
+                result.sib.base = registers.at(op2);
+                result.used_fields[INSTR_SIB] = true;
+            }
 
         } else {
             op1.erase(op1.begin());
@@ -812,6 +825,12 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             result.modrm.mod = 0b10;
             result.modrm.reg = registers.at(op2);
             result.modrm.rm = registers.at(op1);
+            if (result.modrm.rm == 0b100) {
+                result.sib.scale = 0b00;
+                result.sib.index = 0b100;
+                result.sib.base = registers.at(op1);
+                result.used_fields[INSTR_SIB] = true;
+            }
 
             if (extended_registers.contains(op1)) {
                 result.setREXB();
@@ -1122,15 +1141,30 @@ IntelInstruction Assembler::create_push(std::istream_iterator<std::string>& is) 
         }
         result.opcode = 0x50 + registers.at(op1);
     } else if (t == REGADDR) {
-        op1.erase(op1.begin());
+        if (std::isalpha(op1.front())) {
+            result.displacement = (sym_table.contains(op1)) ? VADDR_START + 0x1000 + sym_table.at(op1) : 0;
+        } else {
+            result.displacement = std::stol(op1);
+        }
+
+        op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
         op1.erase(op1.begin());
         op1.pop_back();
+
         result.opcode = 0xff;
-        result.modrm.mod = 0b00;
-        result.modrm.reg = 0b110;
+        result.modrm.mod = 0b10;
+        result.modrm.reg = 0b110; // 0b01 110 101
         result.modrm.rm = registers.at(op1);
+        if (result.modrm.rm == 0b100) {
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = registers.at(op1);
+            result.used_fields[INSTR_SIB] = true;
+        }
         
         result.used_fields[INSTR_MODRM] = true;
+
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
     }
 
     result.used_fields[INSTR_OP] = true;
@@ -1153,14 +1187,28 @@ IntelInstruction Assembler::create_pop(std::istream_iterator<std::string>& is) {
         }
         result.opcode = 0x58 + registers.at(op1);
     } else if (t == REGADDR) {
-        op1.erase(op1.begin());
+        if (std::isalpha(op1.front())) {
+            result.displacement = (sym_table.contains(op1)) ? VADDR_START + 0x1000 + sym_table.at(op1) : 0;
+        } else {
+            result.displacement = std::stol(op1);
+        }
+
+        op1.erase(op1.begin(), std::find(op1.begin(), op1.end(), '%'));
         op1.erase(op1.begin());
         op1.pop_back();
         result.opcode = 0x8f;
-        result.modrm.mod = 0b00;
+        result.modrm.mod = 0b10;
         result.modrm.reg = 0b000;
         result.modrm.rm = registers.at(op1);
+        if (result.modrm.rm == 0b100) {
+            result.sib.scale = 0b00;
+            result.sib.index = 0b100;
+            result.sib.base = registers.at(op1);
+            result.used_fields[INSTR_SIB] = true;
+        }
+
         result.used_fields[INSTR_MODRM] = true;
+        std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
     }
 
     result.used_fields[INSTR_OP] = true;
@@ -1460,11 +1508,6 @@ void Assembler::create_binary() {
     data_hdr.p_vaddr = VADDR_START + data_hdr.p_offset;
     data_hdr.p_filesz = 42;
     data_hdr.p_memsz = 42;
-
-    // 16
-    // 9 7
-    //
-    // 18 14
 
     // 0x1000
     std::vector<uint8_t> data_padding((0x1000-(text_hdr.p_memsz % 0x1000)) + data_hdr.p_filesz, 0);
