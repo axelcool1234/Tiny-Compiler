@@ -66,6 +66,7 @@ private:
     IntelInstruction create_push(std::istream_iterator<std::string>& is);
     IntelInstruction create_pop(std::istream_iterator<std::string>& is);
 
+    IntelInstruction create_call(std::istream_iterator<std::string>& is);
     IntelInstruction create_jmpinstr(std::istream_iterator<std::string>& is, uint8_t code1, uint8_t code2);
     IntelInstruction create_test(std::istream_iterator<std::string>& is);
     IntelInstruction create_jmp(std::istream_iterator<std::string>& is);

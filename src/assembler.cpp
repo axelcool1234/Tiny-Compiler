@@ -80,6 +80,7 @@ enum InstructionType {
     JG,
     JLE,
     JL,
+    CALL,
 
     NEG,
     CQTO,
@@ -119,6 +120,7 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
     {"jg", JG},
     {"jle", JLE},
     {"jl", JL},
+    {"call", CALL},
 
     {"neg", NEG},
     {"cqto", CQTO},
@@ -296,6 +298,9 @@ IntelInstruction Assembler::create_instruction(std::istream_iterator<std::string
             break;
         case JL:
             result = create_jl(is);
+            break;
+        case CALL:
+            result = create_call(is);
             break;
 
         case NEG:
@@ -1215,12 +1220,16 @@ IntelInstruction Assembler::create_jmpinstr(std::istream_iterator<std::string>& 
         result.used_fields[INSTR_MODRM] = true;
     }
 
-    result.immediate = (sym_table.contains(op1)) ? sym_table.at(op1) - curr_offset - 2 : 0;
+    result.immediate = (sym_table.contains(op1)) ? sym_table.at(op1) - curr_offset - 5 : 0;
 
     result.used_fields[INSTR_OP] = true;
     std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
 
     return result;
+}
+
+IntelInstruction Assembler::create_call(std::istream_iterator<std::string>& is) {
+    return create_jmpinstr(is, 0xe8, 0x00);
 }
 
 IntelInstruction Assembler::create_jmp(std::istream_iterator<std::string>& is) {
