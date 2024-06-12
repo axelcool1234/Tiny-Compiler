@@ -397,7 +397,7 @@ mov %rax, {}
 {}
 pop %r11
 mov %r11, %rsp
-)", i.larg, ((REGISTER_COUNT + 1) * 8 + 8), reg_str(i.instruction_number), ir.get_assigned_register(i.instruction_number) == Register::RAX ? "add $8, %rsp" : "popq %rax");
+)", i.larg, ((REGISTER_COUNT + 1) * 8 + 8), reg_str(i.instruction_number), ir.get_assigned_register(i.instruction_number) == Register::RAX ? "add $8, %rsp" : "pop %rax");
         case(Opcode::RET):
             if(!main) {
                 return prologue() + std::format(R"(add ${}, %rsp
