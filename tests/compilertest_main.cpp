@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 
     /* Generate ELF Binary */
     /* Assembler Test */
-    Assembler a{ "bin.s" };
+    Assembler a{ file_name };
     a.read_symbols();
     a.read_program();
     a.create_binary();

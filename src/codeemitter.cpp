@@ -131,7 +131,7 @@ syscall                 )" /* Invoke system call */ R"(
 
     // Emit main blocks
     main = true;
-    program_string += std::format("push %rbp\nmov %rsp, %rbp\nadd ${}, %rsp", -8 * ir.spill_count);
+    program_string += std::format("push %rbp\nmov %rsp, %rbp\nadd ${}, %rsp\n", -8 * ir.spill_count);
     for(const auto& b : ir.get_basic_blocks()) {
         if(!(b.index >= ir.get_successors(0).back())) continue;
         // program_string += std::format("\n# BB{}\n", b.index);
@@ -165,6 +165,7 @@ add ${}, %rsp
         }
     }
     ofile << default_text_section << program_string << data_section; 
+    ofile.close();
 }
 
 std::string CodeEmitter::block(const bb_t& b) {

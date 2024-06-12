@@ -213,7 +213,6 @@ void Assembler::read_symbols()
 
         }
     }
-
 }
 
 
@@ -376,7 +375,7 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
             result.modrm.rm = registers.at(op1);
         }
 
-        result.displacement = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
+        result.displacement = (sym_table.contains(op1)) ? VADDR_START + 0x1000 + sym_table.at(op1) : 0;
         std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
     } else {
         op1.pop_back();
@@ -390,7 +389,7 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
         result.sib.index = 0b100;
         result.sib.base = 0b101;
 
-        result.immediate = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
+        result.immediate = (sym_table.contains(op1)) ? VADDR_START + 0x1000 + sym_table.at(op1) : 0;
         result.used_fields[INSTR_SIB] = true;
         std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
     }
@@ -414,6 +413,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
     if (t1 == IMM && t2 == REG) {
         result.opcode = 0xb8;
+        // result.opcode = 0xc7;
 
         op1.erase(op1.begin()); // remove the $
         op2.erase(op2.begin()); // remove the %
@@ -438,7 +438,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -465,7 +465,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             op2.erase(op2.begin());
             op2.pop_back();
 
-            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = 0b000;
@@ -511,7 +511,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -544,7 +544,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             op1.pop_back();
             op2.erase(op2.begin());
             op2.pop_back();
-            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
 
             if (extended_registers.contains(op1)) {
                 result.setREXR();
@@ -572,7 +572,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
         if (t1 == REGADDR) {
             if (std::isalpha(op1.front())) {
-                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op1);
             }
@@ -611,7 +611,7 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
             op1.pop_back();
             op2.erase(op2.begin());
 
-            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = registers.at(op2);
@@ -676,7 +676,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -696,7 +696,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             op2.erase(op2.begin());
             op2.pop_back();
 
-            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = 0b000;
@@ -743,7 +743,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
 
         if (t2 == REGADDR) {
             if (std::isalpha(op2.front())) {
-                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op2);
             }
@@ -770,7 +770,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             op1.pop_back();
             op2.erase(op2.begin());
             op2.pop_back();
-            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
 
             if (extended_registers.contains(op1)) {
                 result.setREXR();
@@ -798,7 +798,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
 
         if (t1 == REGADDR) {
             if (std::isalpha(op1.front())) {
-                result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+                result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
             } else {
                 result.displacement = std::stol(op1);
             }
@@ -831,7 +831,7 @@ IntelInstruction Assembler::create_2opinstr(std::istream_iterator<std::string>& 
             op1.pop_back();
             op2.erase(op2.begin());
 
-            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
 
             result.modrm.mod = 0b00;
             result.modrm.reg = registers.at(op2);
@@ -990,7 +990,7 @@ IntelInstruction Assembler::create_idiv(std::istream_iterator<std::string>& is) 
 
     } else if (t == REGADDR) {
         if (std::isalpha(op1.front())) {
-            result.displacement = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
+            result.displacement = (sym_table.contains(op1)) ? VADDR_START + 0x1000 + sym_table.at(op1) : 0;
         } else {
             result.displacement = std::stol(op1);
         }
@@ -1046,7 +1046,7 @@ IntelInstruction Assembler::create_imul(std::istream_iterator<std::string>& is) 
 
     } else if (t == REGADDR) {
         if (std::isalpha(op1.front())) {
-            result.displacement = (sym_table.contains(op1)) ? VADDR_START + sym_table.at(op1) : 0;
+            result.displacement = (sym_table.contains(op1)) ? VADDR_START + 0x1000 + sym_table.at(op1) : 0;
         } else {
             result.displacement = std::stol(op1);
         }
@@ -1215,12 +1215,16 @@ IntelInstruction Assembler::create_jmpinstr(std::istream_iterator<std::string>& 
     IntelInstruction result;
     result.opcode = code1;
 
+    int byte_size = 0;
     if (code2 != 0) {
         *reinterpret_cast<uint8_t*>(&result.modrm) = code2;
         result.used_fields[INSTR_MODRM] = true;
+        byte_size = 6;
+    } else {
+        byte_size = 5;
     }
 
-    result.immediate = (sym_table.contains(op1)) ? sym_table.at(op1) - curr_offset - 5 : 0;
+    result.immediate = (sym_table.contains(op1)) ? sym_table.at(op1) - curr_offset - byte_size : 0;
 
     result.used_fields[INSTR_OP] = true;
     std::fill_n(result.used_fields.begin() + INSTR_IMM, 4, true);
@@ -1301,7 +1305,7 @@ IntelInstruction Assembler::create_movb(std::istream_iterator<std::string>& is) 
             }
             
         } else {
-            result.displacement = (sym_table.contains(op2)) ? VADDR_START + sym_table.at(op2) : 0;
+            result.displacement = (sym_table.contains(op2)) ? VADDR_START + 0x1000 + sym_table.at(op2) : 0;
             std::fill_n(result.used_fields.begin() + INSTR_DISP, 4, true);
 
             result.modrm.mod = 0b00;
