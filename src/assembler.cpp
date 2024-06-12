@@ -1447,7 +1447,7 @@ void Assembler::create_binary() {
             .p_align    = 0x1000,
     };
 
-    elf_hdr.e_entry = VADDR_START + sym_table["_start"] + 0x1000;
+    elf_hdr.e_entry = VADDR_START + 0x1000 + sym_table["_start"];
 
     text_hdr.p_filesz = program_bytecode.size();
     text_hdr.p_memsz = program_bytecode.size();
@@ -1460,7 +1460,14 @@ void Assembler::create_binary() {
     data_hdr.p_vaddr = VADDR_START + data_hdr.p_offset;
     data_hdr.p_filesz = 42;
     data_hdr.p_memsz = 42;
-    std::vector<uint8_t> data_padding(0x1000 - text_hdr.p_memsz + data_hdr.p_filesz, 0);
+
+    // 16
+    // 9 7
+    //
+    // 18 14
+
+    // 0x1000
+    std::vector<uint8_t> data_padding((0x1000-(text_hdr.p_memsz % 0x1000)) + data_hdr.p_filesz, 0);
 
 
     std::ofstream file("my.out", std::ios::binary);
