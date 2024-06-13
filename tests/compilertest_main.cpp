@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
     Assembler a{ file_name };
     a.read_symbols();
     a.read_program();
-    a.create_binary();
+    a.create_binary("my.out");
 
     return 0;
 }

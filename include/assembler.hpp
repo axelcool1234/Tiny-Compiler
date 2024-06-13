@@ -36,7 +36,7 @@ public:
     void read_program();
 
 
-    void create_binary();
+    void create_binary(std::string outfile_name);
 
 
 private:

@@ -102,9 +102,9 @@ static const std::unordered_map<std::string, InstructionType> instruction_mappin
     {"add", ADD},
     {"sub", SUB},
     {"xor", XOR},
+    {"cmp", CMP},
     {"mul", MUL},
     {"div", DIV},
-    {"cmp", CMP},
 
     {"push", PUSH},
     {"pop", POP},
@@ -143,11 +143,11 @@ void Assembler::read_program() {
     curr_offset = 0;
 
     std::istream_iterator<std::string> is{infile}, end{};
-    // std::vector<uint8_t> program;
 
     while (is != end) {
         if (directives.contains(*is)) {
-            ++is; ++is;
+            std::advance(is, 2);
+
         } else if (instruction_mapping.contains(*is)) {
             IntelInstruction ii = create_instruction(is);
 
@@ -156,6 +156,7 @@ void Assembler::read_program() {
             if (ii.used_fields[INSTR_OP])   { bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.opcode));}
             if (ii.used_fields[INSTR_MODRM]){ bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.modrm)); }
             if (ii.used_fields[INSTR_SIB])  { bytecode.push_back(*reinterpret_cast<const uint8_t*>(&ii.sib));   }
+
             const uint8_t *temp = reinterpret_cast<const uint8_t*>(&ii.displacement);
                 for (int i = 0; i < 8; ++i)
                     if (ii.used_fields[INSTR_DISP+i])
@@ -349,9 +350,6 @@ IntelInstruction Assembler::create_lea(std::istream_iterator<std::string>& is) {
     std::string op2{*(++is)};
     ++is;
 
-    // 48 8d 35 8a 0f 00 00
-    // 53 0b00 110 101
-
     IntelInstruction result;
     OpType t1 = IntelInstruction::get_optype(op1);
     OpType t2 = IntelInstruction::get_optype(op2);
@@ -413,7 +411,6 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
 
     if (t1 == IMM && t2 == REG) {
         result.opcode = 0xb8;
-        // result.opcode = 0xc7;
 
         op1.erase(op1.begin()); // remove the $
         op2.erase(op2.begin()); // remove the %
@@ -550,7 +547,6 @@ IntelInstruction Assembler::create_mov(std::istream_iterator<std::string>& is) {
                 result.setREXR();
             }
 
-            // DOUBLE CHECK
             result.modrm.mod = 0b00;
             result.modrm.reg = registers.at(op1);
             result.modrm.rm = 0b100;
@@ -908,6 +904,10 @@ IntelInstruction Assembler::create_inc(std::istream_iterator<std::string>& is) {
     result.modrm.rm = registers.at(op1);
     result.used_fields[INSTR_MODRM] = true;
 
+    if (extended_registers.contains(op1)) {
+        result.setREXB();
+    }
+
     return result;
 }
 
@@ -929,6 +929,10 @@ IntelInstruction Assembler::create_dec(std::istream_iterator<std::string>& is) {
     result.modrm.reg = 0b001;
     result.modrm.rm = registers.at(op1);
     result.used_fields[INSTR_MODRM] = true;
+
+    if (extended_registers.contains(op1)) {
+        result.setREXB();
+    }
 
     return result;
 }
@@ -1001,7 +1005,7 @@ IntelInstruction Assembler::create_idiv(std::istream_iterator<std::string>& is) 
         result.modrm.rm = registers.at(op1);
 
         if (extended_registers.contains(op1)) {
-            result.setREXR();
+            result.setREXB();
         }
 
         result.used_fields[INSTR_OP] = true;
@@ -1161,6 +1165,9 @@ IntelInstruction Assembler::create_push(std::istream_iterator<std::string>& is) 
             result.sib.base = registers.at(op1);
             result.used_fields[INSTR_SIB] = true;
         }
+        if (extended_registers.contains(op1)) {
+            result.setREXB();
+        }
         
         result.used_fields[INSTR_MODRM] = true;
 
@@ -1205,6 +1212,9 @@ IntelInstruction Assembler::create_pop(std::istream_iterator<std::string>& is) {
             result.sib.index = 0b100;
             result.sib.base = registers.at(op1);
             result.used_fields[INSTR_SIB] = true;
+        }
+        if (extended_registers.contains(op1)) {
+            result.setREXB();
         }
 
         result.used_fields[INSTR_MODRM] = true;
@@ -1412,7 +1422,7 @@ IntelInstruction Assembler::create_addb(std::istream_iterator<std::string>& is) 
 
 
 IntelInstruction Assembler::create_movzxb(std::istream_iterator<std::string>& is) {
-    ++is; ++is; ++is;
+    std::advance(is, 3);
     IntelInstruction result;
     // 48 0f b6 0e
     result.immediate = 0x0eb60f48;
@@ -1448,7 +1458,7 @@ Assembler::Assembler(std::string infilename)
 
 
 
-void Assembler::create_binary() {
+void Assembler::create_binary(std::string outfile_name) {
     Elf64_Ehdr elf_hdr = {
         .e_ident = {
             '\x7f','E','L','F', // magic
@@ -1513,7 +1523,7 @@ void Assembler::create_binary() {
     std::vector<uint8_t> data_padding((0x1000-(text_hdr.p_memsz % 0x1000)) + data_hdr.p_filesz, 0);
 
 
-    std::ofstream file("my.out", std::ios::binary);
+    std::ofstream file(outfile_name, std::ios::binary);
 
     // write elf header
     file.write(reinterpret_cast<const char*>(&elf_hdr), sizeof(elf_hdr));
