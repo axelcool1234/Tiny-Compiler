@@ -430,25 +430,25 @@ void IntermediateRepresentation::insert_live_in(const bb_t& b, const instruct_t&
 }
 
 void IntermediateRepresentation::establish_affinity_group(const instruct_t& i1, const instruct_t& i2, const instruct_t& i3) {
-    if(preference_list.find(i1) == preference_list.end() && !is_const_instruction(i1)) preference_list[i1] = Preference(); 
-    if(preference_list.find(i2) == preference_list.end() && !is_const_instruction(i2)) preference_list[i2] = Preference(); 
-    if(preference_list.find(i3) == preference_list.end() && !is_const_instruction(i3)) preference_list[i3] = Preference(); 
+    if(preference_list.find(i1) == preference_list.end() && !is_const_instruction(i1)) preference_list.insert( { i1, Preference(spill_count) } );
+    if(preference_list.find(i2) == preference_list.end() && !is_const_instruction(i2)) preference_list.insert( { i2, Preference(spill_count) } );    
+    if(preference_list.find(i3) == preference_list.end() && !is_const_instruction(i3)) preference_list.insert( { i3, Preference(spill_count) } ); 
     if(!is_const_instruction(i1) && !is_const_instruction(i2)) {
-        preference_list[i1].affinities.insert(i2); 
-        preference_list[i2].affinities.insert(i1);
+        preference_list.at(i1).affinities.insert(i2); 
+        preference_list.at(i2).affinities.insert(i1);
     }
     if(!is_const_instruction(i1) && !is_const_instruction(i3)) {
-        preference_list[i1].affinities.insert(i3);
-        preference_list[i3].affinities.insert(i1);    
+        preference_list.at(i1).affinities.insert(i3);
+        preference_list.at(i3).affinities.insert(i1);    
     }
     if(!is_const_instruction(i2) && !is_const_instruction(i3)) {
-        preference_list[i2].affinities.insert(i3);
-        preference_list[i3].affinities.insert(i2);
+        preference_list.at(i2).affinities.insert(i3);
+        preference_list.at(i3).affinities.insert(i2);
     }
 }
 
 const std::vector<std::pair<Register, int>>& IntermediateRepresentation::get_instruction_preference(const instruct_t& instruct) {
-    if(preference_list.find(instruct) == preference_list.end()) preference_list[instruct] = Preference(); 
+    if(preference_list.find(instruct) == preference_list.end()) preference_list.insert( { instruct, Preference(spill_count) } );
     return preference_list.at(instruct).preference;
 }
 
@@ -456,7 +456,7 @@ Preference& IntermediateRepresentation::get_preference(const instruct_t& instruc
     if(preference_list.find(instruct) != preference_list.end()) {
         return preference_list.at(instruct);
     } else {
-        preference_list[instruct] = Preference();
+        preference_list.insert( { instruct, Preference(spill_count) } );        
         return preference_list.at(instruct);
     }
 }
@@ -794,7 +794,13 @@ void IntermediateRepresentation::print_preferences() const {
         sort(copy.begin(), copy.end(), Preference::sort_by_preference);
         std::cout << "[";
         for(const auto& pair : copy) {
-            std::cout << "(" << reg_str_list.at(pair.first) << ", " << pair.second << "), ";
+            std::cout << "("; 
+            if(reg_str_list.size() <= static_cast<int>(pair.first)) {
+                std::cout << "Spill " << static_cast<int>(pair.first);
+            } else {
+                std::cout << reg_str_list.at(pair.first);
+            }
+            std::cout << ", " << pair.second << "), ";        
         }
         std::cout << "]" << std::endl;
     }
@@ -810,13 +816,17 @@ void IntermediateRepresentation::increase_spill_count() {
 }
 
 /* Preference Struct */
-Preference::Preference() : 
+Preference::Preference(const int& spill_count) : 
     preference{ 
     #define REGISTER(name, str) { name, 0 },
         REGISTER_LIST
     #undef REGISTER
     }
-{}
+{
+    for(int i = preference.size(); i <= Register::UNASSIGNED + spill_count; ++i) {
+        preference.emplace_back(static_cast<Register>(i), 0);      
+    }
+}
 
 void IntermediateRepresentation::constrain(const instruct_t& instruct, const bb_t& b, const Register& reg, const bool& propagate) {
     Preference& pref = get_preference(instruct);

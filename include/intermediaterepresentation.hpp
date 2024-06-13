@@ -49,7 +49,7 @@ struct Preference {
     std::unordered_set<instruct_t> affinities;
     std::vector<std::pair<Register, int>> preference;
     int default_preference = 0;
-    Preference();
+    Preference(const int& spill_count);
     static bool sort_by_preference(const std::pair<Register, int> &a, const std::pair<Register, int> &b) {
         return a.second > b.second;
     }
