@@ -247,6 +247,9 @@ std::string CodeEmitter::mov_instruction(const instruct_t& src, const instruct_t
     
     if (!ir.is_const_instruction(dest))
     {
+        if(ir.is_const_instruction(src) && is_virtual_reg(dest)) {
+            result+= std::format("mov ${}, {}\n", ir.get_const_value(src) >= 0 ? 0 : -1, std::format("{}(%rbp)", -virtual_reg_offset(dest) + 4));
+        }
         return result + std::format("mov {}, {}\n", src_str, reg_str(dest));
     }
 

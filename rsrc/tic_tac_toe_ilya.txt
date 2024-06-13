@@ -48,6 +48,12 @@ function checkWinner(wb00, wb01, wb02, wb10, wb11, wb12, wb20, wb21, wb22); {
                 if col == 1 then if b21 == 0 then let b21 <- player; else let row <- 0 - 1; fi; fi;
                 if col == 2 then if b22 == 0 then let b22 <- player; else let row <- 0 - 1; fi; fi;
             fi;
+            if col > 2 then 
+                let row <- 0 - 1; 
+            fi;
+            if row > 2 then
+                let row <- 0 - 1;
+            fi;
         od;
         let winner <- call checkWinner(b00, b01, b02, b10, b11, b12, b20, b21, b22);
         if winner == 0 then

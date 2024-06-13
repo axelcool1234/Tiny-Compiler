@@ -26,7 +26,7 @@ struct IntelInstruction {
     struct { uint8_t rm : 3, reg : 3, mod  : 2; } modrm;
     struct { uint8_t base : 3, index : 3, scale  : 2; } sib;
     int64_t displacement;
-    uint64_t immediate;
+    int64_t immediate;
 
     void setREXW();
     void setREXB();
