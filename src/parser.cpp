@@ -56,6 +56,10 @@ bb_t Parser::function_declaration() {
     // contains instruction numbers of the first instruction of previously defined functions.
     std::vector<instruct_t> func_first_instructs{};
 
+    // contains incomplete function calls (vector of tuple<block of instruction, index of instruction, string of function call)
+    // incomplete_func_calls: std::vector<std::tuple<bb_t, int, std::string>
+    std::unordered_map<std::string, int> func_map{};
+
     while(token_is(lexer.token, Keyword::VOID, Keyword::FUNCTION)) {
         // "void"
         bool void_func = token_is(lexer.token, Keyword::VOID);
@@ -73,8 +77,16 @@ bb_t Parser::function_declaration() {
         std::vector<ident_t> formal_params = formal_parameters();
         match(Terminal::SEMICOLON);
         func_first_instructs.emplace_back(function_body(formal_params, func_first_instructs));
+        func_map[func_strings.back()] = func_first_instructs.back();
         match(Terminal::SEMICOLON);
         lexer.check_all_defined();
+    }
+
+    // Fix incomplete function calls
+    for(const auto& triad : incomplete_func_calls) {
+        if(func_map.find(std::get<2>(triad)) != func_map.end()) {
+            ir.fix_func_call(std::get<0>(triad), std::get<1>(triad), func_map.at(std::get<2>(triad)));
+        }
     }
 
     // Establish main function
@@ -228,6 +240,7 @@ std::pair<instruct_t, ident_t> Parser::function_statement(const bb_t& curr_block
     
     // User defined functions
     ident_t ident = match_return<ident_t>();
+    std::string func_name = lexer.last_ident_string;
     if(token_is(lexer.token, Terminal::LPAREN)) {
         lexer.next();
         if(!token_is(lexer.token, Terminal::RPAREN)) {
@@ -239,7 +252,13 @@ std::pair<instruct_t, ident_t> Parser::function_statement(const bb_t& curr_block
         }
         match(Terminal::RPAREN);
     }
-    return { ir.add_instruction(curr_block, Opcode::JSR, ir.get_ident_value(curr_block, ident)), -1 };
+    instruct_t jump_location = ir.get_ident_value(curr_block, ident);
+    instruct_t instruct = ir.add_instruction(curr_block, Opcode::JSR, jump_location); 
+    if(jump_location == -1) {
+        std::cout << std::format("Warning! Function {} is called before it is declared, which is ill advised.", func_name) << std::endl;
+        incomplete_func_calls.emplace_back(curr_block, ir.get_instructions(curr_block).size() - 1, func_name);
+    }
+    return { instruct , -1 };
 }
 
 bool Parser::if_statement(bb_t& curr_block) {

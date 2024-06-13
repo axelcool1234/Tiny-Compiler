@@ -32,6 +32,7 @@ private:
     Lexer lexer;
     IntermediateRepresentation ir;
     const int const_block = 0;
+    std::vector<std::tuple<bb_t, int, std::string>> incomplete_func_calls;
     
     // const map is used to determine the operation to perform when given a specific Terminal Symbol
     const std::unordered_map<Terminal, std::pair<Opcode, std::function<instruct_t(instruct_t, instruct_t)>>> operations_map = {

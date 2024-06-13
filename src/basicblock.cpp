@@ -27,6 +27,7 @@ void BasicBlock::add_instruction(const instruct_t& num, Opcode op, const instruc
 }
 
 instruct_t BasicBlock::get_ident_value(const ident_t& ident) {
+    if(ident >= static_cast<ident_t>(identifier_values.size())) return -1;
     return identifier_values[ident];
 }
 

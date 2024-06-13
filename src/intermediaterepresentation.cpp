@@ -425,6 +425,10 @@ void IntermediateRepresentation::change_ident_value(const bb_t& b, const ident_t
     basic_blocks[b].change_instruction(ident, instruct);
 }
 
+void IntermediateRepresentation::fix_func_call(const bb_t& b, const int& index, const instruct_t& larg) {
+    basic_blocks[b].instructions[index].larg = larg;
+}
+
 void IntermediateRepresentation::insert_live_in(const bb_t& b, const instruct_t& instruct) {
     live_ins.at(b).insert(instruct);
 }

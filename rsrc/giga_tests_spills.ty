@@ -1,6 +1,25 @@
 main 
 var undefinedMainVar, definedMainVar, nonfold, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z;
 
+function countDistinctPrimeFactors(numberDPF);
+var countDPF, factorDPF;
+{
+    let countDPF <- 0;
+    let factorDPF <- 2;
+    while numberDPF > 1 do
+        if call isPrime(factorDPF) > 0 then
+            if call mod(numberDPF, factorDPF) == 0 then
+                let countDPF <- countDPF + 1;
+                while call mod(numberDPF, factorDPF) == 0 do
+                    let numberDPF <- numberDPF / factorDPF;
+                od;
+            fi;
+        fi;
+        let factorDPF <- factorDPF + 1;
+    od;
+    return countDPF;
+};
+
 function mandelbrot(MBx,MBy);
 var MBiters, MBx2, MBgo, MBx0, MBy0, undefinedFuncVar; 
 {
@@ -87,25 +106,6 @@ var iDPF, resultDPF;
         od;
     fi;
     return resultDPF;
-};
-
-function countDistinctPrimeFactors(numberDPF);
-var countDPF, factorDPF;
-{
-    let countDPF <- 0;
-    let factorDPF <- 2;
-    while numberDPF > 1 do
-        if call isPrime(factorDPF) > 0 then
-            if call mod(numberDPF, factorDPF) == 0 then
-                let countDPF <- countDPF + 1;
-                while call mod(numberDPF, factorDPF) == 0 do
-                    let numberDPF <- numberDPF / factorDPF;
-                od;
-            fi;
-        fi;
-        let factorDPF <- factorDPF + 1;
-    od;
-    return countDPF;
 };
 
 function returnOne();

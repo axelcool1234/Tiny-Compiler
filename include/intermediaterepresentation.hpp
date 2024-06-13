@@ -473,6 +473,8 @@ public:
 
     void commit_while(const bb_t& curr_block, const bb_t& loop_header, const bb_t& branch_back, std::map<std::string, ident_t>& identifier_table);
     void cse_replace(const bb_t& curr_block, const bb_t& branch_back, const instruct_t& replacer, const instruct_t& to_delete);
+
+    void fix_func_call(const bb_t& b, const int& index, const instruct_t& larg);
 private:
 // Should be private:
     /*
