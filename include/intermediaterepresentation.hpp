@@ -36,7 +36,7 @@ enum Register {
     REGISTER_LIST
 #undef REGISTER
     REGISTER_COUNT,
-    UNASSIGNED
+    UNASSIGNED = REGISTER_COUNT
 };
 
 static const std::vector<std::string> reg_str_list {
@@ -48,6 +48,7 @@ static const std::vector<std::string> reg_str_list {
 struct Preference {
     std::unordered_set<instruct_t> affinities;
     std::vector<std::pair<Register, int>> preference;
+    int default_preference = 0;
     Preference();
     static bool sort_by_preference(const std::pair<Register, int> &a, const std::pair<Register, int> &b) {
         return a.second > b.second;
@@ -399,6 +400,8 @@ public:
 
     void erase_live_in(const bb_t& b, const instruct_t& instruct);
     void insert_live_in(const bb_t& b, const instruct_t& instruct);
+
+    void increase_spill_count();
 
     /*
      * Attempts to propagate the live SSA instructions from the given block's

@@ -800,6 +800,14 @@ void IntermediateRepresentation::print_preferences() const {
     }
 }
 
+void IntermediateRepresentation::increase_spill_count() {    
+    ++spill_count;
+    for(auto& pair : preference_list) {
+        for(int i = pair.second.preference.size(); i <= Register::UNASSIGNED + spill_count; ++i) {
+            pair.second.preference.emplace_back(static_cast<Register>(i), pair.second.default_preference);            
+        }
+    }
+}
 
 /* Preference Struct */
 Preference::Preference() : 
@@ -812,6 +820,7 @@ Preference::Preference() :
 
 void IntermediateRepresentation::constrain(const instruct_t& instruct, const bb_t& b, const Register& reg, const bool& propagate) {
     Preference& pref = get_preference(instruct);
+    --pref.default_preference;
     for(auto& pair : pref.preference) {
         if(pair.first == reg) continue;
         --pair.second;

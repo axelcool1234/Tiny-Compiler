@@ -471,7 +471,9 @@ Register RegisterAllocator::get_register(const Instruction& instruction, const s
     for(const auto& pair : preference) {
         if(occupied.find(pair.first) == occupied.end()) return pair.first;
     }
-    ++ir.spill_count;
+    for(int i = Register::UNASSIGNED + 1; i <= Register::UNASSIGNED + ir.spill_count; ++i) {
+        if(occupied.find(static_cast<Register>(i)) == occupied.end()) return static_cast<Register>(i);
+    }
+    ir.increase_spill_count();
     return static_cast<Register>(Register::UNASSIGNED + ir.spill_count);
-    // throw std::runtime_error{"Ran out of registers"};
 }
